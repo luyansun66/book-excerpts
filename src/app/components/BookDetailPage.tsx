@@ -514,7 +514,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
           overflowY: 'auto',
           overflowX: 'hidden',
           scrollbarWidth: 'none',
-          paddingBottom: 80,
+          paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))',
         } as React.CSSProperties}
       >
         {/* Book header card */}
@@ -580,7 +580,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
       </div>
 
       {/* Fixed Add Quote button */}
-      <div style={{ position: 'absolute', bottom: 20, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', bottom: 'calc(20px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
         <button
           onClick={() => setShowAddSheet(true)}
           style={{
