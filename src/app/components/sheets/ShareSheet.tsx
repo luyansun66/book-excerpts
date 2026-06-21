@@ -55,7 +55,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   // html2canvas can't parse `oklch()` colors (Tailwind CSS 4 default).
   // Walk the cloned element subtree and override any computed style containing
   // `oklch` with an inline style — preventing html2canvas's CSS parser from choking.
-  const onClone = (_doc: Document, element: HTMLElement) => {
+  const onClone = async (_doc: Document, _element: HTMLElement) => {
+    // Wait for custom fonts to load in the cloned document
+    await _doc.fonts.ready;
+
     const walk = (el: HTMLElement) => {
       const cs = _doc.defaultView?.getComputedStyle(el);
       if (!cs) return;
@@ -68,7 +71,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       }
       Array.from(el.children).forEach((c) => walk(c as HTMLElement));
     };
-    walk(element);
+    walk(_element);
   };
 
   const handleSave = async () => {
