@@ -630,7 +630,7 @@ function BookContextMenu({ book, onClose, onEdit, onDelete }: { book: Book; onCl
               该书下的所有摘录也将被删除，此操作不可撤销。
             </p>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={async () => { await deleteBook(book.id); }}
+              <button onClick={async () => { onDelete(); }}
                 style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#c0392b', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
                 确认删除
               </button>
