@@ -6,7 +6,7 @@
   src:
     local('SnellRoundhand'),
     local('Snell Roundhand'),
-    url('/fonts/SnellRoundhand.ttc') format('truetype');
+    url('/book-excerpts/fonts/SnellRoundhand.ttc') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -17,7 +17,7 @@
   src:
     local('SnellRoundhand-Bold'),
     local('Snell Roundhand Bold'),
-    url('/fonts/SnellRoundhand.ttc') format('truetype');
+    url('/book-excerpts/fonts/SnellRoundhand.ttc') format('truetype');
   font-weight: bold;
   font-style: normal;
   font-display: swap;
@@ -26,7 +26,7 @@
 /* 方正北魏楷书简体 — for share card text */
 @font-face {
   font-family: 'FWKaiShu';
-  src: url('/fonts/方正北魏楷书简体.ttf') format('truetype');
+  src: url('/book-excerpts/fonts/方正北魏楷书简体.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
