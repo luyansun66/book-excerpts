@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background circle -->
+  <rect width="512" height="512" rx="96" fill="#2c2416"/>
+  <!-- Open book shape -->
+  <g transform="translate(60, 80)">
+    <!-- Left page -->
+    <path d="M196 40 C196 18 178 0 156 0 L30 0 C13 0 0 13 0 30 L0 310 C0 327 13 340 30 340 L156 340 C178 340 196 322 196 300 Z"
+          fill="#FFFDF3"/>
+    <!-- Right page -->
+    <path d="M196 40 C196 18 214 0 236 0 L362 0 C379 0 392 13 392 30 L392 310 C392 327 379 340 362 340 L236 340 C214 340 196 322 196 300 Z"
+          fill="#FFFDF3"/>
+    <!-- Spine -->
+    <line x1="196" y1="40" x2="196" y2="310" stroke="#d4a830" stroke-width="4" stroke-linecap="round"/>
+    <!-- Text lines on left page -->
+    <line x1="40" y1="80" x2="170" y2="80" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <line x1="40" y1="110" x2="160" y2="110" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <line x1="40" y1="140" x2="170" y2="140" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <line x1="40" y1="170" x2="140" y2="170" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <!-- Text lines on right page -->
+    <line x1="222" y1="80" x2="352" y2="80" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <line x1="222" y1="110" x2="342" y2="110" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <line x1="222" y1="140" x2="352" y2="140" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <line x1="222" y1="170" x2="322" y2="170" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
+    <!-- Bookmark ribbon -->
+    <path d="M196 40 L196 10 L180 22 L196 34"
+          fill="#d4a830" opacity="0.8"/>
+  </g>
+</svg>
