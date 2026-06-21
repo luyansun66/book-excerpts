@@ -207,6 +207,38 @@ export async function exportAllData(): Promise<ExportData> {
   };
 }
 
+// ─── Import data from JSON backup ───────────────────────────────────────────
+export interface ImportResult {
+  categories: number;
+  books: number;
+  quotes: number;
+}
+
+export async function importAllData(data: ExportData): Promise<ImportResult> {
+  // Validate
+  if (!data || !data.version || !Array.isArray(data.categories) || !Array.isArray(data.books) || !Array.isArray(data.quotes)) {
+    throw new Error('无效的备份文件格式');
+  }
+
+  // Import categories (preserve existing via bulkPut)
+  await db.categories.bulkPut(data.categories);
+
+  // Import books
+  await db.books.bulkPut(data.books);
+
+  // Delete quotes for these books first, then import fresh from backup
+  for (const book of data.books) {
+    await db.quotes.where('bookId').equals(book.id).delete();
+  }
+  await db.quotes.bulkPut(data.quotes);
+
+  return {
+    categories: data.categories.length,
+    books: data.books.length,
+    quotes: data.quotes.length,
+  };
+}
+
 // ─── Seed Demian book ─────────────────────────────────────────────────────────
 export async function seedDemianBook(): Promise<string> {
   // Ensure default categories exist first (in case store hasn't finished init)
