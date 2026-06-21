@@ -580,7 +580,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
       </div>
 
       {/* Fixed Add Quote button */}
-      <div style={{ position: 'absolute', bottom: 70, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+      <div style={{ position: 'absolute', bottom: 80, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
         <button
           onClick={() => setShowAddSheet(true)}
           style={{

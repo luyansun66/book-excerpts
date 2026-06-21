@@ -848,7 +848,7 @@ function ShelfView() {
         <div
           style={{
             position: 'absolute',
-            bottom: 72,
+            bottom: 80,
             left: 0,
             right: 0,
             display: 'flex',
