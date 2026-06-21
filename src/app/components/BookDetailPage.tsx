@@ -592,7 +592,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
             boxShadow: '0 4px 18px rgba(0,0,0,0.24)',
           }}
         >
-          + Add Quotes
+          Add Quotes
         </button>
       </div>
 

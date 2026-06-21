@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Quote } from '../../types';
 
@@ -16,6 +16,16 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
   const [date, setDate] = useState(editQuote?.date ?? new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  // Sync form state when editQuote changes
+  useEffect(() => {
+    if (editQuote) {
+      setText(editQuote.text);
+      setThought(editQuote.thought);
+      setPage(editQuote.page?.toString() ?? '');
+      setDate(editQuote.date);
+    }
+  }, [editQuote]);
 
   const reset = () => {
     if (!editQuote) {
