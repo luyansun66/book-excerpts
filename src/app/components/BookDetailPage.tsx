@@ -533,7 +533,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
           </div>
           {/* Decorative quill icon */}
           <img
-            src="/icon-quill.svg"
+            src="icon-quill.svg"
             alt=""
             style={{
               height: 84,
