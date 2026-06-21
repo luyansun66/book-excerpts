@@ -2,21 +2,21 @@
   "name": "摘录 — 阅读摘录管理",
   "short_name": "摘录",
   "description": "管理你的阅读摘录和个人感悟",
-  "start_url": ".",
-  "scope": ".",
+  "start_url": "/book-excerpts/",
+  "scope": "/book-excerpts/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F6F0E7",
   "theme_color": "#F6F0E7",
   "icons": [
     {
-      "src": "icon.svg",
+      "src": "/book-excerpts/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-180.png",
+      "src": "/book-excerpts/icon-180.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any maskable"

@@ -40,7 +40,7 @@ self.addEventListener('fetch', (event) => {
         } catch {
           const cached = await caches.match(request);
           if (cached) return cached;
-          return caches.match('/index.html');
+          return caches.match('index.html');
         }
       })(),
     );
