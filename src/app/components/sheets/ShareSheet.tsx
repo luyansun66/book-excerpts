@@ -56,8 +56,11 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   // Walk the cloned element subtree and override any computed style containing
   // `oklch` with an inline style — preventing html2canvas's CSS parser from choking.
   const onClone = async (_doc: Document, _element: HTMLElement) => {
-    // Wait for custom fonts to load in the cloned document
-    await _doc.fonts.ready;
+    // Force-load the custom font in the cloned document (fonts.ready may
+    // resolve immediately when no font is actively loading in the clone)
+    try {
+      await _doc.fonts.load('14px "FWKaiShu"');
+    } catch { /* fallback fonts will be used */ }
 
     const walk = (el: HTMLElement) => {
       const cs = _doc.defaultView?.getComputedStyle(el);
@@ -80,11 +83,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     setErrorMsg(null);
     setImageUrl(null);
     try {
-      // Wait for fonts with a timeout (large Chinese font may take time on mobile)
-      await Promise.race([
-        document.fonts.ready,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('字体加载超时')), 20000)),
-      ]).catch(() => { /* continue with fallback fonts */ });
+      // Ensure the custom font is loaded before capturing
+      try {
+        await document.fonts.load('14px "FWKaiShu"');
+      } catch { /* fallback fonts will be used */ }
 
       // Dynamic import html2canvas
       const html2canvas = (await import('html2canvas')).default;
