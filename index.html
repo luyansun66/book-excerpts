@@ -9,9 +9,9 @@
     <title>摘录 — 阅读摘录管理</title>
     <meta name="description" content="管理你的阅读摘录和个人感悟" />
     <meta name="theme-color" content="#F6F0E7" />
-    <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-    <link rel="apple-touch-icon" href="/icon-180.png" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="icon.svg" />
+    <link rel="apple-touch-icon" href="icon-180.png" />
     <style>html, body { height: 100%; margin: 0; overflow: hidden; } #root { height: 100%; }</style>
   </head>
   <body>
@@ -20,7 +20,7 @@
       // Register Service Worker for offline & PWA support
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(
+          navigator.serviceWorker.register('sw.js').then(
             (reg) => console.log('SW registered:', reg.scope),
             (err) => console.warn('SW registration failed:', err),
           );
