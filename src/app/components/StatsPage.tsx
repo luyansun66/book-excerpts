@@ -6,12 +6,14 @@ import { exportAllData, importAllData } from '../db';
 import type { StatsData } from '../db/stats';
 import type { ExportData } from '../db';
 import ReadingHeatmap from './ReadingHeatmap';
+import { useApp } from '../store';
 
 interface StatsPageProps {
   onBack: () => void;
 }
 
 export default function StatsPage({ onBack }: StatsPageProps) {
+  const { refreshData } = useApp();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -276,6 +278,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
                         setImportMsg(`✅ 导入完成：${result.categories} 个分类、${result.books} 本书、${result.quotes} 条摘录`);
                         setImportPreview(null);
                         loadStats();
+                        refreshData();
                       } catch (e: any) {
                         setImportMsg('❌ 导入失败：' + (e?.message || String(e)));
                         setImportPreview(null);
