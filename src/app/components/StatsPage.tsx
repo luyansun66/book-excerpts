@@ -74,6 +74,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          position: 'relative',
         }}
       >
         <button
@@ -87,6 +88,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
             gap: 5,
             color: '#7a6a50',
             padding: '4px 0',
+            zIndex: 1,
           }}
         >
           <ArrowLeft size={15} strokeWidth={2.2} />
@@ -94,10 +96,10 @@ export default function StatsPage({ onBack }: StatsPageProps) {
             书架
           </span>
         </button>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: 15, fontWeight: 'bold', color: '#2c2416', marginRight: 32 }}>
+        <span style={{ fontFamily: 'Georgia, serif', fontSize: 15, fontWeight: 'bold', color: '#2c2416', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
           阅读统计
         </span>
-        <div style={{ width: 40 }} />
+        <div style={{ width: 40, visibility: 'hidden' }} />
       </div>
 
       {/* Error banner */}
