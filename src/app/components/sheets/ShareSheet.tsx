@@ -77,8 +77,11 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     setErrorMsg(null);
     setImageUrl(null);
     try {
-      // Wait for all fonts to load before html2canvas captures the DOM
-      await document.fonts.ready;
+      // Wait for fonts with a timeout (large Chinese font may take time on mobile)
+      await Promise.race([
+        document.fonts.ready,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('字体加载超时')), 5000)),
+      ]).catch(() => { /* continue with fallback fonts */ });
 
       // Dynamic import html2canvas
       const html2canvas = (await import('html2canvas')).default;
