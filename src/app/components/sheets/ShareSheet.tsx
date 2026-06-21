@@ -80,7 +80,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       // Wait for fonts with a timeout (large Chinese font may take time on mobile)
       await Promise.race([
         document.fonts.ready,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('字体加载超时')), 5000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('字体加载超时')), 20000)),
       ]).catch(() => { /* continue with fallback fonts */ });
 
       // Dynamic import html2canvas
