@@ -221,7 +221,7 @@ export async function seedDemianBook(): Promise<string> {
   if (existing) return 'exists';
 
   // Fetch cover image
-  const resp = await fetch('/demian-cover.png');
+  const resp = await fetch('demian-cover.png');
   const blob = await resp.blob();
   const coverBase64 = await new Promise<string>((resolve) => {
     const reader = new FileReader();

@@ -71,9 +71,10 @@ function BookCover({ book, onSelect, onLongPress }: { book: Book; onSelect: (b: 
     (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px) scale(1.03)';
     (e.currentTarget as HTMLElement).style.boxShadow = '4px 8px 20px rgba(0,0,0,0.35)';
   };
-  const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
+  const handleMouseLeaveCancel = (e: React.MouseEvent<HTMLElement>) => {
     (e.currentTarget as HTMLElement).style.transform = '';
     (e.currentTarget as HTMLElement).style.boxShadow = sharedStyle.boxShadow as string;
+    cancelLongPress();
   };
 
   // Has cover image
@@ -82,13 +83,12 @@ function BookCover({ book, onSelect, onLongPress }: { book: Book; onSelect: (b: 
       <div
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseLeave={handleMouseLeaveCancel}
         onTouchStart={startLongPress}
         onTouchEnd={cancelLongPress}
         onTouchMove={cancelLongPress}
         onMouseDown={startLongPress}
         onMouseUp={cancelLongPress}
-        onMouseLeave={cancelLongPress}
         onContextMenu={(e) => { e.preventDefault(); onLongPress(book); }}
         style={{ ...sharedStyle, overflow: 'hidden' }}
       >
@@ -110,13 +110,12 @@ function BookCover({ book, onSelect, onLongPress }: { book: Book; onSelect: (b: 
     <div
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseLeave={handleMouseLeaveCancel}
       onTouchStart={startLongPress}
       onTouchEnd={cancelLongPress}
       onTouchMove={cancelLongPress}
       onMouseDown={startLongPress}
       onMouseUp={cancelLongPress}
-      onMouseLeave={cancelLongPress}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(book); }}
       style={{
         ...sharedStyle,
