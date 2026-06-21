@@ -133,21 +133,15 @@ export default function StatsPage({ onBack }: StatsPageProps) {
           <div style={{ textAlign: 'center', padding: 40, color: '#b8ae9a', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>
             加载中…
           </div>
-        ) : !stats || (stats.totalBooks === 0 && stats.totalQuotes === 0) ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#b8ae9a', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 13, lineHeight: 1.8 }}>
-            暂无统计数据
-            <br />
-            <span style={{ fontSize: 11 }}>添加书籍和摘录后，这里会显示你的阅读日历</span>
-          </div>
         ) : (
           <>
-            {/* Summary cards — 2×2 grid */}
+            {/* Summary cards — 2×2 grid — always visible */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
               {[
-                { label: '📚  书籍', value: stats.totalBooks },
-                { label: '💬  摘录', value: stats.totalQuotes },
-                { label: '🔥  当前连续', value: `${stats.currentStreak} 天` },
-                { label: '🏆  最长连续', value: `${stats.longestStreak} 天` },
+                { label: '📚  书籍', value: stats?.totalBooks ?? 0 },
+                { label: '💬  摘录', value: stats?.totalQuotes ?? 0 },
+                { label: '🔥  当前连续', value: `${stats?.currentStreak ?? 0} 天` },
+                { label: '🏆  最长连续', value: `${stats?.longestStreak ?? 0} 天` },
               ].map((card) => (
                 <div
                   key={card.label}
@@ -170,7 +164,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
             </div>
 
             {/* Most active month */}
-            {stats.mostActiveMonth && (
+            {stats && stats.mostActiveMonth && (
               <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 11, color: '#8a7a60', fontFamily: '-apple-system, sans-serif', lineHeight: 1.5 }}>
                 最活跃月份：
                 <span style={{ fontWeight: 600, color: '#2c2416' }}>
@@ -183,17 +177,17 @@ export default function StatsPage({ onBack }: StatsPageProps) {
             {/* Divider */}
             <div style={{ height: 1, background: 'linear-gradient(90deg, transparent 0%, #d4c4a0 30%, #d4c4a0 70%, transparent 100%)', opacity: 0.4, marginBottom: 16 }} />
 
-            {/* Reading heatmap */}
+            {/* Reading heatmap — always visible, even with no data */}
             <ReadingHeatmap
-              dailyCounts={stats.dailyCounts}
+              dailyCounts={stats?.dailyCounts ?? {}}
               year={selectedYear}
               onYearChange={setSelectedYear}
-              minYear={stats.yearRange.min}
-              maxYear={stats.yearRange.max}
+              minYear={stats?.yearRange?.min ?? new Date().getFullYear()}
+              maxYear={stats?.yearRange?.max ?? new Date().getFullYear()}
             />
 
-            {/* Export / Import buttons */}
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
+            {/* Export / Import buttons — vertical stack */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'center', marginTop: 20 }}>
               <button
                 onClick={async () => {
                   try {
