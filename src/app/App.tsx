@@ -749,7 +749,7 @@ function ShelfView() {
           overflowY: 'auto',
           overflowX: 'hidden',
           scrollbarWidth: 'none',
-          paddingBottom: 114,
+          paddingBottom: 130,
         } as React.CSSProperties}
       >
         {/* Search bar */}
@@ -848,7 +848,7 @@ function ShelfView() {
         <div
           style={{
             position: 'absolute',
-            bottom: 56,
+            bottom: 72,
             left: 0,
             right: 0,
             display: 'flex',
