@@ -930,6 +930,7 @@ export default function App() {
         position: 'relative',
         overflow: 'hidden',
         margin: '0 auto',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
       }}
     >
       <AnimatePresence mode="wait" initial={false}>
