@@ -76,7 +76,7 @@ export async function captureAndRecognize(): Promise<string> {
 }
 
 /** Resize image to at most maxW on the longest side, return JPEG base64. */
-function compressImage(file: File, maxW: number): Promise<string> {
+export function compressImage(file: File, maxW: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {

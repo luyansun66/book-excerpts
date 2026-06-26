@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, Camera } from 'lucide-react';
-import { captureAndRecognize } from '../../ocr';
+import { recognizeText, compressImage } from '../../ocr';
 import type { Quote } from '../../types';
+import ImageCropper from '../ImageCropper';
 
 interface AddQuoteSheetProps {
   open: boolean;
@@ -18,6 +19,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [cropImage, setCropImage] = useState<string | null>(null);
 
   // Sync form state when editQuote changes
   useEffect(() => {
@@ -157,17 +159,17 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
               <button
                 onClick={async () => {
                   if (ocrLoading) return;
-                  setOcrLoading(true);
-                  try {
-                    const recognized = await captureAndRecognize();
-                    if (recognized.trim()) {
-                      setText((prev) => prev ? prev + '\n' + recognized : recognized);
-                    }
-                  } catch (e: any) {
-                    setSaveError('OCR识别失败: ' + (e?.message || String(e)).slice(0, 60));
-                  } finally {
-                    setOcrLoading(false);
-                  }
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.capture = 'environment';
+                  input.click();
+                  const file: File = await new Promise((resolve, reject) => {
+                    input.onchange = () => input.files?.[0] ? resolve(input.files[0]) : reject(new Error('未选择图片'));
+                    input.onerror = () => reject(new Error('拍照失败'));
+                  });
+                  const dataUrl = await compressImage(file, 1280);
+                  setCropImage(dataUrl);
                 }}
                 disabled={ocrLoading}
                 style={{
@@ -184,6 +186,28 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
               </button>
             </div>
           </div>
+
+          {/* Crop dialog */}
+          {cropImage && (
+            <ImageCropper
+              src={cropImage}
+              onCrop={async (croppedUrl) => {
+                setCropImage(null);
+                setOcrLoading(true);
+                try {
+                  const text = await recognizeText(croppedUrl);
+                  if (text.trim()) {
+                    setText((prev) => prev ? prev + '\n' + text : text);
+                  }
+                } catch (e: any) {
+                  setSaveError('OCR识别失败: ' + (e?.message || String(e)).slice(0, 60));
+                } finally {
+                  setOcrLoading(false);
+                }
+              }}
+              onCancel={() => setCropImage(null)}
+            />
+          )}
 
           {/* Page */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
