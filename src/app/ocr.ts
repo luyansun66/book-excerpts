@@ -27,15 +27,17 @@ async function getAccessToken(): Promise<string> {
 
 /** Recognise text from an image using Baidu OCR.
  *  First tries accurate_basic, falls back to general_basic.
- *  @param imageData - base64-encoded image data (with or without data: prefix)
+ *  @param imageData - data URL or raw base64
  *  @returns The recognised text lines joined by newlines. */
 export async function recognizeText(imageData: string): Promise<string> {
   const token = await getAccessToken();
 
-  // Ensure no data URI prefix
+  // Strip data URI prefix
   const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
 
-  // Try accurate first, then general (free tier)
+  // Use manual URL encoding (URLSearchParams can fail with very large payloads)
+  const body = 'image=' + encodeURIComponent(base64);
+
   const endpoints = [
     'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic',
     'https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic',
@@ -43,20 +45,25 @@ export async function recognizeText(imageData: string): Promise<string> {
 
   let lastError = '';
   for (const endpoint of endpoints) {
-    const resp = await fetch(`${endpoint}?access_token=${token}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ image: base64 }),
-    });
-    const data = await resp.json();
+    try {
+      const resp = await fetch(`${endpoint}?access_token=${token}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body,
+      });
+      const data = await resp.json();
 
-    if (data.error_code) {
-      lastError = `[${data.error_code}] ${data.error_msg || ''}`;
-      continue; // try next endpoint
+      if (data.error_code) {
+        lastError = `[${data.error_code}] ${data.error_msg || ''}`;
+        continue;
+      }
+
+      const lines = (data.words_result || []).map((r: { words: string }) => r.words);
+      return lines.join('\n');
+    } catch (e: any) {
+      lastError = `网络错误: ${e?.message || e}`;
+      continue;
     }
-
-    const lines = (data.words_result || []).map((r: { words: string }) => r.words);
-    return lines.join('\n');
   }
 
   throw new Error(`OCR识别失败: ${lastError}`);
