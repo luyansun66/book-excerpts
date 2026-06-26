@@ -200,7 +200,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                     setText((prev) => prev ? prev + '\n' + text : text);
                   }
                 } catch (e: any) {
-                  setSaveError('OCR识别失败: ' + (e?.message || String(e)).slice(0, 60));
+                  setSaveError('OCR识别失败: ' + (e?.message || String(e)));
                 } finally {
                   setOcrLoading(false);
                 }

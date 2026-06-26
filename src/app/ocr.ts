@@ -25,8 +25,9 @@ async function getAccessToken(): Promise<string> {
   return data.access_token;
 }
 
-/** Recognise text from an image using Baidu Accurate Basic OCR.
- *  @param imageData - base64-encoded image data (without the data: prefix)
+/** Recognise text from an image using Baidu OCR.
+ *  First tries accurate_basic, falls back to general_basic.
+ *  @param imageData - base64-encoded image data (with or without data: prefix)
  *  @returns The recognised text lines joined by newlines. */
 export async function recognizeText(imageData: string): Promise<string> {
   const token = await getAccessToken();
@@ -34,22 +35,31 @@ export async function recognizeText(imageData: string): Promise<string> {
   // Ensure no data URI prefix
   const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
 
-  const resp = await fetch(
-    `https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic?access_token=${token}`,
-    {
+  // Try accurate first, then general (free tier)
+  const endpoints = [
+    'https://aip.baidubce.com/rest/2.0/ocr/v1/accurate_basic',
+    'https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic',
+  ];
+
+  let lastError = '';
+  for (const endpoint of endpoints) {
+    const resp = await fetch(`${endpoint}?access_token=${token}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ image: base64 }),
-    },
-  );
-  const data = await resp.json();
+    });
+    const data = await resp.json();
 
-  if (data.error_code) {
-    throw new Error(`OCR识别失败: ${data.error_msg || data.error_code}`);
+    if (data.error_code) {
+      lastError = `[${data.error_code}] ${data.error_msg || ''}`;
+      continue; // try next endpoint
+    }
+
+    const lines = (data.words_result || []).map((r: { words: string }) => r.words);
+    return lines.join('\n');
   }
 
-  const lines = (data.words_result || []).map((r: { words: string }) => r.words);
-  return lines.join('\n');
+  throw new Error(`OCR识别失败: ${lastError}`);
 }
 
 /** Take a photo (or pick from gallery) and recognise text.
