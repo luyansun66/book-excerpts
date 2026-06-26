@@ -4,25 +4,39 @@
 const API_KEY = 'ci8aC97iWSF6Gb6Dn5yCtfqM';
 const SECRET_KEY = 'EhkbZQNmrQMh5wVl2DTwpo9pcyZ2swew';
 
-let cachedToken: { token: string; expiresAt: number } | null = null;
+// Pre-generated access token (valid 30 days, refreshed via curl when needed).
+// Baidu's OAuth token endpoint lacks CORS headers so it cannot be called
+// from the browser — the token must be obtained server-side.
+const EMBEDDED_TOKEN = '24.29b40977b0651bae0e1adc775812c3b0.2592000.1785040642.282335-123829048';
+const TOKEN_EXPIRES_AT = Date.parse('2026-07-22T00:00:00Z'); // ~30 days from now
 
-/** Get an access token (cached for 29 days) */
+let cachedToken: string | null = null;
+
+/** Get a Baidu access token. Falls back to the embedded token if the
+ *  OAuth endpoint is unreachable (e.g. from a browser due to missing CORS). */
 async function getAccessToken(): Promise<string> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt) {
-    return cachedToken.token;
+  if (cachedToken) return cachedToken;
+  if (EMBEDDED_TOKEN && Date.now() < TOKEN_EXPIRES_AT) {
+    cachedToken = EMBEDDED_TOKEN;
+    return cachedToken;
   }
 
-  const resp = await fetch(
-    'https://aip.baidubce.com/oauth/2.0/token' +
-      `?grant_type=client_credentials&client_id=${API_KEY}&client_secret=${SECRET_KEY}`,
-    { method: 'POST' },
-  );
-  const data = await resp.json();
-  if (!data.access_token) throw new Error('获取百度OCR token失败: ' + (data.error_description || '未知错误'));
+  // Try fetching a fresh token (may fail in browser due to CORS)
+  try {
+    const resp = await fetch(
+      'https://aip.baidubce.com/oauth/2.0/token' +
+        `?grant_type=client_credentials&client_id=${API_KEY}&client_secret=${SECRET_KEY}`,
+      { method: 'POST' },
+    );
+    const data = await resp.json();
+    if (data.access_token) {
+      cachedToken = data.access_token;
+      return data.access_token;
+    }
+  } catch { /* fall through to embedded token */ }
 
-  // Cache for 29 days (token expires in 30)
-  cachedToken = { token: data.access_token, expiresAt: Date.now() + 29 * 86400000 };
-  return data.access_token;
+  if (EMBEDDED_TOKEN) return EMBEDDED_TOKEN;
+  throw new Error('无法获取百度OCR access token');
 }
 
 /** Recognise text from an image using Baidu OCR.
