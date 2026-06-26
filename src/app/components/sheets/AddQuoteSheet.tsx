@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Camera } from 'lucide-react';
+import { captureAndRecognize } from '../../ocr';
 import type { Quote } from '../../types';
 
 interface AddQuoteSheetProps {
@@ -16,6 +17,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
   const [date, setDate] = useState(editQuote?.date ?? new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [ocrLoading, setOcrLoading] = useState(false);
 
   // Sync form state when editQuote changes
   useEffect(() => {
@@ -149,6 +151,38 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                 resize: 'none',
               }}
             />
+
+            {/* OCR scan button */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+              <button
+                onClick={async () => {
+                  if (ocrLoading) return;
+                  setOcrLoading(true);
+                  try {
+                    const recognized = await captureAndRecognize();
+                    if (recognized.trim()) {
+                      setText((prev) => prev ? prev + '\n' + recognized : recognized);
+                    }
+                  } catch (e: any) {
+                    setSaveError('OCR识别失败: ' + (e?.message || String(e)).slice(0, 60));
+                  } finally {
+                    setOcrLoading(false);
+                  }
+                }}
+                disabled={ocrLoading}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '6px 12px', borderRadius: 6, border: '1px solid #d4c4a0',
+                  background: ocrLoading ? '#ece4d8' : '#fffcf5',
+                  color: ocrLoading ? '#b8ae9a' : '#8a7a60',
+                  fontSize: 11, fontWeight: 600, cursor: ocrLoading ? 'not-allowed' : 'pointer',
+                  fontFamily: '-apple-system, sans-serif',
+                }}
+              >
+                <Camera size={12} strokeWidth={1.8} />
+                {ocrLoading ? '识别中…' : '拍照识别'}
+              </button>
+            </div>
           </div>
 
           {/* Page */}
