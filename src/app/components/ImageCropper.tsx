@@ -1,51 +1,87 @@
 // ─── Simple image crop dialog ─────────────────────────────────────────────────
-import { useState, useRef, useCallback, useEffect } from 'react';
+// Works with both touch (mobile) and mouse (desktop) events.
+
+import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 
 interface ImageCropperProps {
-  src: string;             // data URL
+  src: string;
   onCrop: (croppedDataUrl: string) => void;
   onCancel: () => void;
 }
+
+type Handle = 'move' | 'nw' | 'ne' | 'sw' | 'se';
 
 export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProps) {
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Selection rect (percentage of displayed image)
-  const [sel, setSel] = useState({ x: 10, y: 10, w: 80, h: 60 });
-  const [dragging, setDragging] = useState<null | 'move' | 'nw' | 'ne' | 'sw' | 'se'>(null);
-  const dragStart = useRef({ x: 0, y: 0, sel: { x: 0, y: 0, w: 0, h: 0 } });
+  const [sel, setSel] = useState({ x: 5, y: 5, w: 90, h: 70 });
+  const [dragging, setDragging] = useState<Handle | null>(null);
+  const drag = useRef({ startX: 0, startY: 0, sel: { x: 0, y: 0, w: 0, h: 0 } });
 
-  const onPointerDown = useCallback((e: React.PointerEvent, handle: typeof dragging) => {
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  // Shared start/move/end for both touch and mouse
+  const startDrag = (clientX: number, clientY: number, handle: Handle) => {
     setDragging(handle);
-    dragStart.current = { x: e.clientX, y: e.clientY, sel: { ...sel } };
-  }, [sel]);
+    drag.current = { startX: clientX, startY: clientY, sel: { ...sel } };
+  };
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
+  const moveDrag = (clientX: number, clientY: number) => {
     if (!dragging || !containerRef.current) return;
-    const dx = (e.clientX - dragStart.current.x) / containerRef.current.clientWidth * 100;
-    const dy = (e.clientY - dragStart.current.y) / containerRef.current.clientHeight * 100;
-    const s = dragStart.current.sel;
-    let { x, y, w, h } = s;
+    const rect = containerRef.current.getBoundingClientRect();
+    const dx = (clientX - drag.current.startX) / rect.width * 100;
+    const dy = (clientY - drag.current.startY) / rect.height * 100;
 
-    if (dragging === 'move') { x = s.x + dx; y = s.y + dy; }
-    else if (dragging === 'se') { w = s.w + dx; h = s.h + dy; }
-    else if (dragging === 'nw') { x = s.x + dx; y = s.y + dy; w = s.w - dx; h = s.h - dy; }
-    else if (dragging === 'ne') { y = s.y + dy; w = s.w + dx; h = s.h - dy; }
-    else if (dragging === 'sw') { x = s.x + dx; w = s.w - dx; h = s.h + dy; }
-
-    // Clamp
+    let { x, y, w, h } = drag.current.sel;
+    switch (dragging) {
+      case 'move': x += dx; y += dy; break;
+      case 'se':   w += dx; h += dy; break;
+      case 'nw':   x += dx; y += dy; w -= dx; h -= dy; break;
+      case 'ne':   y += dy; w += dx; h -= dy; break;
+      case 'sw':   x += dx; w -= dx; h += dy; break;
+    }
     x = Math.max(0, Math.min(100, x));
     y = Math.max(0, Math.min(100, y));
-    w = Math.max(5, Math.min(100 - x, w));
-    h = Math.max(5, Math.min(100 - y, h));
+    w = Math.max(8, Math.min(100 - x, w));
+    h = Math.max(8, Math.min(100 - y, h));
     setSel({ x, y, w, h });
-  }, [dragging]);
+  };
 
-  const onPointerUp = useCallback(() => setDragging(null), []);
+  const endDrag = () => setDragging(null);
+
+  // ── Mouse events ──────────────────────────────────────────────────────
+  const onMouseDown = (e: React.MouseEvent, handle: Handle) => {
+    e.preventDefault();
+    startDrag(e.clientX, e.clientY, handle);
+  };
+
+  // ── Touch events ──────────────────────────────────────────────────────
+  const onTouchStart = (e: React.TouchEvent, handle: Handle) => {
+    const t = e.touches[0];
+    startDrag(t.clientX, t.clientY, handle);
+  };
+
+  // Attach move/end to document for reliable tracking
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      moveDrag(clientX, clientY);
+    };
+    const onEnd = () => endDrag();
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+  }, [dragging]);
 
   const handleCrop = () => {
     const img = imgRef.current;
@@ -64,15 +100,6 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
     onCrop(canvas.toDataURL('image/jpeg', 0.9));
   };
 
-  // Handle touch events via pointer events
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const prevent = (e: TouchEvent) => e.preventDefault();
-    el.addEventListener('touchmove', prevent, { passive: false });
-    return () => el.removeEventListener('touchmove', prevent);
-  }, []);
-
   return (
     <div
       style={{
@@ -80,31 +107,35 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
         display: 'flex', flexDirection: 'column',
         background: '#000',
       }}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
     >
-      {/* Header */}
+      {/* Header — with safe area padding */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '12px 16px', flexShrink: 0,
+        padding: '44px 16px 8px', flexShrink: 0,
       }}>
-        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4 }}>
-          <X size={20} />
+        <button onClick={onCancel} style={{
+          background: 'none', border: 'none', color: '#fff', cursor: 'pointer',
+          padding: '8px 12px', fontSize: 15,
+        }}>
+          <X size={22} />
         </button>
-        <span style={{ color: '#fff', fontSize: 14, fontFamily: '-apple-system, sans-serif', fontWeight: 600 }}>
+        <span style={{ color: '#fff', fontSize: 15, fontFamily: '-apple-system, sans-serif', fontWeight: 600 }}>
           选择识别区域
         </span>
         <button onClick={handleCrop} style={{
-          background: '#d4a830', border: 'none', borderRadius: 6,
-          padding: '8px 18px', color: '#2c2416', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+          background: '#d4a830', border: 'none', borderRadius: 8,
+          padding: '10px 22px', color: '#2c2416', fontSize: 14, fontWeight: 700,
+          cursor: 'pointer', zIndex: 10,
         }}>
           识别
         </button>
       </div>
 
       {/* Image area */}
-      <div ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden', touchAction: 'none' }}>
+      <div
+        ref={containerRef}
+        style={{ flex: 1, position: 'relative', overflow: 'hidden', touchAction: 'none' }}
+      >
         <img
           ref={imgRef}
           src={src}
@@ -113,42 +144,48 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
           draggable={false}
         />
 
-        {/* Dimmed overlay outside selection */}
+        {/* Dimmed overlay */}
         <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-          {/* Top */}
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: `${sel.y}%`, background: 'rgba(0,0,0,0.5)' }} />
-          {/* Bottom */}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${100 - sel.y - sel.h}%`, background: 'rgba(0,0,0,0.5)' }} />
-          {/* Left */}
           <div style={{ position: 'absolute', top: `${sel.y}%`, left: 0, width: `${sel.x}%`, height: `${sel.h}%`, background: 'rgba(0,0,0,0.5)' }} />
-          {/* Right */}
           <div style={{ position: 'absolute', top: `${sel.y}%`, right: 0, width: `${100 - sel.x - sel.w}%`, height: `${sel.h}%`, background: 'rgba(0,0,0,0.5)' }} />
         </div>
 
-        {/* Selection rectangle */}
+        {/* Selection box */}
         <div
           style={{
             position: 'absolute', left: `${sel.x}%`, top: `${sel.y}%`,
             width: `${sel.w}%`, height: `${sel.h}%`,
             border: '2px solid #d4a830', boxSizing: 'border-box',
-            pointerEvents: 'auto', cursor: dragging === 'move' ? 'grabbing' : 'grab',
+            pointerEvents: 'auto',
           }}
-          onPointerDown={(e) => onPointerDown(e, 'move')}
+          onMouseDown={(e) => onMouseDown(e, 'move')}
+          onTouchStart={(e) => onTouchStart(e, 'move')}
         >
-          {/* Corner handles */}
-          {['nw', 'ne', 'sw', 'se'].map((h) => (
+          {/* Corner handles — larger for touch */}
+          {(['nw','ne','sw','se'] as const).map((h) => (
             <div
               key={h}
-              onPointerDown={(e) => onPointerDown(e, h as typeof dragging)}
+              onMouseDown={(e) => { e.stopPropagation(); onMouseDown(e, h); }}
+              onTouchStart={(e) => { e.stopPropagation(); onTouchStart(e, h); }}
               style={{
                 position: 'absolute',
-                width: 20, height: 20,
-                background: '#d4a830', borderRadius: '50%',
-                ...(h.includes('n') ? { top: -10 } : { bottom: -10 }),
-                ...(h.includes('w') ? { left: -10 } : { right: -10 }),
+                width: 36, height: 36,
+                margin: -18,
+                ...(h.includes('n') ? { top: 0 } : { bottom: 0 }),
+                ...(h.includes('w') ? { left: 0 } : { right: 0 }),
                 cursor: `${h}-resize`, pointerEvents: 'auto',
+                zIndex: 5,
               }}
-            />
+            >
+              {/* Visible dot inside handle */}
+              <div style={{
+                width: 14, height: 14, borderRadius: '50%',
+                background: '#d4a830', border: '2px solid #fff',
+                margin: '11px auto',
+              }} />
+            </div>
           ))}
         </div>
       </div>
