@@ -109,7 +109,7 @@ async function preprocessImage(dataUrl: string): Promise<string> {
     i.src = dataUrl;
   });
 
-  const padPx = Math.max(40, Math.round(Math.min(img.width, img.height) * 0.05));
+  const padPx = Math.max(40, Math.round(Math.min(img.width, img.height) * 0.03));
   const cw = img.width + padPx * 2;
   const ch = img.height + padPx * 2;
   const canvas = document.createElement('canvas');
@@ -121,7 +121,7 @@ async function preprocessImage(dataUrl: string): Promise<string> {
   ctx.fillRect(0, 0, cw, ch);
   ctx.drawImage(img, padPx, padPx);
 
-  // 灰度化
+  // 灰度化 + JPEG 输出（PNG 在移动端过大，传输到 Worker 容易超时或 OOM）
   const imageData = ctx.getImageData(0, 0, cw, ch);
   const d = imageData.data;
   for (let i = 0; i < d.length; i += 4) {
@@ -132,7 +132,7 @@ async function preprocessImage(dataUrl: string): Promise<string> {
   }
   ctx.putImageData(imageData, 0, 0);
 
-  return canvas.toDataURL('image/png');
+  return canvas.toDataURL('image/jpeg', 0.9);
 }
 
 // ─── 后处理 ───────────────────────────────────────────────────────────────────
