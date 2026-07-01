@@ -1,0 +1,15 @@
+{
+  "name": "ocr-proxy-server",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "本地 OCR 代理服务器，安全持有百度 API 凭据",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1"
+  }
+}
