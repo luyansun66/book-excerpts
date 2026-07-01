@@ -26,9 +26,8 @@ export async function recognizeText(imageData: string): Promise<string> {
     );
   }
 
-  // 给图片四周加白边，防止边缘文字被裁断
-  const padded = await addPadding(imageData, 80);
-  const base64 = padded.replace(/^data:image\/\w+;base64,/, '');
+  // 提取 base64
+  const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
 
   // 尝试 accurate_basic → 失败降级到 general_basic
   let lastError = '';
@@ -37,7 +36,7 @@ export async function recognizeText(imageData: string): Promise<string> {
       const resp = await fetch(`${endpoint}?access_token=${ACCESS_TOKEN}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `image=${encodeURIComponent(base64)}&detect_direction=true`,
+        body: `image=${encodeURIComponent(base64)}`,
         signal: AbortSignal.timeout(15000),
       });
 
@@ -86,27 +85,7 @@ export async function captureAndRecognize(): Promise<string> {
     input.click();
   });
 
-  return recognizeText(await compressImage(file, 3000));
-}
-
-/** 给图片四周加白边，防止文字紧贴边缘被百度 OCR 忽略。 */
-async function addPadding(dataUrl: string, px: number): Promise<string> {
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const i = new Image();
-    i.onload = () => resolve(i);
-    i.onerror = () => reject(new Error('图片加载失败'));
-    i.src = dataUrl;
-  });
-  const cw = img.width + px * 2;
-  const ch = img.height + px * 2;
-  const canvas = document.createElement('canvas');
-  canvas.width = cw;
-  canvas.height = ch;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, cw, ch);
-  ctx.drawImage(img, px, px);
-  return canvas.toDataURL('image/jpeg', 0.92);
+  return recognizeText(await compressImage(file, 2000));
 }
 
 /** 缩放图片到最长边 maxW，输出 JPEG data URL。 */
