@@ -33,12 +33,9 @@ async function recognizeBaidu(base64Image: string): Promise<string> {
 
 // ─── Tesseract.js（后备引擎）────────────────────────────────────────────────
 
-// ─── Tesseract.js CDN 配置 ────────────────────────────────────────────────
-// 显式指定 Worker 和 Core 的 CDN 路径，确保在 PWA 独立模式下 Worker 能正常创建。
-// langPath 不指定，使用 tesseract.js 默认的 jsdelivr CDN 地址（best_int 模型）。
-const TESSERACT_VER = '7.0.0';
-const WORKER_PATH = `https://cdn.jsdelivr.net/npm/tesseract.js@${TESSERACT_VER}/dist/worker.min.js`;
-const CORE_PATH = `https://cdn.jsdelivr.net/npm/tesseract.js-core@${TESSERACT_VER}/tesseract-core-lstm.js`;
+// ─── Tesseract.js（后备引擎）────────────────────────────────────────────────
+// 所有 CDN 路径使用 tesseract.js 内置默认值（不手动指定），避免版本不匹配。
+// 语言仅用 chi_sim（中文简体，~2MB），不使用 chi_sim+eng 因为 + 号在 CDN URL 中会 400。
 
 let tesseractWorker: import('tesseract.js').Worker | null = null;
 let tesseractReady = false;
@@ -47,18 +44,17 @@ async function getTesseractWorker(): Promise<import('tesseract.js').Worker> {
   // 如果已有可用 worker 直接返回
   if (tesseractWorker && tesseractReady) return tesseractWorker;
 
-  // 清理旧 worker（如果有）
+  // 清理旧 worker
   if (tesseractWorker) {
     try { await tesseractWorker.terminate(); } catch {}
     tesseractWorker = null;
     tesseractReady = false;
   }
 
-  // 创建 worker（仅中文，首次需下载 ~2MB 语言包，之后缓存到 IndexedDB）
+  // 不设任何 CDN 路径，全用 tesseract.js 默认值
+  // 首次需下载 ~2MB 中文语言包，成功后缓存到 IndexedDB
   const workerPromise = createWorker('chi_sim', 1, {
     gzip: true,
-    workerPath: WORKER_PATH,
-    corePath: CORE_PATH,
     logger: (m) => {
       if (m.status === 'loading tesseract core') {
         console.debug('[OCR] 加载核心引擎…');
@@ -72,9 +68,9 @@ async function getTesseractWorker(): Promise<import('tesseract.js').Worker> {
     },
   });
 
-  // 30 秒超时，防止在移动端无限卡住
+  // 60 秒超时（移动端下载 ~2MB 语言包可能需要较长时间）
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('初始化超时（30秒），请检查网络后重试')), 30000);
+    setTimeout(() => reject(new Error('初始化超时（60秒），请检查网络后重试')), 60000);
   });
 
   const w = await Promise.race([workerPromise, timeoutPromise]);
