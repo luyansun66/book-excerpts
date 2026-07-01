@@ -94,9 +94,9 @@ function cleanFallbackText(text: string): string {
 
 // ─── 公共 API ───────────────────────────────────────────────────────────────
 
-/** 给图片四周加白边，防止 OCR 引擎漏掉边缘文字。
- *  白边宽度取图片短边的 3%（最少 40px），确保不同尺寸的图片都有充足空间。 */
-async function addPadding(dataUrl: string): Promise<string> {
+/** 给图片四周加白边 + 灰度化 + 轻度对比度增强。
+ *  输出 PNG（无损），避免多次 JPEG 压缩降低文字清晰度。 */
+async function preprocessImage(dataUrl: string): Promise<string> {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const i = new Image();
     i.onload = () => resolve(i);
@@ -111,10 +111,25 @@ async function addPadding(dataUrl: string): Promise<string> {
   canvas.width = cw;
   canvas.height = ch;
   const ctx = canvas.getContext('2d')!;
+
+  // 白色背景 + 居中绘制
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, cw, ch);
   ctx.drawImage(img, padPx, padPx);
-  return canvas.toDataURL('image/jpeg', 0.92);
+
+  // 灰度化 + 轻度对比度拉伸（增强白底黑字对比，帮助 Tesseract）
+  const imageData = ctx.getImageData(0, 0, cw, ch);
+  const d = imageData.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+    d[i] = gray;
+    d[i + 1] = gray;
+    d[i + 2] = gray;
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  // 输出 PNG 无损格式（Tesseract 需要干净的文字边缘）
+  return canvas.toDataURL('image/png');
 }
 
 /** 识别图片中的文字。
@@ -122,10 +137,10 @@ async function addPadding(dataUrl: string): Promise<string> {
  *  @param imageData - JPEG/PNG data URL
  *  @returns 识别文本（含标点符号） */
 export async function recognizeText(imageData: string): Promise<string> {
-  // 先加白边，防止首行/末行文字被边缘截断（白边宽度在函数内自动计算）
-  const padded = await addPadding(imageData);
+  // 预处理：白边 + 灰度 + 对比度增强
+  const processed = await preprocessImage(imageData);
   // 从 data URL 中提取纯 base64（百度 OCR 需要）
-  const base64 = padded.replace(/^data:image\/\w+;base64,/, '');
+  const base64 = processed.replace(/^data:image\/\w+;base64,/, '');
 
   // 先试百度 OCR
   try {
@@ -137,10 +152,10 @@ export async function recognizeText(imageData: string): Promise<string> {
     console.warn('[OCR] 百度 OCR 失败，切换到后备引擎:', e.message);
   }
 
-  // 降级到 Tesseract.js
+  // 降级到 Tesseract.js（使用预处理后的图片，确保白边和灰度生效）
   try {
     console.debug('[OCR] Tesseract.js 后备识别…');
-    const text = await recognizeFallback(imageData);
+    const text = await recognizeFallback(processed);
     if (!text) throw new Error('未能识别出任何文字');
     console.debug(`[OCR] 后备识别成功: ${text.length} 字`);
     return text;
