@@ -1,37 +1,33 @@
 // ─── OCR 识别模块 ─────────────────────────────────────────────────────────────
 // Tesseract.js 单引擎（适配 GitHub Pages 纯静态部署）。
-// 预热策略：App 启动时后台初始化 Worker，提前下载语言包，减少用户等待。
+// 预热策略：App 启动时后台初始化 Worker，提前下载语言包。
+// 单个 Worker 贯穿整个会话，不回收重建（重建会导致 CDN 重新下载语言包，
+// 且 Tesseract.js 内部对语言下载失败的错误被吞掉，Worker 无中文能力）。
+// 当识别退化时（空结果或乱码），调用 reinitialize() 重置内部状态，快速且不依赖网络。
 
 import { createWorker, PSM } from 'tesseract.js';
 
 let worker: import('tesseract.js').Worker | null = null;
 let workerReady = false;
 let warmupStarted = false;
-
-// Worker 使用计数：Tesseract 的 WASM 内部状态会在多次识别后退化，
-// 达到上限后自动重建 Worker，确保识别精度不下降。
-let callCount = 0;
-const MAX_CALLS = 3;
+let warmupPromise: Promise<void> | null = null;
 
 // ─── 预热 ─────────────────────────────────────────────────────────────────────
 
-/** 在后台提前初始化 Tesseract Worker，下载语言包。
- *  不设硬超时，失败后静默重试。
- *  App 启动时调用一次即可。 */
 export function warmup(): void {
   if (warmupStarted) return;
   warmupStarted = true;
-  console.debug('[OCR] 预热：后台初始化 Tesseract Worker…');
-  initWorker().then(
-    () => console.debug('[OCR] 预热完成：语言包已就绪'),
-    (e) => console.warn('[OCR] 预热失败（用户点击识别时会重试）:', e.message),
+  console.debug('[OCR] 预热中…');
+  warmupPromise = initWorker();
+  warmupPromise.then(
+    () => console.debug('[OCR] 预热完成'),
+    (e) => console.warn('[OCR] 预热失败:', e.message),
   );
 }
 
 // ─── Worker 初始化 ────────────────────────────────────────────────────────────
 
 async function initWorker(): Promise<void> {
-  // 清理旧 worker
   if (worker) {
     try { await worker.terminate(); } catch { /* ignore */ }
     worker = null;
@@ -41,66 +37,48 @@ async function initWorker(): Promise<void> {
   const w = await createWorker('chi_sim', 1, {
     gzip: true,
     logger: (m) => {
-      if (m.status === 'loading tesseract core') console.debug('[OCR] 加载核心引擎…');
+      if (m.status === 'loading tesseract core') console.debug('[OCR] 核心引擎…');
       if (m.status === 'loading language traineddata') {
         console.debug(`[OCR] 下载语言包… ${Math.round(m.progress * 100)}%`);
-      }
-      if (m.status === 'recognizing text') {
-        console.debug(`[OCR] 识别中… ${Math.round(m.progress * 100)}%`);
       }
     },
   });
 
-  // PSM.AUTO：自动检测文本布局，适应各种裁剪形状
   await w.setParameters({
     tessedit_pageseg_mode: PSM.AUTO,
     user_defined_dpi: '300',
   });
 
+  // 验证 Worker 语言模型可用
+  const testResult = await w.recognize('data:image/png;base64,');
+  if (!testResult?.data?.text && testResult?.data?.text !== '') {
+    console.warn('[OCR] Worker 创建后语言不可用，重试…');
+    await w.terminate();
+    return initWorker(); // 重试
+  }
+
   worker = w;
   workerReady = true;
 }
 
-/** 获取 Worker，如果未就绪则等待初始化（最多 120 秒）。
- *  Worker 使用 MAX_CALLS 次后自动重建，防止 WASM 内部状态退化。 */
 async function getWorker(timeoutMs = 120000): Promise<import('tesseract.js').Worker> {
-  // 达到使用上限 → 回收旧 Worker（重建由下方初始化逻辑处理）
-  if (callCount >= MAX_CALLS && worker) {
-    console.debug(`[OCR] 回收 Worker（已达 ${MAX_CALLS} 次上限），重建中…`);
-    try { await worker.terminate(); } catch { /* ignore */ }
-    worker = null;
-    workerReady = false;
-    callCount = 0;
-    warmupStarted = false; // 允许 initWorker 重新执行完整初始化
-  }
-
   if (workerReady && worker) return worker;
 
-  // 启动初始化（如果还未开始）
-  if (!warmupStarted) {
-    warmupStarted = true;
-    initWorker(); // 不 await，在下方等待
-  }
-
-  // 等待 Worker 就绪，带超时
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (workerReady && worker) return worker;
-    await new Promise((r) => setTimeout(r, 200));
-  }
-
-  // 超时后尝试强制初始化一次
-  if (!workerReady) {
-    await initWorker();
+  if (warmupPromise) {
+    // 预热已发起，等待它完成
+    await warmupPromise;
     if (workerReady && worker) return worker;
   }
+
+  // 未预热或预热失败 → 直接初始化
+  await initWorker();
+  if (workerReady && worker) return worker;
 
   throw new Error('初始化超时，请检查网络后重试');
 }
 
 // ─── 图片预处理 ───────────────────────────────────────────────────────────────
 
-/** 预处理：白边 + 灰度化。输出 PNG 无损格式。 */
 async function preprocessImage(dataUrl: string): Promise<string> {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
     const i = new Image();
@@ -121,7 +99,6 @@ async function preprocessImage(dataUrl: string): Promise<string> {
   ctx.fillRect(0, 0, cw, ch);
   ctx.drawImage(img, padPx, padPx);
 
-  // 灰度化 + JPEG 输出（PNG 在移动端过大，传输到 Worker 容易超时或 OOM）
   const imageData = ctx.getImageData(0, 0, cw, ch);
   const d = imageData.data;
   for (let i = 0; i < d.length; i += 4) {
@@ -137,56 +114,64 @@ async function preprocessImage(dataUrl: string): Promise<string> {
 
 // ─── 后处理 ───────────────────────────────────────────────────────────────────
 
-/** 清理中文间多余空格和乱码行。 */
 function cleanChineseText(text: string): string {
   let result = text;
 
-  // 去中文间空格
   result = result.replace(
-    /([一-鿿豈-﫿㐀-䶿])\s+(?=[一-鿿豈-﫿㐀-䶿])/g,
-    '$1',
+    /([一-鿿豈-﫿㐀-䶿])\s+(?=[一-鿿豈-﫿㐀-䶿])/g, '$1',
   );
-
-  // 去中文前后的多余空格
   result = result.replace(/\s+([，。、；：！？）】」』」⨪])/g, '$1');
   result = result.replace(/([（【「『「])\s+/g, '$1');
-
-  // 去行首全是非中文的噪声行
   result = result.replace(/^[^一-鿿\n]{4,}\s*/gm, '');
-
-  // 去行尾多余空格
   result = result.replace(/[ \t]+$/gm, '');
 
   return result.trim();
 }
 
-// ─── 公共 API ───────────────────────────────────────────────────────────────
-
-/** 识别图片中的文字。 */
-export async function recognizeText(imageData: string): Promise<string> {
-  // 预处理：白边 + 灰度
-  const processed = await preprocessImage(imageData);
-
-  try {
-    const w = await getWorker();
-    const { data } = await w.recognize(processed);
-    callCount++; // 记录使用次数，达到上限后自动回收 Worker
-    const text = cleanChineseText(data.text);
-
-    if (!text) throw new Error('未能识别出任何文字，请检查图片是否清晰');
-    return text;
-  } catch (e: any) {
-    // Worker 出问题时重置，下次调用重新初始化
-    if (worker) {
-      try { worker.terminate(); } catch { /* ignore */ }
-      worker = null;
-      workerReady = false;
-    }
-    throw new Error(`OCR识别失败: ${e?.message || e}`);
-  }
+/** 判断文本是否正常：至少包含一些中文字符。 */
+function hasChinese(text: string): boolean {
+  return /[一-鿿]/.test(text);
 }
 
-/** 拍照并识别。 */
+// ─── 公共 API ───────────────────────────────────────────────────────────────
+
+export async function recognizeText(imageData: string): Promise<string> {
+  const processed = await preprocessImage(imageData);
+
+  let w = await getWorker();
+
+  // 首次调用或前次失败后的重试
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const { data } = await w.recognize(processed);
+      let text = cleanChineseText(data.text || '');
+
+      // 如果结果为空或没有中文 → 可能是 Worker 内部状态退化
+      if (text && hasChinese(text)) {
+        return text;
+      }
+
+      // 退化或空 → reinitialize 重置内部模型（从 IndexedDB 缓存加载，不依赖网络）
+      console.debug('[OCR] 结果异常，尝试 reinitialize 后重试…');
+      w = await w.reinitialize('chi_sim', 1);
+      await w.setParameters({
+        tessedit_pageseg_mode: PSM.AUTO,
+        user_defined_dpi: '300',
+      });
+      continue;
+    } catch (e: any) {
+      // 识别抛异常 → 终止 Worker，下次调用重新创建
+      console.warn('[OCR] 识别异常，重置 Worker:', e.message);
+      try { await w.terminate(); } catch { /* ignore */ }
+      w = await initWorker().then(() => worker!);
+      if (!w) throw new Error(`OCR识别失败: ${e?.message || e}`);
+      continue;
+    }
+  }
+
+  throw new Error('OCR识别失败: 未能识别出任何文字，请检查图片是否清晰');
+}
+
 export async function captureAndRecognize(): Promise<string> {
   const input = document.createElement('input');
   input.type = 'file';
@@ -206,7 +191,6 @@ export async function captureAndRecognize(): Promise<string> {
   return recognizeText(compressed);
 }
 
-/** 缩放图片到最长边 maxW，输出 JPEG data URL。 */
 export function compressImage(file: File, maxW: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -239,12 +223,12 @@ export function compressImage(file: File, maxW: number): Promise<string> {
   });
 }
 
-/** 终止 Worker。 */
 export async function terminateWorker(): Promise<void> {
   if (worker) {
     try { await worker.terminate(); } catch { /* ignore */ }
     worker = null;
     workerReady = false;
     warmupStarted = false;
+    warmupPromise = null;
   }
 }
