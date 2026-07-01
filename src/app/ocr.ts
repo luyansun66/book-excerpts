@@ -94,13 +94,38 @@ function cleanFallbackText(text: string): string {
 
 // ─── 公共 API ───────────────────────────────────────────────────────────────
 
+/** 给图片四周加白边，防止 OCR 引擎漏掉边缘文字。
+ *  白边宽度取图片短边的 3%（最少 40px），确保不同尺寸的图片都有充足空间。 */
+async function addPadding(dataUrl: string): Promise<string> {
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error('图片加载失败'));
+    i.src = dataUrl;
+  });
+
+  const padPx = Math.max(40, Math.round(Math.min(img.width, img.height) * 0.03));
+  const cw = img.width + padPx * 2;
+  const ch = img.height + padPx * 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = cw;
+  canvas.height = ch;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.drawImage(img, padPx, padPx);
+  return canvas.toDataURL('image/jpeg', 0.92);
+}
+
 /** 识别图片中的文字。
  *  优先使用百度 OCR API，失败时自动降级到 Tesseract.js。
  *  @param imageData - JPEG/PNG data URL
  *  @returns 识别文本（含标点符号） */
 export async function recognizeText(imageData: string): Promise<string> {
+  // 先加白边，防止首行/末行文字被边缘截断（白边宽度在函数内自动计算）
+  const padded = await addPadding(imageData);
   // 从 data URL 中提取纯 base64（百度 OCR 需要）
-  const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
+  const base64 = padded.replace(/^data:image\/\w+;base64,/, '');
 
   // 先试百度 OCR
   try {
