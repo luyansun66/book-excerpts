@@ -35,11 +35,10 @@ async function recognizeBaidu(base64Image: string): Promise<string> {
 
 // ─── Tesseract.js CDN 配置 ────────────────────────────────────────────────
 // 显式指定 Worker 和 Core 的 CDN 路径，确保在 PWA 独立模式下 Worker 能正常创建。
-// 语言包使用 fast_int 变体（约 2MB，比 best_int 的 10MB+ 小很多，首次加载更快）。
+// langPath 不指定，使用 tesseract.js 默认的 jsdelivr CDN 地址（best_int 模型）。
 const TESSERACT_VER = '7.0.0';
 const WORKER_PATH = `https://cdn.jsdelivr.net/npm/tesseract.js@${TESSERACT_VER}/dist/worker.min.js`;
 const CORE_PATH = `https://cdn.jsdelivr.net/npm/tesseract.js-core@${TESSERACT_VER}/tesseract-core-lstm.js`;
-const LANG_PATH = `https://cdn.jsdelivr.net/npm/@tesseract.js-data/chi_sim/4.0.0_fast_int`;
 
 let tesseractWorker: import('tesseract.js').Worker | null = null;
 let tesseractReady = false;
@@ -55,12 +54,11 @@ async function getTesseractWorker(): Promise<import('tesseract.js').Worker> {
     tesseractReady = false;
   }
 
-  // 创建 worker，带 30 秒超时（首次需要下载 ~2MB 语言包）
+  // 创建 worker（仅中文，首次需下载 ~2MB 语言包，之后缓存到 IndexedDB）
   const workerPromise = createWorker('chi_sim', 1, {
     gzip: true,
     workerPath: WORKER_PATH,
     corePath: CORE_PATH,
-    langPath: LANG_PATH,
     logger: (m) => {
       if (m.status === 'loading tesseract core') {
         console.debug('[OCR] 加载核心引擎…');
@@ -76,7 +74,7 @@ async function getTesseractWorker(): Promise<import('tesseract.js').Worker> {
 
   // 30 秒超时，防止在移动端无限卡住
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Tesseract.js 初始化超时（30秒），请检查网络后重试')), 30000);
+    setTimeout(() => reject(new Error('初始化超时（30秒），请检查网络后重试')), 30000);
   });
 
   const w = await Promise.race([workerPromise, timeoutPromise]);
