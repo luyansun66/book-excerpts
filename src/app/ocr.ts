@@ -6,14 +6,13 @@ import type { Worker } from 'tesseract.js';
 
 // ─── 百度 OCR（主引擎）─────────────────────────────────────────────────────
 
-/** 通过本地代理服务器调用百度 OCR API。
- *  返回识别文本，或抛出异常。 */
+/** 通过本地代理服务器调用百度 OCR API。 */
 async function recognizeBaidu(base64Image: string): Promise<string> {
   const resp = await fetch('/api/ocr', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image: base64Image }),
-    signal: AbortSignal.timeout(30000), // 30 秒超时
+    signal: AbortSignal.timeout(15000),
   });
 
   if (!resp.ok) {
@@ -39,8 +38,9 @@ async function getTesseractWorker(): Promise<Worker> {
 
   if (!tesseractPromise) {
     tesseractPromise = (async () => {
-      const { createWorker, PSM } = await import('tesseract.js');
-      const w = await createWorker('chi_sim', 1, {
+      const { createWorker } = await import('tesseract.js');
+      // chi_sim+eng：同时加载中文简体与英文（标点、数字需要 eng）
+      const w = await createWorker('chi_sim+eng', 1, {
         gzip: true,
         logger: (m) => {
           if (m.status === 'loading language traineddata') {
@@ -55,11 +55,8 @@ async function getTesseractWorker(): Promise<Worker> {
         },
       });
 
-      await w.setParameters({
-        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-        user_defined_dpi: '300',
-      });
-
+      // PSM.AUTO 让 Tesseract 自动检测文本布局
+      // SINGLE_BLOCK 对不规则裁剪区域效果不好
       tesseractWorker = w;
       return w;
     })();
@@ -68,103 +65,30 @@ async function getTesseractWorker(): Promise<Worker> {
   return tesseractPromise;
 }
 
-/** Tesseract.js 后备识别 */
+/** Tesseract.js 后备识别 — 只做必要的图片处理，不做激进锐化 */
 async function recognizeFallback(imageData: string): Promise<string> {
   const w = await getTesseractWorker();
-
-  // 预处理：白边 + 灰度 + 锐化
-  const processed = await preprocessForTesseract(imageData);
-  const { data } = await w.recognize(processed);
+  const { data } = await w.recognize(imageData);
   return cleanFallbackText(data.text);
 }
 
-/** 为 Tesseract 预处理图片：白边 + 灰度 + 锐化 */
-async function preprocessForTesseract(dataUrl: string): Promise<string> {
-  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('图片加载失败'));
-    img.src = dataUrl;
-  });
-
-  const pad = 20;
-  const cw = img.width + pad * 2;
-  const ch = img.height + pad * 2;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = cw;
-  canvas.height = ch;
-  const ctx = canvas.getContext('2d')!;
-
-  // 白边
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, cw, ch);
-  ctx.drawImage(img, pad, pad, img.width, img.height);
-
-  // 灰度
-  const imageData = ctx.getImageData(0, 0, cw, ch);
-  const pixels = imageData.data;
-  for (let i = 0; i < pixels.length; i += 4) {
-    const gray = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
-    pixels[i] = gray;
-    pixels[i + 1] = gray;
-    pixels[i + 2] = gray;
-  }
-
-  // 锐化
-  sharpen(pixels, cw, ch);
-
-  ctx.putImageData(imageData, 0, 0);
-  return canvas.toDataURL('image/jpeg', 0.92);
-}
-
-/** 3×3 sharpen kernel */
-function sharpen(pixels: Uint8ClampedArray, width: number, height: number): void {
-  const src = new Uint8ClampedArray(pixels);
-  const k = [0, -0.5, 0, -0.5, 3, -0.5, 0, -0.5, 0];
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      let v = 0;
-      for (let ky = -1; ky <= 1; ky++) {
-        for (let kx = -1; kx <= 1; kx++) {
-          const si = ((y + ky) * width + (x + kx)) * 4;
-          const ki = (ky + 1) * 3 + (kx + 1);
-          v += src[si] * k[ki];
-        }
-      }
-      const di = (y * width + x) * 4;
-      const val = Math.min(255, Math.max(0, Math.round(v)));
-      pixels[di] = val;
-      pixels[di + 1] = val;
-      pixels[di + 2] = val;
-    }
-  }
-}
-
-/** Tesseract 后备识别结果后处理 */
+/** Tesseract 识别结果后处理 — 清理中文间多余空格和乱码行 */
 function cleanFallbackText(text: string): string {
   let result = text;
 
-  // 去中文间空格
+  // 去中文间空格（Tesseract 经常在汉字间插入空格）
   result = result.replace(
     /([一-鿿豈-﫿㐀-䶿])\s+(?=[一-鿿豈-﫿㐀-䶿])/g,
     '$1',
   );
 
-  // 去重标点
-  result = result.replace(
-    /([一-鿿])([，。、；：！？])(?:[，。、；：！？])+(?=[一-鿿])/g,
-    '$1$2',
-  );
-
-  // 去行首 ASCII 乱码
-  result = result.replace(/^[^一-鿿\n]{2,}\s*/gm, '');
-
   // 去中文前后的多余空格
-  result = result.replace(/\s+([　-〿＀-￯])/g, '$1');
-  result = result.replace(/([　-〿＀-￯])\s+/g, '$1');
+  result = result.replace(/\s+([，。、；：！？）】」』」])/g, '$1');
+  result = result.replace(/([（【「『「])\s+/g, '$1');
 
-  result = result.replace(/\n{3,}/g, '\n\n');
+  // 去行首全是非中文的噪声行（Tesseract 偶尔把阴影识别为 ASCII 乱码）
+  result = result.replace(/^[^一-鿿\n]{4,}\s*/gm, '');
+
   return result.trim();
 }
 
