@@ -12,6 +12,7 @@ import { seedDemianBook } from './db';
 import type { Book } from './types';
 import type { SearchResult } from './db';
 import { Settings, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
+import { warmup } from './ocr';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function lighten(hex: string): string {
@@ -919,6 +920,9 @@ function ShelfView() {
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const { selectedBook, selectBook } = useApp();
+
+  // 后台预热 Tesseract OCR（下载语言包、初始化 Worker）
+  useEffect(() => { warmup(); }, []);
 
   return (
     <div

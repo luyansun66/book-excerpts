@@ -18,15 +18,6 @@ function figmaAssetResolver() {
 
 export default defineConfig({
   base: '/book-excerpts/',
-  server: {
-    // 将 /api/* 请求转发到本地 OCR 代理服务器
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
-  },
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if

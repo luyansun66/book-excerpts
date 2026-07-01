@@ -1,64 +1,47 @@
 // ─── OCR 识别模块 ─────────────────────────────────────────────────────────────
-// 主引擎：百度 OCR API（通过本地代理服务器 /api/ocr）
-// 后备引擎：Tesseract.js（离线或代理不可用时自动降级）
-//
-// Tesseract.js 在首次使用时需要下载约 10MB 语言包（chi_sim+eng），
-// 下载完成后会缓存到 IndexedDB，后续离线也可用。
+// Tesseract.js 单引擎（适配 GitHub Pages 纯静态部署）。
+// 预热策略：App 启动时后台初始化 Worker，提前下载语言包，减少用户等待。
 
-import { createWorker } from 'tesseract.js';
+import { createWorker, PSM } from 'tesseract.js';
 
-// ─── 百度 OCR（主引擎）─────────────────────────────────────────────────────
+let worker: import('tesseract.js').Worker | null = null;
+let workerReady = false;
+let warmupStarted = false;
 
-/** 通过本地代理服务器调用百度 OCR API。 */
-async function recognizeBaidu(base64Image: string): Promise<string> {
-  const resp = await fetch('/api/ocr', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: base64Image }),
-    signal: AbortSignal.timeout(15000),
-  });
+// Worker 使用计数：Tesseract 的 WASM 内部状态会在多次识别后退化，
+// 达到上限后自动重建 Worker，确保识别精度不下降。
+let callCount = 0;
+const MAX_CALLS = 3;
 
-  if (!resp.ok) {
-    const errBody = await resp.json().catch(() => ({}));
-    throw new Error(errBody.error || `服务器错误 (${resp.status})`);
-  }
+// ─── 预热 ─────────────────────────────────────────────────────────────────────
 
-  const data = await resp.json();
-  if (!data.text) {
-    throw new Error('百度 OCR 返回结果为空');
-  }
-
-  return data.text;
+/** 在后台提前初始化 Tesseract Worker，下载语言包。
+ *  不设硬超时，失败后静默重试。
+ *  App 启动时调用一次即可。 */
+export function warmup(): void {
+  if (warmupStarted) return;
+  warmupStarted = true;
+  console.debug('[OCR] 预热：后台初始化 Tesseract Worker…');
+  initWorker().then(
+    () => console.debug('[OCR] 预热完成：语言包已就绪'),
+    (e) => console.warn('[OCR] 预热失败（用户点击识别时会重试）:', e.message),
+  );
 }
 
-// ─── Tesseract.js（后备引擎）────────────────────────────────────────────────
+// ─── Worker 初始化 ────────────────────────────────────────────────────────────
 
-// ─── Tesseract.js（后备引擎）────────────────────────────────────────────────
-// 所有 CDN 路径使用 tesseract.js 内置默认值（不手动指定），避免版本不匹配。
-// 语言仅用 chi_sim（中文简体，~2MB），不使用 chi_sim+eng 因为 + 号在 CDN URL 中会 400。
-
-let tesseractWorker: import('tesseract.js').Worker | null = null;
-let tesseractReady = false;
-
-async function getTesseractWorker(): Promise<import('tesseract.js').Worker> {
-  // 如果已有可用 worker 直接返回
-  if (tesseractWorker && tesseractReady) return tesseractWorker;
-
+async function initWorker(): Promise<void> {
   // 清理旧 worker
-  if (tesseractWorker) {
-    try { await tesseractWorker.terminate(); } catch {}
-    tesseractWorker = null;
-    tesseractReady = false;
+  if (worker) {
+    try { await worker.terminate(); } catch { /* ignore */ }
+    worker = null;
+    workerReady = false;
   }
 
-  // 不设任何 CDN 路径，全用 tesseract.js 默认值
-  // 首次需下载 ~2MB 中文语言包，成功后缓存到 IndexedDB
-  const workerPromise = createWorker('chi_sim', 1, {
+  const w = await createWorker('chi_sim', 1, {
     gzip: true,
     logger: (m) => {
-      if (m.status === 'loading tesseract core') {
-        console.debug('[OCR] 加载核心引擎…');
-      }
+      if (m.status === 'loading tesseract core') console.debug('[OCR] 加载核心引擎…');
       if (m.status === 'loading language traineddata') {
         console.debug(`[OCR] 下载语言包… ${Math.round(m.progress * 100)}%`);
       }
@@ -68,45 +51,54 @@ async function getTesseractWorker(): Promise<import('tesseract.js').Worker> {
     },
   });
 
-  // 60 秒超时（移动端下载 ~2MB 语言包可能需要较长时间）
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('初始化超时（60秒），请检查网络后重试')), 60000);
+  // PSM.AUTO：自动检测文本布局，适应各种裁剪形状
+  await w.setParameters({
+    tessedit_pageseg_mode: PSM.AUTO,
+    user_defined_dpi: '300',
   });
 
-  const w = await Promise.race([workerPromise, timeoutPromise]);
-  tesseractWorker = w;
-  tesseractReady = true;
-  return w;
+  worker = w;
+  workerReady = true;
 }
 
-/** Tesseract.js 后备识别 */
-async function recognizeFallback(imageData: string): Promise<string> {
-  const w = await getTesseractWorker();
-  const { data } = await w.recognize(imageData);
-  return cleanFallbackText(data.text);
+/** 获取 Worker，如果未就绪则等待初始化（最多 120 秒）。
+ *  Worker 使用 MAX_CALLS 次后自动重建，防止 WASM 内部状态退化。 */
+async function getWorker(timeoutMs = 120000): Promise<import('tesseract.js').Worker> {
+  // 达到使用上限 → 回收旧 Worker（重建由下方初始化逻辑处理）
+  if (callCount >= MAX_CALLS && worker) {
+    console.debug(`[OCR] 回收 Worker（已达 ${MAX_CALLS} 次上限），重建中…`);
+    try { await worker.terminate(); } catch { /* ignore */ }
+    worker = null;
+    workerReady = false;
+    callCount = 0;
+    warmupStarted = false; // 允许 initWorker 重新执行完整初始化
+  }
+
+  if (workerReady && worker) return worker;
+
+  // 启动初始化（如果还未开始）
+  if (!warmupStarted) {
+    warmupStarted = true;
+    initWorker(); // 不 await，在下方等待
+  }
+
+  // 等待 Worker 就绪，带超时
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (workerReady && worker) return worker;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  // 超时后尝试强制初始化一次
+  if (!workerReady) {
+    await initWorker();
+    if (workerReady && worker) return worker;
+  }
+
+  throw new Error('初始化超时，请检查网络后重试');
 }
 
-/** Tesseract 识别结果后处理 — 清理中文间多余空格和乱码行 */
-function cleanFallbackText(text: string): string {
-  let result = text;
-
-  // 去中文间空格（Tesseract 经常在汉字间插入空格）
-  result = result.replace(
-    /([一-鿿豈-﫿㐀-䶿])\s+(?=[一-鿿豈-﫿㐀-䶿])/g,
-    '$1',
-  );
-
-  // 去中文前后的多余空格
-  result = result.replace(/\s+([，。、；：！？）】」』」])/g, '$1');
-  result = result.replace(/([（【「『「])\s+/g, '$1');
-
-  // 去行首全是非中文的噪声行
-  result = result.replace(/^[^一-鿿\n]{4,}\s*/gm, '');
-
-  return result.trim();
-}
-
-// ─── 图片预处理 ────────────────────────────────────────────────────────────
+// ─── 图片预处理 ───────────────────────────────────────────────────────────────
 
 /** 预处理：白边 + 灰度化。输出 PNG 无损格式。 */
 async function preprocessImage(dataUrl: string): Promise<string> {
@@ -117,7 +109,7 @@ async function preprocessImage(dataUrl: string): Promise<string> {
     i.src = dataUrl;
   });
 
-  const padPx = Math.max(40, Math.round(Math.min(img.width, img.height) * 0.03));
+  const padPx = Math.max(40, Math.round(Math.min(img.width, img.height) * 0.05));
   const cw = img.width + padPx * 2;
   const ch = img.height + padPx * 2;
   const canvas = document.createElement('canvas');
@@ -125,7 +117,6 @@ async function preprocessImage(dataUrl: string): Promise<string> {
   canvas.height = ch;
   const ctx = canvas.getContext('2d')!;
 
-  // 白色背景 + 居中绘制
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, cw, ch);
   ctx.drawImage(img, padPx, padPx);
@@ -144,39 +135,52 @@ async function preprocessImage(dataUrl: string): Promise<string> {
   return canvas.toDataURL('image/png');
 }
 
+// ─── 后处理 ───────────────────────────────────────────────────────────────────
+
+/** 清理中文间多余空格和乱码行。 */
+function cleanChineseText(text: string): string {
+  let result = text;
+
+  // 去中文间空格
+  result = result.replace(
+    /([一-鿿豈-﫿㐀-䶿])\s+(?=[一-鿿豈-﫿㐀-䶿])/g,
+    '$1',
+  );
+
+  // 去中文前后的多余空格
+  result = result.replace(/\s+([，。、；：！？）】」』」⨪])/g, '$1');
+  result = result.replace(/([（【「『「])\s+/g, '$1');
+
+  // 去行首全是非中文的噪声行
+  result = result.replace(/^[^一-鿿\n]{4,}\s*/gm, '');
+
+  // 去行尾多余空格
+  result = result.replace(/[ \t]+$/gm, '');
+
+  return result.trim();
+}
+
 // ─── 公共 API ───────────────────────────────────────────────────────────────
 
-/** 识别图片中的文字。
- *  优先使用百度 OCR API，失败时自动降级到 Tesseract.js。 */
+/** 识别图片中的文字。 */
 export async function recognizeText(imageData: string): Promise<string> {
   // 预处理：白边 + 灰度
   const processed = await preprocessImage(imageData);
-  const base64 = processed.replace(/^data:image\/\w+;base64,/, '');
 
-  // 先试百度 OCR
   try {
-    console.debug('[OCR] 调用百度 OCR…');
-    const text = await recognizeBaidu(base64);
-    console.debug(`[OCR] 百度识别成功: ${text.length} 字`);
+    const w = await getWorker();
+    const { data } = await w.recognize(processed);
+    callCount++; // 记录使用次数，达到上限后自动回收 Worker
+    const text = cleanChineseText(data.text);
+
+    if (!text) throw new Error('未能识别出任何文字，请检查图片是否清晰');
     return text;
   } catch (e: any) {
-    console.warn('[OCR] 百度 OCR 失败，切换到后备引擎:', e.message);
-  }
-
-  // 降级到 Tesseract.js
-  try {
-    console.debug('[OCR] Tesseract.js 后备识别…');
-    const text = await recognizeFallback(processed);
-    if (!text) throw new Error('未能识别出任何文字');
-    console.debug(`[OCR] 后备识别成功: ${text.length} 字`);
-    return text;
-  } catch (e: any) {
-    console.error('[OCR] 后备引擎也失败:', e.message);
-    // 如果 worker 出问题，重置以便下次重试
-    if (tesseractWorker) {
-      try { tesseractWorker.terminate(); } catch {}
-      tesseractWorker = null;
-      tesseractReady = false;
+    // Worker 出问题时重置，下次调用重新初始化
+    if (worker) {
+      try { worker.terminate(); } catch { /* ignore */ }
+      worker = null;
+      workerReady = false;
     }
     throw new Error(`OCR识别失败: ${e?.message || e}`);
   }
@@ -235,11 +239,12 @@ export function compressImage(file: File, maxW: number): Promise<string> {
   });
 }
 
-/** 终止后备引擎的 Worker。 */
+/** 终止 Worker。 */
 export async function terminateWorker(): Promise<void> {
-  if (tesseractWorker) {
-    try { await tesseractWorker.terminate(); } catch {}
-    tesseractWorker = null;
-    tesseractReady = false;
+  if (worker) {
+    try { await worker.terminate(); } catch { /* ignore */ }
+    worker = null;
+    workerReady = false;
+    warmupStarted = false;
   }
 }
