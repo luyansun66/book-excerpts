@@ -27,7 +27,7 @@ export async function recognizeText(imageData: string): Promise<string> {
   }
 
   // 给图片四周加白边，防止边缘文字被裁断
-  const padded = await addPadding(imageData, 30);
+  const padded = await addPadding(imageData, 80);
   const base64 = padded.replace(/^data:image\/\w+;base64,/, '');
 
   // 尝试 accurate_basic → 失败降级到 general_basic
@@ -86,7 +86,7 @@ export async function captureAndRecognize(): Promise<string> {
     input.click();
   });
 
-  return recognizeText(await compressImage(file, 2000));
+  return recognizeText(await compressImage(file, 3000));
 }
 
 /** 给图片四周加白边，防止文字紧贴边缘被百度 OCR 忽略。 */

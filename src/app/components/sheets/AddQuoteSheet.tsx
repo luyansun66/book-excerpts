@@ -168,7 +168,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                     input.onchange = () => input.files?.[0] ? resolve(input.files[0]) : reject(new Error('未选择图片'));
                     input.onerror = () => reject(new Error('拍照失败'));
                   });
-                  const dataUrl = await compressImage(file, 2000);
+                  const dataUrl = await compressImage(file, 3000);
                   setCropImage(dataUrl);
                 }}
                 disabled={ocrLoading}
