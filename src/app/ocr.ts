@@ -43,9 +43,6 @@ export async function recognizeText(imageData: string): Promise<string> {
       const data = await resp.json();
 
       // 调试：打印百度返回的行数
-      console.log('[OCR] Baidu response lines:', data.words_result?.length ?? 0);
-      console.log('[OCR] Baidu raw:', JSON.stringify(data.words_result?.slice(0, 3)).slice(0, 200), '…');
-
       // 百度 API 错误
       if (data.error_code) {
         if (data.error_code === 110 || data.error_code === 111) {
@@ -56,11 +53,7 @@ export async function recognizeText(imageData: string): Promise<string> {
       }
 
       const lines = (data.words_result || []).map((r: { words: string }) => r.words);
-      if (lines.length > 0) {
-        console.log('[OCR] First line:', lines[0]?.slice(0, 30));
-        console.log('[OCR] Last line:', lines[lines.length - 1]?.slice(0, 30));
-        return lines.join('\n');
-      }
+      if (lines.length > 0) return lines.join('\n');
 
       lastError = '未能识别出任何文字';
     } catch (e: any) {
