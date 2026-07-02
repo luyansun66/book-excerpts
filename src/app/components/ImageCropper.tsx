@@ -16,7 +16,7 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
   const imgRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [sel, setSel] = useState({ x: 5, y: 5, w: 90, h: 70 });
+  const [sel, setSel] = useState({ x: 0, y: 0, w: 100, h: 100 });
   const [dragging, setDragging] = useState<Handle | null>(null);
   const drag = useRef({ startX: 0, startY: 0, sel: { x: 0, y: 0, w: 0, h: 0 } });
 
