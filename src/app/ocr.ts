@@ -89,37 +89,44 @@ export async function captureAndRecognize(): Promise<string> {
   return recognizeText(await compressImage(file, 2000));
 }
 
-/** 缩放图片到最长边 maxW，输出 JPEG data URL。 */
-export function compressImage(file: File, maxW: number): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width;
-      let h = img.height;
+/** 缩放图片到最长边 maxW，输出 JPEG data URL。
+ *  使用 createImageBitmap 正确处理 EXIF 方向（手机拍照方向标记）。 */
+export async function compressImage(file: File, maxW: number): Promise<string> {
+  // createImageBitmap 能正确解析 EXIF 方向
+  let img: HTMLImageElement | ImageBitmap;
+  try {
+    img = await createImageBitmap(file);
+  } catch {
+    // 降级：部分浏览器不支持 createImageBitmap
+    img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = () => reject(new Error('图片加载失败'));
+      i.src = URL.createObjectURL(file);
+    });
+  }
 
-      if (w > maxW) {
-        h = Math.round((h * maxW) / w);
-        w = maxW;
-      }
-      if (h > maxW) {
-        w = Math.round((w * maxW) / h);
-        h = maxW;
-      }
+  let w = img.width;
+  let h = img.height;
 
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d')!;
+  if (w > maxW) {
+    h = Math.round((h * maxW) / w);
+    w = maxW;
+  }
+  if (h > maxW) {
+    w = Math.round((w * maxW) / h);
+    h = maxW;
+  }
 
-      ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', 0.92));
-    };
-    img.onerror = () => reject(new Error('图片加载失败'));
-    const reader = new FileReader();
-    reader.onload = (e) => { img.src = e.target?.result as string; };
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsDataURL(file);
-  });
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.drawImage(img, 0, 0, w, h);
+
+  if ('close' in img) img.close(); // 释放 ImageBitmap 内存
+  return canvas.toDataURL('image/jpeg', 0.92);
 }
 
 export async function terminateWorker(): Promise<void> {
