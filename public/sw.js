@@ -2,7 +2,7 @@
 // Cache-first for static assets (hashed filenames = immutable),
 // network-first for navigation (always show latest, fallback to cache).
 
-const CACHE_NAME = 'zhai-lu-v3';
+const CACHE_NAME = 'zhai-lu-v4';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
