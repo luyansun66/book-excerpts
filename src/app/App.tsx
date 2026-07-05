@@ -28,7 +28,7 @@ const CATEGORY_DISPLAY_MAP: Record<string, string> = {
 };
 
 // ─── Book cover — adapted from original, uses real data ──────────────────────
-function BookCover({ book, onSelect, onLongPress, dragActive }: { book: Book; onSelect: (b: Book) => void; onLongPress: (b: Book) => void; dragActive?: boolean }) {
+function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: Book) => void; dragActive?: boolean }) {
   const sharedStyle: React.CSSProperties = {
     width: COVER_W,
     height: COVER_H,
@@ -39,41 +39,11 @@ function BookCover({ book, onSelect, onLongPress, dragActive }: { book: Book; on
     transition: 'transform 0.15s ease, box-shadow 0.15s ease',
     userSelect: 'none',
     WebkitUserSelect: 'none',
-  };
-
-  // ── Long press detection ──────────────────────────────────────────────
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isLongPress = useRef(false);
-
-  // Cancel long-press timer when parent starts handling drag
-  useEffect(() => {
-    if (dragActive) {
-      cancelLongPress();
-    }
-  }, [dragActive]);
-
-  const startLongPress = () => {
-    if (dragActive) return; // suppress while parent is handling drag
-    isLongPress.current = false;
-    longPressTimer.current = setTimeout(() => {
-      isLongPress.current = true;
-      onLongPress(book);
-    }, 600);
-  };
-
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
+    WebkitTouchCallout: 'none',
   };
 
   const handleClick = () => {
     if (dragActive) return;
-    if (isLongPress.current) {
-      isLongPress.current = false;
-      return;
-    }
     onSelect(book);
   };
   const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
@@ -83,7 +53,10 @@ function BookCover({ book, onSelect, onLongPress, dragActive }: { book: Book; on
   const handleMouseLeaveCancel = (e: React.MouseEvent<HTMLElement>) => {
     (e.currentTarget as HTMLElement).style.transform = '';
     (e.currentTarget as HTMLElement).style.boxShadow = sharedStyle.boxShadow as string;
-    cancelLongPress();
+  };
+  // Prevent browser/OS context menu on long press (iOS callout, etc.)
+  const preventContext = (e: React.TouchEvent | React.MouseEvent | React.PointerEvent) => {
+    e.preventDefault();
   };
 
   // Has cover image
@@ -93,12 +66,7 @@ function BookCover({ book, onSelect, onLongPress, dragActive }: { book: Book; on
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeaveCancel}
-        onTouchStart={startLongPress}
-        onTouchEnd={cancelLongPress}
-        onTouchMove={cancelLongPress}
-        onMouseDown={startLongPress}
-        onMouseUp={cancelLongPress}
-        onContextMenu={(e) => { e.preventDefault(); onLongPress(book); }}
+        onContextMenu={(e) => e.preventDefault()}
         style={{ ...sharedStyle, overflow: 'hidden' }}
       >
         <img
@@ -120,12 +88,7 @@ function BookCover({ book, onSelect, onLongPress, dragActive }: { book: Book; on
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeaveCancel}
-      onTouchStart={startLongPress}
-      onTouchEnd={cancelLongPress}
-      onTouchMove={cancelLongPress}
-      onMouseDown={startLongPress}
-      onMouseUp={cancelLongPress}
-      onContextMenu={(e) => { e.preventDefault(); onLongPress(book); }}
+      onContextMenu={(e) => e.preventDefault()}
       style={{
         ...sharedStyle,
         background: `linear-gradient(160deg, ${lighten(bg)} 0%, ${bg} 60%)`,
@@ -301,7 +264,6 @@ function ShelfRow({
   books,
   bookCount,
   onSelect,
-  onLongPress,
   onMoveBook,
   onCatDragPointerDown,
   isCatDragged,
@@ -310,7 +272,6 @@ function ShelfRow({
   books: Book[];
   bookCount: number;
   onSelect: (b: Book) => void;
-  onLongPress: (b: Book) => void;
   onMoveBook: (bookId: string, targetIndex: number) => void;
   onCatDragPointerDown?: (e: React.PointerEvent) => void;
   isCatDragged?: boolean;
@@ -406,13 +367,8 @@ function ShelfRow({
   const handleBookPointerUp = () => {
     clearHold();
     const tracked = dragTracking.current;
-    if (dragState) {
-      if (dragState.targetIndex !== dragState.index && tracked) {
-        onMoveBook(tracked.book.id, dragState.targetIndex);
-      } else if (tracked) {
-        // Held but not dragged → context menu
-        onLongPress(tracked.book);
-      }
+    if (dragState && dragState.targetIndex !== dragState.index && tracked) {
+      onMoveBook(tracked.book.id, dragState.targetIndex);
     }
     setDragState(null);
     dragTracking.current = null;
@@ -555,7 +511,7 @@ function ShelfRow({
                   onPointerUp={handleBookPointerUp}
                   onPointerCancel={() => { clearHold(); setDragState(null); dragTracking.current = null; }}
                 >
-                  <BookCover book={book} onSelect={onSelect} onLongPress={onLongPress} dragActive={isDragged} />
+                  <BookCover book={book} onSelect={onSelect} dragActive={isDragged} />
                 </div>
 
                 {/* Hidden book placeholders between covers (3 beige rectangle "spines") */}
@@ -657,176 +613,12 @@ function ShelfRow({
 }
 
 // ─── Long-press context menu ──────────────────────────────────────────────────
-function BookContextMenu({ book, onClose, onEdit, onDelete }: { book: Book; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
-  const [showConfirm, setShowConfirm] = useState(false);
-  const { categories, updateBook } = useApp();
-
-  // Edit mode state
-  const [editing, setEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState(book.title);
-  const [editAuthor, setEditAuthor] = useState(book.author);
-  const [editCategoryId, setEditCategoryId] = useState(book.categoryId);
-
-  // Reset edit form when book changes
-  useEffect(() => {
-    setEditTitle(book.title);
-    setEditAuthor(book.author);
-    setEditCategoryId(book.categoryId);
-    setShowConfirm(false);
-    setEditing(false);
-  }, [book]);
-
-  if (editing) {
-    return (
-      <div
-        style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end' }}
-        onClick={() => { setEditing(false); onClose(); }}
-      >
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'relative', width: '100%', background: '#F6F0E7',
-            borderRadius: '20px 20px 0 0', overflow: 'hidden',
-            padding: '14px 20px 28px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
-          </div>
-          <h3 style={{ margin: '0 0 16px', fontSize: 16, fontFamily: 'Georgia, serif', fontWeight: 'bold', color: '#2c2416' }}>
-            编辑书籍
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <input type="text" placeholder="书名" value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: '#2c2416' }} />
-            <input type="text" placeholder="作者" value={editAuthor}
-              onChange={(e) => setEditAuthor(e.target.value)}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: '#2c2416' }} />
-            <select value={editCategoryId} onChange={(e) => setEditCategoryId(e.target.value)}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: '#2c2416' }}>
-              {categories.map((cat) => (<option key={cat.id} value={cat.id}>{cat.name}</option>))}
-            </select>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={async () => {
-                if (!editTitle.trim() || !editAuthor.trim()) return;
-                await updateBook(book.id, { title: editTitle.trim(), author: editAuthor.trim(), categoryId: editCategoryId });
-                setEditing(false); onClose();
-              }} style={{ flex: 1, padding: '11px 0', borderRadius: 8, border: 'none', background: '#2a1e0e', color: '#f0e8d4', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                保存
-              </button>
-              <button onClick={() => setEditing(false)}
-                style={{ padding: '11px 16px', borderRadius: 8, border: '1px solid #d4c4a0', background: 'transparent', color: '#8a7a60', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (showConfirm) {
-    return (
-      <div
-        style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end' }}
-        onClick={() => { setShowConfirm(false); }}
-      >
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'relative', width: '100%', background: '#F6F0E7',
-            borderRadius: '20px 20px 0 0', overflow: 'hidden',
-            padding: '14px 20px 28px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
-          </div>
-          <div style={{ background: '#fff0ee', borderRadius: 12, padding: '16px 18px', textAlign: 'center' }}>
-            <p style={{ margin: '0 0 4px', fontSize: 15, fontWeight: 700, fontFamily: '-apple-system, sans-serif', color: '#8a3a30' }}>
-              确认删除此书？
-            </p>
-            <p style={{ margin: '0 0 14px', fontSize: 12, color: '#b06050', fontFamily: '-apple-system, sans-serif', lineHeight: 1.6 }}>
-              该书下的所有摘录也将被删除，此操作不可撤销。
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button onClick={async () => { onDelete(); }}
-                style={{ padding: '10px 28px', borderRadius: 8, border: 'none', background: '#c0392b', color: 'white', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                确认删除
-              </button>
-              <button onClick={() => setShowConfirm(false)}
-                style={{ padding: '10px 28px', borderRadius: 8, border: '1px solid #d4c4a0', background: 'transparent', color: '#8a7a60', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'flex-end' }}
-      onClick={onClose}
-    >
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: 'relative', width: '100%', background: '#F6F0E7',
-          borderRadius: '20px 20px 0 0', overflow: 'hidden',
-          padding: '14px 20px 24px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
-        </div>
-
-        {/* Book preview row */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-          <div style={{
-            width: 36, height: 54, borderRadius: 2, flexShrink: 0,
-            background: book.coverData
-              ? `url(${book.coverData}) center/cover`
-              : `linear-gradient(160deg, ${lighten(['#4a3528','#2e3d35','#3a2e4a','#28384a','#2c3a4a','#4a3828','#3a2c48','#2a4038','#4a2e2e','#2e3a4a'][book.title.length % 10])} 0%, ${['#4a3528','#2e3d35','#3a2e4a','#28384a','#2c3a4a','#4a3828','#3a2c48','#2a4038','#4a2e2e','#2e3a4a'][book.title.length % 10]} 60%)`,
-            boxShadow: '1px 2px 6px rgba(0,0,0,0.2)',
-          }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 'bold', fontFamily: 'Georgia, serif', color: '#2c2416', lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {book.title}
-            </p>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#8a7a60', fontFamily: '-apple-system, sans-serif' }}>
-              {book.author}
-            </p>
-          </div>
-        </div>
-
-        {/* Action buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <button onClick={() => setEditing(true)}
-            style={{ width: '100%', padding: '13px 16px', borderRadius: 10, border: 'none', background: '#fffcf5', fontSize: 13, fontWeight: 600, color: '#2c2416', cursor: 'pointer', textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
-            编辑
-          </button>
-          <button onClick={() => setShowConfirm(true)}
-            style={{ width: '100%', padding: '13px 16px', borderRadius: 10, border: 'none', background: '#fffcf5', fontSize: 13, fontWeight: 600, color: '#c0392b', cursor: 'pointer', textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
-            删除
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Shelf view (bookshelf page) ──────────────────────────────────────────────
 function ShelfView() {
-  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, deleteBook, showStats, setShowStats, moveBookTo, moveCategoryTo } = useApp();
+  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, showStats, setShowStats, moveBookTo, moveCategoryTo } = useApp();
   const [showAddBook, setShowAddBook] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
-  const [contextBook, setContextBook] = useState<Book | null>(null);
   const [seedMsg, setSeedMsg] = useState('');
 
   // ─── Category drag-and-drop ────────────────────────────────────────────
@@ -1006,7 +798,6 @@ function ShelfView() {
                     books={catBooks}
                     bookCount={catBooks.length}
                     onSelect={selectBook}
-                    onLongPress={setContextBook}
                     onMoveBook={moveBookTo}
                     onCatDragPointerDown={(e) => handleCatDragStart(e, origIdx)}
                     isCatDragged={isCatDragged}
@@ -1074,19 +865,6 @@ function ShelfView() {
       {/* Sheets */}
       <AddBookSheet open={showAddBook} onClose={() => setShowAddBook(false)} />
       <CategoryManager open={showCatManager} onClose={() => setShowCatManager(false)} />
-
-      {/* Long-press context menu */}
-      {contextBook && (
-        <BookContextMenu
-          book={contextBook}
-          onClose={() => setContextBook(null)}
-          onEdit={() => { selectBook(contextBook); setContextBook(null); }}
-          onDelete={async () => {
-            await deleteBook(contextBook.id);
-            setContextBook(null);
-          }}
-        />
-      )}
 
       {/* Stats page overlay */}
       <AnimatePresence>
