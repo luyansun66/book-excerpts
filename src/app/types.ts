@@ -17,6 +17,7 @@ export interface Book {
   categoryId: string;
   coverType: CoverType | null;
   coverData: string | null; // blob URL for uploads, external URL for url type
+  sortOrder?: number; // for custom shelf ordering within category
   createdAt: string;
   updatedAt: string;
 }

@@ -10,6 +10,8 @@ import {
   addBook as dbAddBook,
   updateBook as dbUpdateBook,
   deleteBook as dbDeleteBook,
+  batchUpdateBookOrders,
+  batchUpdateCategoryOrders,
   getQuotesByBook,
   addQuote as dbAddQuote,
   updateQuote as dbUpdateQuote,
@@ -49,11 +51,13 @@ interface AppState {
   addCategory: (name: string) => Promise<Category>;
   renameCategory: (id: string, name: string) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
+  moveCategoryTo: (categoryId: string, targetIndex: number) => Promise<void>;
 
   // Actions – Books
   addBook: (data: Omit<Book, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Book>;
   updateBook: (id: string, changes: Partial<Book>) => Promise<void>;
   deleteBook: (id: string) => Promise<void>;
+  moveBookTo: (bookId: string, targetIndex: number) => Promise<void>;
 
   // Actions – Quotes
   getQuotes: (bookId: string) => Promise<Quote[]>;
@@ -136,6 +140,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshBooks();
   }, [refreshCategories, refreshBooks]);
 
+  // ─── Move / reorder categories ─────────────────────────────────────────
+  const moveCategoryTo = useCallback(async (categoryId: string, targetIndex: number) => {
+    const idx = categories.findIndex((c) => c.id === categoryId);
+    if (idx === -1 || targetIndex < 0 || targetIndex >= categories.length || idx === targetIndex) return;
+
+    const reordered = [...categories];
+    const [moved] = reordered.splice(idx, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    const updates = reordered.map((c, i) => ({ id: c.id, order: i }));
+    await batchUpdateCategoryOrders(updates);
+    await refreshCategories();
+  }, [categories, refreshCategories]);
+
   // ─── Book actions ─────────────────────────────────────────────────────────
   const addBook = useCallback(async (data: Omit<Book, 'id' | 'createdAt' | 'updatedAt'>) => {
     const book = await dbAddBook(data);
@@ -153,6 +171,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await dbDeleteBook(id);
     await refreshBooks();
   }, [refreshBooks, selectedBook]);
+
+  // ─── Move / reorder books within same category ──────────────────────────
+  const moveBookTo = useCallback(async (bookId: string, targetIndex: number) => {
+    const book = books.find((b) => b.id === bookId);
+    if (!book) return;
+
+    // Get all books in the same category, sorted by (sortOrder, createdAt desc)
+    const catBooks = books
+      .filter((b) => b.categoryId === book.categoryId)
+      .sort((a, b) => {
+        const oA = a.sortOrder ?? 0;
+        const oB = b.sortOrder ?? 0;
+        if (oA !== oB) return oA - oB;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+    const idx = catBooks.findIndex((b) => b.id === bookId);
+    if (idx === -1 || targetIndex < 0 || targetIndex >= catBooks.length || idx === targetIndex) return;
+
+    // Reorder: remove from current position, insert at target position
+    const reordered = [...catBooks];
+    const [moved] = reordered.splice(idx, 1);
+    reordered.splice(targetIndex, 0, moved);
+
+    // Assign sequential sortOrders and batch-update DB
+    const updates = reordered.map((b, i) => ({ id: b.id, sortOrder: i }));
+    await batchUpdateBookOrders(updates);
+    await refreshBooks();
+  }, [books, refreshBooks]);
 
   // ─── Quote actions ────────────────────────────────────────────────────────
   const getQuotes = useCallback(async (bookId: string) => {
@@ -193,9 +240,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addCategory,
     renameCategory,
     deleteCategory,
+    moveCategoryTo,
     addBook,
     updateBook: updateBookFn,
     deleteBook: deleteBookFn,
+    moveBookTo,
     getQuotes,
     addQuote,
     updateQuote,

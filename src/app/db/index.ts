@@ -81,7 +81,33 @@ export async function deleteCategory(id: string): Promise<void> {
 
 // ─── Book CRUD ────────────────────────────────────────────────────────────────
 export async function getAllBooks(): Promise<Book[]> {
-  return db.books.orderBy('createdAt').reverse().toArray();
+  const all = await db.books.toArray();
+  // Sort by sortOrder asc, then createdAt desc as tiebreaker
+  return all.sort((a, b) => {
+    const oA = a.sortOrder ?? 0;
+    const oB = b.sortOrder ?? 0;
+    if (oA !== oB) return oA - oB;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+}
+
+/** Batch-update sortOrder for multiple books (for reordering within a category) */
+export async function batchUpdateBookOrders(updates: { id: string; sortOrder: number }[]): Promise<void> {
+  const now = new Date().toISOString();
+  await db.transaction('rw', db.books, async () => {
+    for (const { id, sortOrder } of updates) {
+      await db.books.update(id, { sortOrder, updatedAt: now });
+    }
+  });
+}
+
+/** Batch-update order for multiple categories */
+export async function batchUpdateCategoryOrders(updates: { id: string; order: number }[]): Promise<void> {
+  await db.transaction('rw', db.categories, async () => {
+    for (const { id, order } of updates) {
+      await db.categories.update(id, { order });
+    }
+  });
 }
 
 export async function getBooksByCategory(categoryId: string): Promise<Book[]> {
@@ -113,7 +139,7 @@ export async function getQuotesByBook(bookId: string): Promise<Quote[]> {
   try {
     console.log('[DB] getQuotesByBook, bookId:', bookId);
     // Dexie 4: Collection.sortBy() instead of orderBy() (orderBy is only on Table)
-    const result = await db.quotes.where('bookId').equals(bookId).sortBy('date');
+    const result = await db.quotes.where('bookId').equals(bookId).sortBy('createdAt');
     const reversed = result.reverse();
     console.log('[DB] getQuotesByBook found', reversed.length, 'quotes');
     return reversed;
@@ -122,7 +148,7 @@ export async function getQuotesByBook(bookId: string): Promise<Quote[]> {
     console.warn('[DB] sortBy failed, falling back to in-memory sort:', e);
     try {
       const all = await db.quotes.where('bookId').equals(bookId).toArray();
-      const sorted = all.sort((a, b) => b.date.localeCompare(a.date));
+      const sorted = all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       console.log('[DB] getQuotesByBook (fallback) found', sorted.length, 'quotes');
       return sorted;
     } catch (e2) {

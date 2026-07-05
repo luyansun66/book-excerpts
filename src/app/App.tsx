@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookDetailPage } from './components/BookDetailPage';
 import SearchBar from './components/SearchBar';
@@ -28,14 +28,14 @@ const CATEGORY_DISPLAY_MAP: Record<string, string> = {
 };
 
 // ─── Book cover — adapted from original, uses real data ──────────────────────
-function BookCover({ book, onSelect, onLongPress }: { book: Book; onSelect: (b: Book) => void; onLongPress: (b: Book) => void }) {
+function BookCover({ book, onSelect, onLongPress, dragActive }: { book: Book; onSelect: (b: Book) => void; onLongPress: (b: Book) => void; dragActive?: boolean }) {
   const sharedStyle: React.CSSProperties = {
     width: COVER_W,
     height: COVER_H,
     borderRadius: '3px 4px 4px 3px',
     flexShrink: 0,
     boxShadow: '3px 4px 12px rgba(0,0,0,0.28), 1px 0 0 rgba(0,0,0,0.15) inset',
-    cursor: 'pointer',
+    cursor: dragActive ? 'grabbing' : 'pointer',
     transition: 'transform 0.15s ease, box-shadow 0.15s ease',
     userSelect: 'none',
     WebkitUserSelect: 'none',
@@ -46,6 +46,7 @@ function BookCover({ book, onSelect, onLongPress }: { book: Book; onSelect: (b: 
   const isLongPress = useRef(false);
 
   const startLongPress = () => {
+    if (dragActive) return; // suppress while parent is handling drag
     isLongPress.current = false;
     longPressTimer.current = setTimeout(() => {
       isLongPress.current = true;
@@ -61,6 +62,7 @@ function BookCover({ book, onSelect, onLongPress }: { book: Book; onSelect: (b: 
   };
 
   const handleClick = () => {
+    if (dragActive) return;
     if (isLongPress.current) {
       isLongPress.current = false;
       return;
@@ -293,12 +295,18 @@ function ShelfRow({
   bookCount,
   onSelect,
   onLongPress,
+  onMoveBook,
+  onCatDragPointerDown,
+  isCatDragged,
 }: {
   name: string;
   books: Book[];
   bookCount: number;
   onSelect: (b: Book) => void;
   onLongPress: (b: Book) => void;
+  onMoveBook: (bookId: string, targetIndex: number) => void;
+  onCatDragPointerDown?: (e: React.PointerEvent) => void;
+  isCatDragged?: boolean;
 }) {
   if (books.length === 0) return null;
 
@@ -332,12 +340,83 @@ function ShelfRow({
     });
   };
 
+  // ─── Drag-and-drop state and handlers ───────────────────────────────────
+  const [dragState, setDragState] = useState<{
+    index: number;
+    targetIndex: number;
+    startX: number;
+  } | null>(null);
+  const holdTimerRef = useRef<number | null>(null);
+  const dragTracking = useRef<{ startX: number; index: number; pointerId: number; book: Book } | null>(null);
+
+  const clearHold = () => {
+    if (holdTimerRef.current !== null) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+  };
+
+  const displayBooks = useMemo(() => {
+    if (!dragState) return books;
+    const copy = [...books];
+    const [item] = copy.splice(dragState.index, 1);
+    copy.splice(dragState.targetIndex, 0, item);
+    return copy;
+  }, [books, dragState]);
+
+  const handleBookPointerDown = (e: React.PointerEvent, book: Book, idx: number) => {
+    if (e.button !== 0) return;
+    dragTracking.current = { startX: e.clientX, index: idx, pointerId: e.pointerId, book };
+    holdTimerRef.current = window.setTimeout(() => {
+      if (!dragTracking.current) return;
+      (e.currentTarget as HTMLElement).setPointerCapture(dragTracking.current.pointerId);
+      setDragState({
+        index: dragTracking.current.index,
+        targetIndex: dragTracking.current.index,
+        startX: dragTracking.current.startX,
+      });
+    }, 300);
+  };
+
+  const handleBookPointerMove = (e: React.PointerEvent) => {
+    if (!dragState) {
+      // Before drag activates: cancel hold on significant movement (normal scroll)
+      if (dragTracking.current && Math.abs(e.clientX - dragTracking.current.startX) > 15) {
+        clearHold();
+      }
+      return;
+    }
+    // In drag mode: compute target index from pointer offset
+    const delta = e.clientX - dragState.startX;
+    const threshold = COVER_W + 10;
+    const idxShift = Math.round(delta / threshold);
+    const targetIdx = Math.max(0, Math.min(books.length - 1, dragState.index + idxShift));
+    if (targetIdx !== dragState.targetIndex) {
+      setDragState((prev) => (prev ? { ...prev, targetIndex: targetIdx } : null));
+    }
+  };
+
+  const handleBookPointerUp = () => {
+    clearHold();
+    const tracked = dragTracking.current;
+    if (dragState) {
+      if (dragState.targetIndex !== dragState.index && tracked) {
+        onMoveBook(tracked.book.id, dragState.targetIndex);
+      } else if (tracked) {
+        // Held but not dragged → context menu
+        onLongPress(tracked.book);
+      }
+    }
+    setDragState(null);
+    dragTracking.current = null;
+  };
+
   const displayName = CATEGORY_DISPLAY_MAP[name] || name;
 
   return (
     <div>
       {/* Category header */}
-      <div style={{ paddingLeft: 18, paddingTop: 12, paddingBottom: 6, paddingRight: 18 }}>
+      <div style={{ paddingLeft: 18, paddingTop: 12, paddingBottom: 6, paddingRight: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span
           style={{
             fontSize: 11,
@@ -350,17 +429,37 @@ function ShelfRow({
         >
           {displayName}
         </span>
-        <span
-          style={{
-            float: 'right',
-            fontSize: 9,
-            color: '#b8ae9a',
-            fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-            marginTop: 2,
-          }}
-        >
-          {bookCount} books
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              fontSize: 9,
+              color: '#b8ae9a',
+              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+            }}
+          >
+            {bookCount} books
+          </span>
+          {onCatDragPointerDown && (
+            <span
+              onPointerDown={onCatDragPointerDown}
+              style={{
+                cursor: 'grab',
+                userSelect: 'none',
+                fontSize: 14,
+                lineHeight: 1,
+                color: isCatDragged ? '#9a8a6a' : '#d4c4a0',
+                padding: '2px 4px',
+                borderRadius: 4,
+                transition: 'color 0.15s, background 0.15s',
+                touchAction: 'none',
+              }}
+              onMouseEnter={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = '#9a8a6a'; }}
+              onMouseLeave={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = '#d4c4a0'; }}
+            >
+              ⠿
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Scrollable shelf with arrow indicators */}
@@ -428,58 +527,76 @@ function ShelfRow({
             position: 'relative',
           }}
         >
-          {books.map((book, index) => (
-            <React.Fragment key={book.id}>
-              {/* Book cover — snap point */}
-              <div style={{ scrollSnapAlign: 'start', flexShrink: 0 }}>
-                <BookCover book={book} onSelect={onSelect} onLongPress={onLongPress} />
-              </div>
-
-              {/* Hidden book placeholders between covers (3 beige rectangle "spines") */}
-              {index < books.length - 1 && (
+          {displayBooks.map((book, idx) => {
+            const origIdx = books.findIndex((b) => b.id === book.id);
+            const isDragged = dragState !== null && origIdx === dragState.index;
+            return (
+              <React.Fragment key={book.id}>
+                {/* Book cover wrapper with drag support */}
                 <div
                   style={{
-                    display: 'flex',
-                    gap: 3,
-                    alignItems: 'flex-end',
+                    scrollSnapAlign: 'start',
                     flexShrink: 0,
-                    paddingBottom: 3,
+                    opacity: isDragged ? 0.65 : 1,
+                    transform: isDragged ? 'scale(1.08) translateY(-4px)' : undefined,
+                    zIndex: isDragged ? 10 : 1,
+                    transition: 'opacity 0.15s ease, transform 0.15s ease',
+                    cursor: isDragged ? 'grabbing' : 'grab',
                   }}
+                  onPointerDown={(e) => handleBookPointerDown(e, book, origIdx)}
+                  onPointerMove={handleBookPointerMove}
+                  onPointerUp={handleBookPointerUp}
+                  onPointerCancel={() => { clearHold(); setDragState(null); dragTracking.current = null; }}
                 >
-                  <div
-                    style={{
-                      width: 8,
-                      height: 104,
-                      borderRadius: '1px 1px 0 0',
-                      background: '#e0d5c5',
-                      opacity: 0.55,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: 7,
-                      height: 92,
-                      borderRadius: '1px 1px 0 0',
-                      background: '#e0d5c5',
-                      opacity: 0.4,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: 6,
-                      height: 98,
-                      borderRadius: '1px 1px 0 0',
-                      background: '#e0d5c5',
-                      opacity: 0.28,
-                      flexShrink: 0,
-                    }}
-                  />
+                  <BookCover book={book} onSelect={onSelect} onLongPress={onLongPress} dragActive={isDragged} />
                 </div>
-              )}
-            </React.Fragment>
-          ))}
+
+                {/* Hidden book placeholders between covers (3 beige rectangle "spines") */}
+                {idx < displayBooks.length - 1 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: 3,
+                      alignItems: 'flex-end',
+                      flexShrink: 0,
+                      paddingBottom: 3,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 8,
+                        height: 104,
+                        borderRadius: '1px 1px 0 0',
+                        background: '#e0d5c5',
+                        opacity: 0.55,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: 7,
+                        height: 92,
+                        borderRadius: '1px 1px 0 0',
+                        background: '#e0d5c5',
+                        opacity: 0.4,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div
+                      style={{
+                        width: 6,
+                        height: 98,
+                        borderRadius: '1px 1px 0 0',
+                        background: '#e0d5c5',
+                        opacity: 0.28,
+                        flexShrink: 0,
+                      }}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
 
         {/* Right arrow indicator */}
@@ -699,11 +816,65 @@ function BookContextMenu({ book, onClose, onEdit, onDelete }: { book: Book; onCl
 
 // ─── Shelf view (bookshelf page) ──────────────────────────────────────────────
 function ShelfView() {
-  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, deleteBook, showStats, setShowStats } = useApp();
+  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, deleteBook, showStats, setShowStats, moveBookTo, moveCategoryTo } = useApp();
   const [showAddBook, setShowAddBook] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
   const [contextBook, setContextBook] = useState<Book | null>(null);
   const [seedMsg, setSeedMsg] = useState('');
+
+  // ─── Category drag-and-drop ────────────────────────────────────────────
+  const [catDragState, setCatDragState] = useState<{
+    index: number;
+    targetIndex: number;
+    startY: number;
+  } | null>(null);
+
+  const handleCatDragStart = (e: React.PointerEvent, idx: number) => {
+    if (e.button !== 0) return;
+    setCatDragState({ index: idx, targetIndex: idx, startY: e.clientY });
+  };
+
+  // Window-level move/up/cancel listeners while dragging a category
+  useEffect(() => {
+    if (!catDragState) return;
+
+    const handleMove = (e: PointerEvent) => {
+      setCatDragState((prev) => {
+        if (!prev) return null;
+        const CAT_SLOT_HEIGHT = 190;
+        const shift = Math.round((e.clientY - prev.startY) / CAT_SLOT_HEIGHT);
+        const targetIdx = Math.max(0, Math.min(categories.length - 1, prev.index + shift));
+        return targetIdx !== prev.targetIndex ? { ...prev, targetIndex: targetIdx } : prev;
+      });
+    };
+
+    const handleEnd = () => {
+      setCatDragState((prev) => {
+        if (prev && prev.targetIndex !== prev.index) {
+          const cat = categories[prev.index];
+          if (cat) moveCategoryTo(cat.id, prev.targetIndex);
+        }
+        return null;
+      });
+    };
+
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    window.addEventListener('pointerup', handleEnd);
+    window.addEventListener('pointercancel', handleEnd);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleEnd);
+      window.removeEventListener('pointercancel', handleEnd);
+    };
+  }, [catDragState, categories, moveCategoryTo]);
+
+  const displayCats = useMemo(() => {
+    if (!catDragState) return categories;
+    const copy = [...categories];
+    const [item] = copy.splice(catDragState.index, 1);
+    copy.splice(catDragState.targetIndex, 0, item);
+    return copy;
+  }, [categories, catDragState]);
 
   // Auto-seed via URL param: ?seed=demian
   useEffect(() => {
@@ -810,17 +981,30 @@ function ShelfView() {
               }}
             />
 
-            {categories.map((cat) => {
+            {displayCats.map((cat) => {
               const catBooks = books.filter((b) => b.categoryId === cat.id);
+              const origIdx = categories.findIndex((c) => c.id === cat.id);
+              const isCatDragged = catDragState !== null && origIdx === catDragState.index;
               return (
-                <ShelfRow
+                <div
                   key={cat.id}
-                  name={cat.name}
-                  books={catBooks}
-                  bookCount={catBooks.length}
-                  onSelect={selectBook}
-                  onLongPress={setContextBook}
-                />
+                  style={{
+                    opacity: isCatDragged ? 0.6 : 1,
+                    transform: isCatDragged ? 'scale(0.98)' : undefined,
+                    transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  }}
+                >
+                  <ShelfRow
+                    name={cat.name}
+                    books={catBooks}
+                    bookCount={catBooks.length}
+                    onSelect={selectBook}
+                    onLongPress={setContextBook}
+                    onMoveBook={moveBookTo}
+                    onCatDragPointerDown={(e) => handleCatDragStart(e, origIdx)}
+                    isCatDragged={isCatDragged}
+                  />
+                </div>
               );
             })}
 
