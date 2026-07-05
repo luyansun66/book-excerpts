@@ -314,6 +314,9 @@ function ShelfRow({
     targetIndex: number;
     startX: number;
   } | null>(null);
+  const dragStateRef = useRef(dragState);
+  dragStateRef.current = dragState;
+
   const holdTimerRef = useRef<number | null>(null);
   const dragTracking = useRef<{ startX: number; index: number; pointerId: number; book: Book } | null>(null);
 
@@ -347,28 +350,30 @@ function ShelfRow({
   };
 
   const handleBookPointerMove = (e: React.PointerEvent) => {
-    if (!dragState) {
-      // Before drag activates: cancel hold on significant movement (normal scroll)
+    const state = dragStateRef.current;
+    if (!state) {
       if (dragTracking.current && Math.abs(e.clientX - dragTracking.current.startX) > 15) {
         clearHold();
       }
       return;
     }
-    // In drag mode: compute target index from pointer offset
-    const delta = e.clientX - dragState.startX;
+    // Prevent browser scroll while dragging
+    e.preventDefault();
+    const delta = e.clientX - state.startX;
     const threshold = COVER_W + 10;
     const idxShift = Math.round(delta / threshold);
-    const targetIdx = Math.max(0, Math.min(books.length - 1, dragState.index + idxShift));
-    if (targetIdx !== dragState.targetIndex) {
+    const targetIdx = Math.max(0, Math.min(books.length - 1, state.index + idxShift));
+    if (targetIdx !== state.targetIndex) {
       setDragState((prev) => (prev ? { ...prev, targetIndex: targetIdx } : null));
     }
   };
 
-  const handleBookPointerUp = () => {
+  const handleBookPointerUp = (e: React.PointerEvent) => {
     clearHold();
+    const state = dragStateRef.current;
     const tracked = dragTracking.current;
-    if (dragState && dragState.targetIndex !== dragState.index && tracked) {
-      onMoveBook(tracked.book.id, dragState.targetIndex);
+    if (state && state.targetIndex !== state.index && tracked) {
+      onMoveBook(tracked.book.id, state.targetIndex);
     }
     setDragState(null);
     dragTracking.current = null;
@@ -505,6 +510,7 @@ function ShelfRow({
                     zIndex: isDragged ? 10 : 1,
                     transition: 'opacity 0.15s ease, transform 0.15s ease',
                     cursor: isDragged ? 'grabbing' : 'grab',
+                    touchAction: 'none',
                   }}
                   onPointerDown={(e) => handleBookPointerDown(e, book, origIdx)}
                   onPointerMove={handleBookPointerMove}
