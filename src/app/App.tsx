@@ -45,6 +45,13 @@ function BookCover({ book, onSelect, onLongPress, dragActive }: { book: Book; on
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPress = useRef(false);
 
+  // Cancel long-press timer when parent starts handling drag
+  useEffect(() => {
+    if (dragActive) {
+      cancelLongPress();
+    }
+  }, [dragActive]);
+
   const startLongPress = () => {
     if (dragActive) return; // suppress while parent is handling drag
     isLongPress.current = false;
