@@ -335,49 +335,47 @@ function ShelfRow({
     return copy;
   }, [books, dragState]);
 
-  // Always-active window listeners for drag (never re-attach)
-  // Only process events when dragStateRef.current is non-null
+  // ─── Drag processing helpers (used in both touch and mouse handlers) ────
+  const processDragMove = (clientX: number) => {
+    const state = dragStateRef.current;
+    if (!state) return;
+    const delta = clientX - state.startX;
+    const threshold = COVER_W + 10;
+    const idxShift = Math.round(delta / threshold);
+    const targetIdx = Math.max(0, Math.min(books.length - 1, state.index + idxShift));
+    if (targetIdx !== state.targetIndex) {
+      setDragState((prev) => (prev ? { ...prev, targetIndex: targetIdx } : null));
+    }
+  };
+
+  const commitDrag = () => {
+    const state = dragStateRef.current;
+    const tracked = dragTracking.current;
+    if (state && state.targetIndex !== state.index && tracked) {
+      onMoveBook(tracked.book.id, state.targetIndex);
+    }
+    setDragState(null);
+    dragTracking.current = null;
+    clearHold();
+  };
+
+  // Window mousemove/mouseup for desktop (mouse may leave the element during drag)
   useEffect(() => {
-    const handleMove = (e: TouchEvent | MouseEvent) => {
-      const state = dragStateRef.current;
-      if (!state) return;
+    const handleMove = (e: MouseEvent) => {
+      if (!dragStateRef.current) return;
       e.preventDefault();
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const delta = clientX - state.startX;
-      const threshold = COVER_W + 10;
-      const idxShift = Math.round(delta / threshold);
-      const targetIdx = Math.max(0, Math.min(books.length - 1, state.index + idxShift));
-      if (targetIdx !== state.targetIndex) {
-        setDragState((prev) => (prev ? { ...prev, targetIndex: targetIdx } : null));
-      }
+      processDragMove(e.clientX);
     };
-
-    const handleEnd = () => {
-      const state = dragStateRef.current;
-      const tracked = dragTracking.current;
-      if (state && state.targetIndex !== state.index && tracked) {
-        onMoveBook(tracked.book.id, state.targetIndex);
-      }
-      setDragState(null);
-      dragTracking.current = null;
-      clearHold();
-    };
-
-    window.addEventListener('touchmove', handleMove, { passive: false });
+    const handleUp = () => { commitDrag(); };
     window.addEventListener('mousemove', handleMove, { passive: false });
-    window.addEventListener('touchend', handleEnd);
-    window.addEventListener('touchcancel', handleEnd);
-    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('mouseup', handleUp);
     return () => {
-      window.removeEventListener('touchmove', handleMove);
       window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('touchend', handleEnd);
-      window.removeEventListener('touchcancel', handleEnd);
-      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('mouseup', handleUp);
     };
   }, [onMoveBook, books.length]);
 
-  // Start drag hold (called from both touch and mouse start on wrapper)
+  // Start drag hold (called from touch and mouse start on wrapper)
   const startDragHold = (clientX: number, book: Book, idx: number) => {
     dragTracking.current = { startX: clientX, index: idx, book };
     holdTimerRef.current = window.setTimeout(() => {
@@ -389,8 +387,6 @@ function ShelfRow({
       });
     }, 300);
   };
-
-  const displayName = CATEGORY_DISPLAY_MAP[name] || name;
 
   const displayName = CATEGORY_DISPLAY_MAP[name] || name;
 
@@ -523,17 +519,23 @@ function ShelfRow({
                     zIndex: isDragged ? 10 : 1,
                     transition: 'opacity 0.15s ease, transform 0.15s ease',
                     cursor: isDragged ? 'grabbing' : 'grab',
-                    touchAction: 'none',
+                    WebkitTouchCallout: 'none',
                   }}
                   onTouchStart={(e) => startDragHold(e.touches[0].clientX, book, origIdx)}
-                  onMouseDown={(e) => { if (e.button === 0) startDragHold(e.clientX, book, origIdx); }}
                   onTouchMove={(e) => {
-                    // Cancel hold on significant movement (scroll) before drag activates
-                    if (!dragStateRef.current && dragTracking.current &&
-                        Math.abs(e.touches[0].clientX - dragTracking.current.startX) > 15) {
+                    if (dragStateRef.current) {
+                      // In drag mode: process the drag and prevent scroll
+                      e.preventDefault();
+                      processDragMove(e.touches[0].clientX);
+                    } else if (dragTracking.current &&
+                        Math.abs(e.touches[0].clientX - dragTracking.current.startX) > 20) {
+                      // Before drag activates: significant movement = scroll → cancel hold
                       clearHold();
                     }
                   }}
+                  onTouchEnd={() => { commitDrag(); }}
+                  onTouchCancel={() => { commitDrag(); }}
+                  onMouseDown={(e) => { if (e.button === 0) startDragHold(e.clientX, book, origIdx); }}
                 >
                   <BookCover book={book} onSelect={onSelect} dragActive={isDragged} />
                 </div>
