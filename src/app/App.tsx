@@ -340,7 +340,6 @@ function ShelfRow({
     dragTracking.current = { startX: e.clientX, index: idx, pointerId: e.pointerId, book };
     holdTimerRef.current = window.setTimeout(() => {
       if (!dragTracking.current) return;
-      (e.currentTarget as HTMLElement).setPointerCapture(dragTracking.current.pointerId);
       setDragState({
         index: dragTracking.current.index,
         targetIndex: dragTracking.current.index,
@@ -349,35 +348,52 @@ function ShelfRow({
     }, 300);
   };
 
-  const handleBookPointerMove = (e: React.PointerEvent) => {
-    const state = dragStateRef.current;
-    if (!state) {
-      if (dragTracking.current && Math.abs(e.clientX - dragTracking.current.startX) > 15) {
-        clearHold();
-      }
-      return;
-    }
-    // Prevent browser scroll while dragging
-    e.preventDefault();
-    const delta = e.clientX - state.startX;
-    const threshold = COVER_W + 10;
-    const idxShift = Math.round(delta / threshold);
-    const targetIdx = Math.max(0, Math.min(books.length - 1, state.index + idxShift));
-    if (targetIdx !== state.targetIndex) {
-      setDragState((prev) => (prev ? { ...prev, targetIndex: targetIdx } : null));
-    }
-  };
+  // Window-level move/up listeners while dragging (avoids touch/pointer capture issues)
+  useEffect(() => {
+    if (!dragState) return;
 
-  const handleBookPointerUp = (e: React.PointerEvent) => {
-    clearHold();
-    const state = dragStateRef.current;
-    const tracked = dragTracking.current;
-    if (state && state.targetIndex !== state.index && tracked) {
-      onMoveBook(tracked.book.id, state.targetIndex);
-    }
-    setDragState(null);
-    dragTracking.current = null;
-  };
+    const handleMove = (e: PointerEvent | TouchEvent) => {
+      const clientX = 'touches' in e ? e.touches[0].clientX : (e as PointerEvent).clientX;
+      const state = dragStateRef.current;
+      if (!state) return;
+      e.preventDefault();
+      const delta = clientX - state.startX;
+      const threshold = COVER_W + 10;
+      const idxShift = Math.round(delta / threshold);
+      const targetIdx = Math.max(0, Math.min(books.length - 1, state.index + idxShift));
+      if (targetIdx !== state.targetIndex) {
+        setDragState((prev) => (prev ? { ...prev, targetIndex: targetIdx } : null));
+      }
+    };
+
+    const handleEnd = () => {
+      const state = dragStateRef.current;
+      const tracked = dragTracking.current;
+      if (state && state.targetIndex !== state.index && tracked) {
+        onMoveBook(tracked.book.id, state.targetIndex);
+      }
+      setDragState(null);
+      dragTracking.current = null;
+      clearHold();
+    };
+
+    window.addEventListener('pointermove', handleMove, { passive: false });
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('pointerup', handleEnd);
+    window.addEventListener('pointercancel', handleEnd);
+    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchcancel', handleEnd);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('pointerup', handleEnd);
+      window.removeEventListener('pointercancel', handleEnd);
+      window.removeEventListener('touchend', handleEnd);
+      window.removeEventListener('touchcancel', handleEnd);
+    };
+  }, [dragState, onMoveBook, books.length]);
+
+  const displayName = CATEGORY_DISPLAY_MAP[name] || name;
 
   const displayName = CATEGORY_DISPLAY_MAP[name] || name;
 
@@ -513,8 +529,13 @@ function ShelfRow({
                     touchAction: 'none',
                   }}
                   onPointerDown={(e) => handleBookPointerDown(e, book, origIdx)}
-                  onPointerMove={handleBookPointerMove}
-                  onPointerUp={handleBookPointerUp}
+                  onPointerMove={(e) => {
+                    // Cancel hold on significant movement (browser scroll) before drag activates
+                    if (!dragStateRef.current && dragTracking.current &&
+                        Math.abs(e.clientX - dragTracking.current.startX) > 15) {
+                      clearHold();
+                    }
+                  }}
                   onPointerCancel={() => { clearHold(); setDragState(null); dragTracking.current = null; }}
                 >
                   <BookCover book={book} onSelect={onSelect} dragActive={isDragged} />
