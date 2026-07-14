@@ -30,8 +30,37 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [saving, setSaving] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [html2canvasReady, setHtml2canvasReady] = useState<boolean | null>(null);
   const theme = PRESETS[themeIndex];
   const cardRef = useRef<HTMLDivElement>(null);
+  const html2canvasRef = useRef<any>(null);
+
+  // Pre-load html2canvas when the sheet opens — the dynamic import is the most
+  // fragile step in the export flow (Safari PWA + Service Worker cache race).
+  // Loading it early lets the SW cache the chunk while the user picks a theme,
+  // and surfaces any module-load error immediately instead of after clicking save.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setHtml2canvasReady(null);
+    setErrorMsg(null);
+    (async () => {
+      try {
+        const mod = await import('html2canvas');
+        if (!cancelled) {
+          html2canvasRef.current = mod.default;
+          setHtml2canvasReady(true);
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          console.error('[ShareSheet] html2canvas preload failed:', e);
+          setHtml2canvasReady(false);
+          setErrorMsg('图片库加载失败，请刷新页面后重试');
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
 
   // Adaptive font size based on text length
   const quoteLen = quote.text.length;
@@ -79,6 +108,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 
   const handleSave = async () => {
     if (!cardRef.current || saving) return;
+    if (!html2canvasRef.current) {
+      setErrorMsg('图片库未加载完成，请稍后再试');
+      return;
+    }
     setSaving(true);
     setErrorMsg(null);
     setImageUrl(null);
@@ -88,8 +121,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         await document.fonts.load('14px "FWKaiShu"');
       } catch { /* fallback fonts will be used */ }
 
-      // Dynamic import html2canvas
-      const html2canvas = (await import('html2canvas')).default;
+      const html2canvas = html2canvasRef.current;
 
       // Capture at natural (auto) height, scale=4 → output width 1080px
       const rawCanvas = await html2canvas(cardRef.current, {
@@ -419,7 +451,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         <div style={{ marginTop: 18, width: '100%' }}>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || html2canvasReady === null}
             style={{
               width: '100%',
               display: 'flex',
@@ -429,17 +461,17 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               padding: '13px 0',
               borderRadius: 10,
               border: 'none',
-              background: saving ? '#5a4a3a' : '#2a1e0e',
+              background: saving || html2canvasReady === null ? '#5a4a3a' : '#2a1e0e',
               color: '#f0e8d4',
               fontSize: 14,
               fontWeight: 700,
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              cursor: saving ? 'not-allowed' : 'pointer',
+              cursor: saving || html2canvasReady === null ? 'not-allowed' : 'pointer',
               letterSpacing: 0.5,
             }}
           >
             <Download size={15} />
-            {saving ? '生成中…' : '保存图片'}
+            {saving ? '生成中…' : html2canvasReady === null ? '准备中…' : '保存图片'}
           </button>
         </div>
 
