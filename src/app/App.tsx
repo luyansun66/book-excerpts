@@ -415,7 +415,7 @@ function ShelfRow({
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
             }}
           >
-            {bookCount} 本
+            {bookCount} books
           </span>
           {onCatDragPointerDown && (
             <span
@@ -888,7 +888,7 @@ function ShelfView() {
               boxShadow: '0 4px 20px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)',
             }}
           >
-            添加书籍
+            Add Books
           </button>
         </div>
       )}
