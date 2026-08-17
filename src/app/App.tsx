@@ -37,7 +37,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
     flexShrink: 0,
     boxShadow: '3px 4px 12px rgba(0,0,0,0.28), 1px 0 0 rgba(0,0,0,0.15) inset',
     cursor: dragActive ? 'grabbing' : 'pointer',
-    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+    transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
     userSelect: 'none',
     WebkitUserSelect: 'none',
     WebkitTouchCallout: 'none',
@@ -48,8 +48,8 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
     onSelect(book);
   };
   const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
-    (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px) scale(1.03)';
-    (e.currentTarget as HTMLElement).style.boxShadow = '4px 8px 20px rgba(0,0,0,0.35)';
+    (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px) scale(1.04)';
+    (e.currentTarget as HTMLElement).style.boxShadow = '4px 12px 24px rgba(0,0,0,0.3)';
   };
   const handleMouseLeaveCancel = (e: React.MouseEvent<HTMLElement>) => {
     (e.currentTarget as HTMLElement).style.transform = '';
@@ -76,7 +76,11 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
   }
 
   // No cover: generate styled placeholder with book title
-  const bgColors = ['#4a3528', '#2e3d35', '#3a2e4a', '#28384a', '#2c3a4a', '#4a3828', '#3a2c48', '#2a4038', '#4a2e2e', '#2e3a4a'];
+  const bgColors = [
+    '#3D2E1E', '#2A3528', '#342A3D', '#243040',
+    '#3A2A20', '#2E3A34', '#3A2C3D', '#2A3A34',
+    '#3D2828', '#28343D',
+  ];
   const colorIdx = book.title.length % bgColors.length;
   const bg = bgColors[colorIdx];
 
@@ -88,7 +92,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
       onContextMenu={(e) => e.preventDefault()}
       style={{
         ...sharedStyle,
-        background: `linear-gradient(160deg, ${lighten(bg)} 0%, ${bg} 60%)`,
+        background: `linear-gradient(170deg, ${lighten(bg)} 0%, ${bg} 70%)`,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -98,11 +102,25 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
         overflow: 'hidden',
       }}
     >
+      {/* Paper texture overlay */}
+      <div
+        style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.06,
+          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.8) 2px, rgba(0,0,0,0.8) 2.5px), repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 2.5px)',
+        }}
+      />
+      {/* Subtle grain noise */}
+      <div
+        style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.04,
+          background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(0,0,0,0.1) 0%, transparent 50%)',
+        }}
+      />
       <div
         style={{
           position: 'absolute',
           inset: 4,
-          border: '1px solid rgba(200,151,42,0.55)',
+          border: '1px solid var(--color-gold-light)',
           borderRadius: 1,
           pointerEvents: 'none',
         }}
@@ -118,12 +136,11 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
               bottom: bottom === '0' ? 6 : undefined,
               left: i < 2 ? 6 : undefined,
               right: i >= 2 ? 6 : undefined,
-              width: 5,
-              height: 5,
-              borderTop: top === '0' ? '1px solid rgba(200,151,42,0.5)' : undefined,
-              borderBottom: bottom === '0' ? '1px solid rgba(200,151,42,0.5)' : undefined,
-              borderLeft: i < 2 ? '1px solid rgba(200,151,42,0.5)' : undefined,
-              borderRight: i >= 2 ? '1px solid rgba(200,151,42,0.5)' : undefined,
+              width: 6, height: 6,
+              borderTop: top === '0' ? '1.5px solid var(--color-gold-light)' : undefined,
+              borderBottom: bottom === '0' ? '1.5px solid var(--color-gold-light)' : undefined,
+              borderLeft: i < 2 ? '1.5px solid var(--color-gold-light)' : undefined,
+              borderRight: i >= 2 ? '1.5px solid var(--color-gold-light)' : undefined,
             }}
           />
         );
@@ -166,8 +183,23 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
 
 // ─── Decorative pattern header ────────────────────────────────────────────────
 function PatternHeader({ onManageCategories, onOpenStats }: { onManageCategories: () => void; onOpenStats: () => void }) {
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  const weekday = weekdays[today.getDay()];
   return (
-    <div style={{ padding: '6px 20px 0', position: 'relative' }}>
+    <div style={{ padding: '0 20px', position: 'relative' }}>
+      {/* Warm gradient decorative bar */}
+      <div
+        style={{
+          height: 3,
+          marginTop: 4,
+          borderRadius: 2,
+          background: 'linear-gradient(90deg, #D4A830 0%, #B8860B 40%, #DFD6C4 70%, transparent 100%)',
+          opacity: 0.5,
+        }}
+      />
+
       {/* Statistics button */}
       <button
         onClick={onOpenStats}
@@ -186,6 +218,7 @@ function PatternHeader({ onManageCategories, onOpenStats }: { onManageCategories
         }}
       >
         <BarChart3 size={15} color="#2c2416" strokeWidth={1.8} />
+        <BarChart3 size={15} color="var(--color-text)" strokeWidth={1.8} />
       </button>
       {/* Settings gear */}
       <button
@@ -205,6 +238,7 @@ function PatternHeader({ onManageCategories, onOpenStats }: { onManageCategories
         }}
       >
         <Settings size={15} color="#2c2416" strokeWidth={1.8} />
+        <Settings size={15} color="var(--color-text)" strokeWidth={1.8} />
       </button>
 
       {/* Decorative pattern area */}
@@ -214,42 +248,41 @@ function PatternHeader({ onManageCategories, onOpenStats }: { onManageCategories
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '18px 0 4px',
+          padding: '14px 0 2px',
         }}
       >
-        {/* Subtle dot pattern overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            opacity: 0.04,
-            backgroundImage: `
-              radial-gradient(circle at 20% 50%, #d4a830 1px, transparent 1px),
-              radial-gradient(circle at 60% 30%, #d4a830 1px, transparent 1px),
-              radial-gradient(circle at 80% 70%, #d4a830 1px, transparent 1px)
-            `,
-            backgroundSize: '60px 60px, 90px 90px, 70px 70px',
-          }}
-        />
 
         {/* Library building illustration */}
         <LibraryBuilding />
 
+        {/* Date */}
+        <p
+          style={{
+            margin: '2px 0 0',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 10,
+            color: 'var(--color-text-muted)',
+            letterSpacing: 0.5,
+          }}
+        >
+          {dateStr} 星期{weekday}
+        </p>
+
         {/* Tagline */}
         <p
           style={{
-            margin: '6px 0 0',
+            margin: '2px 0 0',
             fontFamily: '"SnellRoundhand", "Snell Roundhand", "SnellRoundhand-Regular", cursive',
-            fontSize: 20,
-            color: '#b8a87a',
+            fontSize: 18,
+            color: 'var(--color-text-accent)',
             textAlign: 'center',
             lineHeight: 1.3,
             letterSpacing: 0.5,
+            opacity: 0.7,
           }}
         >
           A book holds a house of gold
         </p>
-
       </div>
     </div>
   );
@@ -394,25 +427,30 @@ function ShelfRow({
   return (
     <div>
       {/* Category header */}
-      <div style={{ paddingLeft: 18, paddingTop: 12, paddingBottom: 6, paddingRight: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            fontSize: 11,
-            letterSpacing: 2,
-            color: 'var(--color-text-accent)',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-          }}
-        >
-          {displayName}
-        </span>
+      <div style={{ paddingLeft: 18, paddingTop: 14, paddingBottom: 4, paddingRight: 14, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <span
+            style={{
+              fontSize: 11,
+              letterSpacing: 2,
+              color: 'var(--color-text-accent)',
+              fontFamily: 'var(--font-sans)',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+            }}
+          >
+            {displayName}
+          </span>
+          {/* Gold underline */}
+          <div style={{ height: 2, width: 24, borderRadius: 1, background: 'linear-gradient(90deg, var(--color-gold), transparent)', opacity: 0.5 }} />
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
             style={{
-              fontSize: 9,
+              fontSize: 10,
               color: 'var(--color-text-muted)',
-              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+              fontFamily: 'var(--font-sans)',
+              letterSpacing: 0.3,
             }}
           >
             {bookCount} books
@@ -842,13 +880,31 @@ function ShelfView() {
               <div
                 style={{
                   textAlign: 'center',
-                  padding: '40px 20px',
+                  padding: '32px 20px',
+                  margin: '10px 0',
                   color: 'var(--color-text-muted)',
                   fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                   fontSize: 12,
                 }}
               >
-                书架还是空的，点击下方按钮添加书籍吧
+                <div
+                  style={{
+                    display: 'inline-block',
+                    padding: '28px 32px',
+                    borderRadius: 14,
+                    background: 'var(--color-bg-card)',
+                    boxShadow: 'var(--shadow-card)',
+                    border: '1px solid var(--color-border-light)',
+                  }}
+                >
+                  <div style={{ fontSize: 36, marginBottom: 10, lineHeight: 1 }}>📚</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                    书架还是空的
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', lineHeight: 1.6 }}>
+                    点击下方按钮添加你的第一本书吧
+                  </div>
+                </div>
               </div>
             )}
           </>
@@ -871,9 +927,11 @@ function ShelfView() {
           <button
             onClick={() => setShowAddBook(true)}
             style={{
-              background: 'var(--color-btn)',
+              background: 'rgba(44, 34, 22, 0.85)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.1)',
               color: 'var(--color-btn-text)',
-              border: 'none',
               borderRadius: 20,
               paddingTop: 14,
               paddingBottom: 14,
@@ -885,7 +943,7 @@ function ShelfView() {
               letterSpacing: 0.5,
               cursor: 'pointer',
               pointerEvents: 'auto',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.12)',
             }}
           >
             Add Books

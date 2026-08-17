@@ -178,7 +178,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
 
 // ─── Small book cover ─────────────────────────────────────────────────────────
 function SmallBookCover({ book }: { book: Book }) {
-  const W = 72, H = 108;
+  const W = 96, H = 146;
 
   if (book.coverType && book.coverData) {
     return (
@@ -201,7 +201,7 @@ function SmallBookCover({ book }: { book: Book }) {
     );
   }
 
-  const bgColors = ['#4a3528', '#2e3d35', '#3a2e4a', '#28384a', '#2c3a4a', '#4a3828', '#3a2c48', '#2a4038', '#4a2e2e', '#2e3a4a'];
+  const bgColors = ['#3D2E1E', '#2A3528', '#342A3D', '#243040', '#3A2A20', '#2E3A34', '#3A2C3D', '#2A3A34', '#3D2828', '#28343D'];
   const colorIdx = book.title.length % bgColors.length;
   const bg = bgColors[colorIdx];
 
@@ -222,12 +222,12 @@ function SmallBookCover({ book }: { book: Book }) {
         position: 'relative',
       }}
     >
-      <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(200,151,42,0.55)', borderRadius: 1, pointerEvents: 'none' }} />
-      <p style={{ color: '#d4a840', fontSize: 7.5, fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'center', lineHeight: 1.35, margin: 0, fontWeight: 'bold', zIndex: 1, whiteSpace: 'pre-line' }}>
+      <div style={{ position: 'absolute', inset: 4, border: '1px solid var(--color-gold-light)', borderRadius: 1, pointerEvents: 'none' }} />
+      <p style={{ color: '#d4a840', fontSize: 10, fontFamily: 'Georgia, "Times New Roman", serif', textAlign: 'center', lineHeight: 1.35, margin: 0, fontWeight: 'bold', zIndex: 1, whiteSpace: 'pre-line' }}>
         {book.title.length > 12 ? book.title.slice(0, 10) + '…' : book.title}
       </p>
       <div style={{ width: 20, height: 1, background: 'rgba(200,151,42,0.45)', margin: '4px 0', zIndex: 1 }} />
-      <p style={{ color: 'rgba(200,151,42,0.6)', fontSize: 6, fontFamily: 'Georgia, serif', textAlign: 'center', margin: 0, zIndex: 1 }}>
+      <p style={{ color: 'rgba(200,151,42,0.6)', fontSize: 8, fontFamily: 'Georgia, serif', textAlign: 'center', margin: 0, zIndex: 1 }}>
         {book.author.length > 8 ? book.author.slice(0, 7) + '…' : book.author}
       </p>
     </div>
@@ -254,10 +254,12 @@ function QuoteCard({
       style={{
         background: 'var(--color-bg-card)',
         borderRadius: 16,
-        padding: '18px 16px 13px',
-        boxShadow: '0 1px 6px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)',
+        padding: '18px 16px 13px 13px',
+        borderLeft: '3px solid var(--color-quote-accent)',
+        boxShadow: 'var(--shadow-card)',
         position: 'relative',
         cursor: 'default',
+        transition: 'box-shadow var(--transition-fast)',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -265,14 +267,14 @@ function QuoteCard({
       onTouchEnd={() => setTimeout(() => setHovered(false), 1500)}
     >
       <div style={{ position: 'relative', paddingLeft: 16, paddingRight: 8 }}>
-        <span style={{ position: 'absolute', top: -6, left: -2, fontFamily: 'Georgia, serif', fontSize: 30, color: '#ddd8cc', lineHeight: 1, userSelect: 'none' }}>
+        <span style={{ position: 'absolute', top: -12, left: -4, fontFamily: 'Georgia, serif', fontSize: 40, color: 'var(--color-quote-mark)', lineHeight: 1, userSelect: 'none' }}>
           &#x201C;
         </span>
-        <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 13.5, lineHeight: 1.78, color: '#333333', margin: 0, paddingTop: 8 }}>
+        <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 13.5, lineHeight: 1.78, color: 'var(--color-text)', margin: 0, paddingTop: 8 }}>
           {quote.text}
         </p>
         <div style={{ textAlign: 'right', marginTop: -4 }}>
-          <span style={{ fontFamily: 'Georgia, serif', fontSize: 30, color: '#ddd8cc', lineHeight: 1, userSelect: 'none' }}>
+          <span style={{ fontFamily: 'Georgia, serif', fontSize: 40, color: 'var(--color-quote-mark)', lineHeight: 1, userSelect: 'none' }}>
             &#x201D;
           </span>
         </div>
@@ -280,10 +282,10 @@ function QuoteCard({
 
       {quote.thought && (
         <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', marginTop: 4, paddingLeft: 2 }}>
-          <span style={{ color: '#ccc6b8', fontSize: 13, lineHeight: 1, marginTop: 3, flexShrink: 0, userSelect: 'none' }}>
+          <span style={{ color: 'var(--color-quote-mark)', fontSize: 13, lineHeight: 1, marginTop: 3, flexShrink: 0, userSelect: 'none' }}>
             ↳
           </span>
-          <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif', fontSize: 11.5, lineHeight: 1.65, color: '#666666', margin: 0 }}>
+          <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif', fontSize: 11.5, lineHeight: 1.65, color: 'var(--color-quote-thought)', margin: '2px 0 0', background: 'var(--color-bg-thought)', padding: '6px 10px', borderRadius: 6 }}>
             {quote.thought}
           </p>
         </div>
@@ -293,15 +295,15 @@ function QuoteCard({
         <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 9.5, color: 'var(--color-text-muted)', letterSpacing: 0.15 }}>
           {quote.page != null ? `P.${quote.page}` : ''}{quote.page != null && quote.date ? ' · ' : ''}{quote.date || ''}
         </span>
-        <div style={{ display: 'flex', gap: 11, opacity: hovered ? 0.6 : 0.18, transition: 'opacity 0.2s ease' }}>
+        <div style={{ display: 'flex', gap: 11, opacity: hovered ? 0.6 : 0.4, transition: 'opacity 0.2s ease' }}>
           <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }} onClick={onEdit} title="编辑">
-            <Edit3 size={12} color="#555" strokeWidth={1.6} />
+            <Edit3 size={12} color="var(--color-quote-icon)" strokeWidth={1.6} />
           </button>
           <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }} onClick={onDelete} title="删除">
-            <Trash2 size={12} color="#555" strokeWidth={1.6} />
+            <Trash2 size={12} color="var(--color-quote-icon)" strokeWidth={1.6} />
           </button>
           <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }} onClick={onShare} title="分享">
-            <Share2 size={12} color="#555" strokeWidth={1.6} />
+            <Share2 size={12} color="var(--color-quote-icon)" strokeWidth={1.6} />
           </button>
         </div>
       </div>
@@ -612,12 +614,14 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         <button
           onClick={() => setShowAddSheet(true)}
           style={{
-            background: 'var(--color-btn)', color: 'var(--color-btn-text)', border: 'none', borderRadius: 20,
+            background: 'rgba(44, 34, 22, 0.85)', color: 'var(--color-btn-text)',
+            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20,
             paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32,
             fontSize: 13, fontWeight: 700,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',
             cursor: 'pointer', letterSpacing: 0.4, pointerEvents: 'auto',
-            boxShadow: '0 4px 18px rgba(0,0,0,0.24)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.2)',
           }}
         >
           Add Quotes

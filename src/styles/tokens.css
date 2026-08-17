@@ -1,93 +1,157 @@
-/* ─── 摘录 — 设计令牌 ───────────────────────────────────────────────────────── */
-/* 使用 CSS 自定义属性，便于深色模式切换和主题统一 */
+/* ─── 摘录 — 设计令牌 v3 ─────────────────────────────────────────────────────── */
+/* 暖色书卷风 + 纸纹纹理 + 统一阴影光源 */
 
 :root {
-  /* 背景色 */
-  --color-bg: #F6F0E7;
-  --color-bg-card: #FFFDF3;
-  --color-bg-card-alt: #FFFDF4;
-  --color-bg-overlay: rgba(0, 0, 0, 0.35);
+  /* ── 背景色 ────────────────────────────────────────────────────────────── */
+  --color-bg:            #F4EFE6;
+  --color-bg-card:       #FDFBF6;
+  --color-bg-card-alt:   #FEFCF8;
+  --color-bg-overlay:    rgba(28, 22, 12, 0.35);
+  --color-bg-skeleton:   #EBE4D6;
+  --color-bg-thought:    #F8F4EC;   /* 感悟背景条 */
 
-  /* 文字 */
-  --color-text: #2c2416;
-  --color-text-secondary: #8a7a60;
-  --color-text-muted: #b8ae9a;
-  --color-text-accent: #9a8a6a;
+  /* ── 文字 ──────────────────────────────────────────────────────────────── */
+  --color-text:           #1C1610;
+  --color-text-secondary: #7A6B55;
+  --color-text-muted:     #B0A590;
+  --color-text-accent:    #8A7A60;
 
-  /* 强调色 / 金色 */
-  --color-gold: #d4a830;
-  --color-gold-light: rgba(212, 168, 48, 0.33);
+  /* ── 金色系 ────────────────────────────────────────────────────────────── */
+  --color-gold:           #B8860B;
+  --color-gold-soft:      #D4A830;
+  --color-gold-light:     rgba(184, 134, 11, 0.25);
+  --color-gold-glow:      rgba(184, 134, 11, 0.12);
+  --color-gold-pale:      rgba(184, 134, 11, 0.08);
 
-  /* 边框 */
-  --color-border: #d4c4a0;
+  /* ── 边框 ──────────────────────────────────────────────────────────────── */
+  --color-border:         #DFD6C4;
+  --color-border-light:   rgba(180, 160, 130, 0.25);
 
-  /* 按钮 */
-  --color-btn: #2a1e0e;
-  --color-btn-text: #f0e8d4;
-  --color-btn-disabled: #c4b498;
+  /* ── 按钮 ──────────────────────────────────────────────────────────────── */
+  --color-btn:            #2C2216;
+  --color-btn-text:       #F5EFE0;
+  --color-btn-hover:      #3C3020;
+  --color-btn-disabled:   #C4BAA0;
 
-  /* 危险 */
-  --color-danger: #c0392b;
-  --color-danger-bg: #fff0ee;
+  /* ── 语义色 ────────────────────────────────────────────────────────────── */
+  --color-danger:         #C0392B;
+  --color-danger-bg:      #FEF0EE;
+  --color-success-bg:     #EEF6EC;
+  --color-success-text:   #3D6B3A;
 
-  /* 成功 */
-  --color-success-bg: #e8f5e0;
-  --color-success-text: #2d6a30;
+  /* ── 卡片专用 ──────────────────────────────────────────────────────────── */
+  --color-quote-mark:     #D8D0C0;
+  --color-quote-thought:  #7A6B55;
+  --color-quote-icon:     #6A5A40;
+  --color-quote-accent:   #B8860B;   /* 左侧金线 */
 
-  /* 圆角 */
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 16px;
+  /* ── 阅读热力图 ───────────────────────────────────────────────────────── */
+  --heatmap-0: #EFE8DC;
+  --heatmap-1: #E3D2B6;
+  --heatmap-2: #D0B985;
+  --heatmap-3: #BE9A4F;
+  --heatmap-4: #B8860B;
+  --heatmap-5: #8A6508;
+
+  /* ── 圆角 ──────────────────────────────────────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   16px;
   --radius-pill: 20px;
+  --radius-full: 9999px;
 
-  /* 字体 */
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  /* ── 字体 ──────────────────────────────────────────────────────────────── */
+  --font-sans:  -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-serif: Georgia, "Times New Roman", serif;
-  --font-kai: "FWKaiShu", Georgia, serif;
+  --font-kai:   "FWKaiShu", Georgia, serif;
 
-  /* 字号 */
-  --text-xs: 9px;
-  --text-sm: 11px;
-  --text-base: 13px;
-  --text-md: 14px;
-  --text-lg: 16px;
-  --text-xl: 17px;
+  /* ── 字号 ──────────────────────────────────────────────────────────────── */
+  --text-2xs: 10px;
+  --text-xs:  11px;
+  --text-sm:  12px;
+  --text-base:13px;
+  --text-md:  14px;
+  --text-lg:  16px;
+  --text-xl:  18px;
+  --text-2xl: 22px;
+  --text-3xl: 28px;
+  --text-hero:48px;
 
-  /* 阴影 */
-  --shadow-card: 0 1px 6px rgba(0, 0, 0, 0.06);
-  --shadow-button: 0 4px 20px rgba(0, 0, 0, 0.3);
+  /* ── 间距 ──────────────────────────────────────────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+
+  /* ── 阴影系统（光源左上 → 右下）────────────────────────────────────────── */
+  --shadow-sm:    0 1px 2px rgba(28, 22, 12, 0.04);
+  --shadow-card:  0 1px 3px rgba(28, 22, 12, 0.06), 0 1px 2px rgba(28, 22, 12, 0.04);
+  --shadow-md:    1px 2px 8px rgba(28, 22, 12, 0.08), 0 1px 3px rgba(28, 22, 12, 0.04);
+  --shadow-lg:    2px 4px 16px rgba(28, 22, 12, 0.12), 0 2px 6px rgba(28, 22, 12, 0.06);
+  --shadow-float: 2px 6px 24px rgba(28, 22, 12, 0.18), 0 4px 12px rgba(28, 22, 12, 0.08);
+
+  /* ── 过渡 ──────────────────────────────────────────────────────────────── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast:   150ms var(--ease-out);
+  --transition-normal: 250ms var(--ease-out);
+  --transition-slow:   400ms var(--ease-out);
 }
 
 /* ─── 深色模式 ──────────────────────────────────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #1a1510;
-    --color-bg-card: #2a2418;
-    --color-bg-card-alt: #2c2618;
-    --color-bg-overlay: rgba(0, 0, 0, 0.55);
+    --color-bg:            #1A1610;
+    --color-bg-card:       #252016;
+    --color-bg-card-alt:   #282318;
+    --color-bg-overlay:    rgba(0, 0, 0, 0.55);
+    --color-bg-skeleton:   #2A2418;
+    --color-bg-thought:    #2A2418;
 
-    --color-text: #e8ddd0;
-    --color-text-secondary: #b8a88a;
-    --color-text-muted: #8a7a60;
-    --color-text-accent: #c4b080;
+    --color-text:           #E8DDD0;
+    --color-text-secondary: #B0A080;
+    --color-text-muted:     #7A6B55;
+    --color-text-accent:    #C0B090;
 
-    --color-gold: #d4a830;
-    --color-gold-light: rgba(212, 168, 48, 0.25);
+    --color-gold:           #D4A830;
+    --color-gold-soft:      #C8960C;
+    --color-gold-light:     rgba(212, 168, 48, 0.18);
+    --color-gold-glow:      rgba(212, 168, 48, 0.08);
+    --color-gold-pale:      rgba(212, 168, 48, 0.06);
 
-    --color-border: #5a4a30;
+    --color-border:         #4A3D28;
+    --color-border-light:   rgba(180, 160, 130, 0.12);
 
-    --color-btn: #e8ddd0;
-    --color-btn-text: #1a1510;
-    --color-btn-disabled: #5a4a3a;
+    --color-btn:            #E8D8C0;
+    --color-btn-text:       #1A1610;
+    --color-btn-hover:      #F0E4D0;
+    --color-btn-disabled:   #5A4A3A;
 
-    --color-danger: #e07060;
-    --color-danger-bg: #3a2018;
+    --color-danger:         #E07060;
+    --color-danger-bg:      #3A2018;
+    --color-success-bg:     #1A3020;
+    --color-success-text:   #6AAA6A;
 
-    --color-success-bg: #1a3020;
-    --color-success-text: #6aaa6a;
+    --color-quote-mark:     #5A4D38;
+    --color-quote-thought:  #B0A080;
+    --color-quote-icon:     #A09070;
+    --color-quote-accent:   #D4A830;
 
-    --shadow-card: 0 1px 6px rgba(0, 0, 0, 0.3);
-    --shadow-button: 0 4px 20px rgba(0, 0, 0, 0.5);
+    --heatmap-0: #2A2418;
+    --heatmap-1: #3A3120;
+    --heatmap-2: #57472B;
+    --heatmap-3: #846A38;
+    --heatmap-4: #B8860B;
+    --heatmap-5: #E3B84A;
+
+    --shadow-sm:    0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-card:  0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md:    1px 2px 8px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-lg:    2px 4px 16px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+    --shadow-float: 2px 6px 24px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 }
