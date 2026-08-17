@@ -33,7 +33,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#F6F0E7',
+            background: 'var(--color-bg)',
             padding: '0 24px',
             fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
             textAlign: 'center',
@@ -41,10 +41,10 @@ export default class ErrorBoundary extends Component<Props, State> {
           }}
         >
           <div style={{ fontSize: 48, opacity: 0.4 }}>⚠️</div>
-          <h2 style={{ margin: 0, fontSize: 16, color: '#2c2416', fontWeight: 700 }}>
+          <h2 style={{ margin: 0, fontSize: 16, color: 'var(--color-text)', fontWeight: 700 }}>
             出错了
           </h2>
-          <p style={{ margin: 0, fontSize: 12, color: '#8a7a60', lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
             {this.state.error}
           </p>
           <button
@@ -56,8 +56,8 @@ export default class ErrorBoundary extends Component<Props, State> {
               padding: '10px 24px',
               borderRadius: 8,
               border: 'none',
-              background: '#2a1e0e',
-              color: '#f0e8d4',
+              background: 'var(--color-btn)',
+              color: 'var(--color-btn-text)',
               fontSize: 13,
               fontWeight: 700,
               cursor: 'pointer',

@@ -5,13 +5,13 @@ import catSvg from '../../../assets/icon-cat.svg?raw';
 
 // ─── Theme presets ────────────────────────────────────────────────────────────
 const PRESETS: ThemePreset[] = [
-  { id: 'warm', name: '暖黄复古', bgColor: '#FFFDF4', textColor: '#333333', accentColor: '#d4a830', fontFamily: "'FWKaiShu', Georgia, serif" },
+  { id: 'warm', name: '暖黄复古', bgColor: 'var(--color-bg-card-alt)', textColor: '#333333', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
   { id: 'clean', name: '极简白', bgColor: '#ffffff', textColor: '#1a1a1a', accentColor: '#555555', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'dark', name: '深色典雅', bgColor: '#2c2416', textColor: '#e8ddd0', accentColor: '#d4a830', fontFamily: "'FWKaiShu', Georgia, serif" },
+  { id: 'dark', name: '深色典雅', bgColor: 'var(--color-text)', textColor: '#e8ddd0', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
   { id: 'green', name: '清新绿', bgColor: '#f0f5ec', textColor: '#2d4a2e', accentColor: '#5a8a5c', fontFamily: "'FWKaiShu', Georgia, serif" },
   { id: 'blue', name: '静谧蓝', bgColor: '#eef3f8', textColor: '#2c3e50', accentColor: '#5a7a9a', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'cream', name: '暖白', bgColor: '#FEFCF8', textColor: '#333333', accentColor: '#d4a830', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'navy', name: '深蓝', bgColor: '#233073', textColor: '#CBECFE', accentColor: '#d4a830', fontFamily: "'FWKaiShu', Georgia, serif" },
+  { id: 'cream', name: '暖白', bgColor: '#FEFCF8', textColor: '#333333', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
+  { id: 'navy', name: '深蓝', bgColor: '#233073', textColor: '#CBECFE', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
 ];
 
 // Preview at 270px, output at 1080px wide (scale=4), height auto
@@ -229,7 +229,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           position: 'relative',
           width: '100%',
           maxHeight: '92vh',
-          background: '#F6F0E7',
+          background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflowY: 'auto',
           display: 'flex',
@@ -240,7 +240,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       >
         {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
 
         {/* Header */}
@@ -259,7 +259,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               fontSize: 16,
               fontFamily: "'FWKaiShu', Georgia, serif",
               fontWeight: 'bold',
-              color: '#2c2416',
+              color: 'var(--color-text)',
             }}
           >
             分享摘录
@@ -445,7 +445,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         <div
           style={{
             fontSize: 10,
-            color: '#b8ae9a',
+            color: 'var(--color-text-muted)',
             fontFamily: '-apple-system, sans-serif',
             marginTop: 4,
           }}
@@ -467,8 +467,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               padding: '13px 0',
               borderRadius: 10,
               border: 'none',
-              background: saving || html2canvasReady === null ? '#5a4a3a' : '#2a1e0e',
-              color: '#f0e8d4',
+              background: saving || html2canvasReady === null ? '#5a4a3a' : 'var(--color-btn)',
+              color: 'var(--color-btn-text)',
               fontSize: 14,
               fontWeight: 700,
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
@@ -499,7 +499,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             <p
               style={{
                 fontSize: 11,
-                color: '#8a7a60',
+                color: 'var(--color-text-secondary)',
                 fontFamily: '-apple-system, sans-serif',
                 margin: 0,
                 fontWeight: 600,
@@ -511,7 +511,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               <p
                 style={{
                   fontSize: 11,
-                  color: '#c0392b',
+                  color: 'var(--color-danger)',
                   fontFamily: '-apple-system, sans-serif',
                   margin: 0,
                   fontWeight: 700,
@@ -542,7 +542,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             style={{
               marginTop: 12,
               fontSize: 12,
-              color: '#c0392b',
+              color: 'var(--color-danger)',
               fontFamily: '-apple-system, sans-serif',
               textAlign: 'center',
               padding: '8px 16px',

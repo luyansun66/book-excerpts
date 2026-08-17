@@ -17,7 +17,7 @@ const COLORS = [
   '#D4C4A0',  // 3-5
   '#C4A84A',  // 6-10
   '#A08530',  // 11-20
-  '#2a1e0e',  // 21+
+  'var(--color-btn)',  // 21+
 ];
 
 function getColor(count: number): string {
@@ -96,7 +96,7 @@ export default function ReadingHeatmap({ dailyCounts, year, onYearChange, minYea
         >
           <ChevronLeft size={14} color="#2c2416" strokeWidth={2} />
         </button>
-        <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Georgia, serif', color: '#2c2416', minWidth: 50, textAlign: 'center' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, fontFamily: 'Georgia, serif', color: 'var(--color-text)', minWidth: 50, textAlign: 'center' }}>
           {year}
         </span>
         <button
@@ -109,7 +109,7 @@ export default function ReadingHeatmap({ dailyCounts, year, onYearChange, minYea
       </div>
 
       {!hasData ? (
-        <div style={{ textAlign: 'center', padding: '24px 0', color: '#b8ae9a', fontSize: 11, fontFamily: '-apple-system, sans-serif' }}>
+        <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--color-text-muted)', fontSize: 11, fontFamily: '-apple-system, sans-serif' }}>
           该年份无阅读记录
         </div>
       ) : (
@@ -120,7 +120,7 @@ export default function ReadingHeatmap({ dailyCounts, year, onYearChange, minYea
             {/* Day-of-week labels column */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: GAP, paddingRight: 4, paddingTop: 14 }}>
               {['一', '三', '五'].map((label) => (
-                <div key={label} style={{ height: CELL, display: 'flex', alignItems: 'center', fontSize: 9, color: '#b8ae9a', fontFamily: '-apple-system, sans-serif', lineHeight: 1 }}>
+                <div key={label} style={{ height: CELL, display: 'flex', alignItems: 'center', fontSize: 9, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', lineHeight: 1 }}>
                   {label}
                 </div>
               ))}
@@ -137,7 +137,7 @@ export default function ReadingHeatmap({ dailyCounts, year, onYearChange, minYea
                       position: 'absolute',
                       left: ml.index * COL_W,
                       fontSize: 9,
-                      color: '#b8ae9a',
+                      color: 'var(--color-text-muted)',
                       fontFamily: '-apple-system, sans-serif',
                       lineHeight: 1,
                       whiteSpace: 'nowrap',
@@ -180,11 +180,11 @@ export default function ReadingHeatmap({ dailyCounts, year, onYearChange, minYea
       {/* Legend */}
       {hasData && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, justifyContent: 'flex-end', marginTop: 8, paddingRight: 4 }}>
-          <span style={{ fontSize: 7, color: '#b8ae9a', fontFamily: '-apple-system, sans-serif', marginRight: 2 }}>少</span>
+          <span style={{ fontSize: 7, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', marginRight: 2 }}>少</span>
           {COLORS.map((c, i) => (
             <div key={i} style={{ width: 10, height: 10, borderRadius: 1.5, background: c, flexShrink: 0 }} />
           ))}
-          <span style={{ fontSize: 7, color: '#b8ae9a', fontFamily: '-apple-system, sans-serif', marginLeft: 2 }}>多</span>
+          <span style={{ fontSize: 7, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', marginLeft: 2 }}>多</span>
         </div>
       )}
     </div>

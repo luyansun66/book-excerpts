@@ -57,7 +57,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
       style={{
         position: 'absolute',
         inset: 0,
-        background: '#F6F0E7',
+        background: 'var(--color-bg)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -96,7 +96,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
             书架
           </span>
         </button>
-        <span style={{ fontFamily: 'Georgia, serif', fontSize: 15, fontWeight: 'bold', color: '#2c2416', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+        <span style={{ fontFamily: 'Georgia, serif', fontSize: 15, fontWeight: 'bold', color: 'var(--color-text)', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
           阅读统计
         </span>
         <div style={{ width: 40, visibility: 'hidden' }} />
@@ -107,7 +107,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
         <div
           style={{
             margin: '4px 14px 0', padding: '8px 12px', borderRadius: 8,
-            background: '#fff0ee', color: '#a04030', fontSize: 11,
+            background: 'var(--color-danger-bg)', color: '#a04030', fontSize: 11,
             fontFamily: '-apple-system, sans-serif', textAlign: 'center',
           }}
         >
@@ -130,7 +130,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
         } as React.CSSProperties}
       >
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#b8ae9a', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-muted)', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>
             加载中…
           </div>
         ) : (
@@ -146,17 +146,17 @@ export default function StatsPage({ onBack }: StatsPageProps) {
                 <div
                   key={card.label}
                   style={{
-                    background: '#FFFDF3',
+                    background: 'var(--color-bg-card)',
                     borderRadius: 12,
                     padding: '14px 12px',
                     boxShadow: '0 1px 6px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)',
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Georgia, serif', color: '#2c2416', lineHeight: 1.2, marginBottom: 4 }}>
+                  <div style={{ fontSize: 20, fontWeight: 'bold', fontFamily: 'Georgia, serif', color: 'var(--color-text)', lineHeight: 1.2, marginBottom: 4 }}>
                     {card.value}
                   </div>
-                  <div style={{ fontSize: 10, color: '#b8ae9a', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
                     {card.label}
                   </div>
                 </div>
@@ -165,9 +165,9 @@ export default function StatsPage({ onBack }: StatsPageProps) {
 
             {/* Most active month */}
             {stats && stats.mostActiveMonth && (
-              <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 11, color: '#8a7a60', fontFamily: '-apple-system, sans-serif', lineHeight: 1.5 }}>
+              <div style={{ textAlign: 'center', marginBottom: 16, fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', lineHeight: 1.5 }}>
                 最活跃月份：
-                <span style={{ fontWeight: 600, color: '#2c2416' }}>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>
                   {stats.mostActiveMonth.replace('-', '年')}月
                 </span>
                 （{stats.mostActiveMonthCount} 条摘录）
@@ -210,7 +210,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-                  background: '#fffcf5', color: '#8a7a60', fontSize: 12,
+                  background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
                   fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer',
                 }}
               >
@@ -222,7 +222,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-                  background: '#fffcf5', color: '#8a7a60', fontSize: 12,
+                  background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
                   fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer',
                 }}
               >
@@ -257,11 +257,11 @@ export default function StatsPage({ onBack }: StatsPageProps) {
 
             {/* Import preview / confirmation */}
             {importPreview && (
-              <div style={{ marginTop: 0, marginBottom: 8, padding: '14px 16px', borderRadius: 10, background: '#FFFDF3', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#2c2416', fontFamily: '-apple-system, sans-serif', marginBottom: 6 }}>
+              <div style={{ marginTop: 0, marginBottom: 8, padding: '14px 16px', borderRadius: 10, background: 'var(--color-bg-card)', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', marginBottom: 6 }}>
                   即将导入以下数据：
                 </div>
-                <div style={{ fontSize: 11, color: '#8a7a60', fontFamily: '-apple-system, sans-serif', lineHeight: 1.7 }}>
+                <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', lineHeight: 1.7 }}>
                   📂 {importPreview.categories.length} 个分类<br />
                   📚 {importPreview.books.length} 本书<br />
                   💬 {importPreview.quotes.length} 条摘录
@@ -282,7 +282,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
                     }}
                     style={{
                       flex: 1, padding: '9px 0', borderRadius: 6, border: 'none',
-                      background: '#2a1e0e', color: '#f0e8d4', fontSize: 12,
+                      background: 'var(--color-btn)', color: 'var(--color-btn-text)', fontSize: 12,
                       fontWeight: 700, cursor: 'pointer', fontFamily: '-apple-system, sans-serif',
                     }}
                   >
@@ -292,7 +292,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
                     onClick={() => setImportPreview(null)}
                     style={{
                       padding: '9px 16px', borderRadius: 6, border: '1px solid #d4c4a0',
-                      background: 'transparent', color: '#8a7a60', fontSize: 12,
+                      background: 'transparent', color: 'var(--color-text-secondary)', fontSize: 12,
                       fontWeight: 600, cursor: 'pointer', fontFamily: '-apple-system, sans-serif',
                     }}
                   >
@@ -304,7 +304,7 @@ export default function StatsPage({ onBack }: StatsPageProps) {
 
             {/* Import result message */}
             {importMsg && (
-              <div style={{ textAlign: 'center', marginBottom: 8, fontSize: 11, color: importMsg.includes('✅') ? '#2d6a30' : '#c0392b', fontFamily: '-apple-system, sans-serif' }}>
+              <div style={{ textAlign: 'center', marginBottom: 8, fontSize: 11, color: importMsg.includes('✅') ? 'var(--color-success-text)' : 'var(--color-danger)', fontFamily: '-apple-system, sans-serif' }}>
                 {importMsg}
               </div>
             )}

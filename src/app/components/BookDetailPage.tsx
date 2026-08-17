@@ -61,16 +61,16 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
         style={{
           position: 'relative',
           width: '100%',
-          background: '#F6F0E7',
+          background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflow: 'hidden',
           padding: '14px 20px 28px',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
-        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontFamily: 'Georgia, serif', fontWeight: 'bold', color: '#2c2416' }}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontFamily: 'Georgia, serif', fontWeight: 'bold', color: 'var(--color-text)' }}>
           编辑书籍
         </h3>
 
@@ -80,19 +80,19 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
             placeholder="书名"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: '#2c2416' }}
+            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: 'var(--color-text)' }}
           />
           <input
             type="text"
             placeholder="作者"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: '#2c2416' }}
+            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: 'var(--color-text)' }}
           />
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: '#2c2416' }}
+            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: 'var(--color-text)' }}
           >
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -107,8 +107,8 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
                 padding: '11px 0',
                 borderRadius: 8,
                 border: 'none',
-                background: '#2a1e0e',
-                color: '#f0e8d4',
+                background: 'var(--color-btn)',
+                color: 'var(--color-btn-text)',
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -123,7 +123,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
                 borderRadius: 8,
                 border: '1px solid #d4c4a0',
                 background: 'transparent',
-                color: '#c0392b',
+                color: 'var(--color-danger)',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -134,7 +134,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
           </div>
 
           {showDeleteConfirm && (
-            <div style={{ background: '#fff0ee', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#8a3a30', fontFamily: '-apple-system, sans-serif', lineHeight: 1.6 }}>
+            <div style={{ background: 'var(--color-danger-bg)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#8a3a30', fontFamily: '-apple-system, sans-serif', lineHeight: 1.6 }}>
               <strong>确认删除此书籍？</strong>
               该操作不可撤销，该书下的所有摘录也将被删除。
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -144,7 +144,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
                     padding: '6px 14px',
                     borderRadius: 6,
                     border: 'none',
-                    background: '#c0392b',
+                    background: 'var(--color-danger)',
                     color: 'white',
                     fontSize: 12,
                     fontWeight: 600,
@@ -160,7 +160,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
                     borderRadius: 6,
                     border: '1px solid #d4c4a0',
                     background: 'transparent',
-                    color: '#8a7a60',
+                    color: 'var(--color-text-secondary)',
                     fontSize: 12,
                     cursor: 'pointer',
                   }}
@@ -252,7 +252,7 @@ function QuoteCard({
     <div
       data-quote-id={quote.id}
       style={{
-        background: '#FFFDF3',
+        background: 'var(--color-bg-card)',
         borderRadius: 16,
         padding: '18px 16px 13px',
         boxShadow: '0 1px 6px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04)',
@@ -290,7 +290,7 @@ function QuoteCard({
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 13 }}>
-        <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 9.5, color: '#b8ae9a', letterSpacing: 0.15 }}>
+        <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 9.5, color: 'var(--color-text-muted)', letterSpacing: 0.15 }}>
           {quote.page != null ? `P.${quote.page}` : ''}{quote.page != null && quote.date ? ' · ' : ''}{quote.date || ''}
         </span>
         <div style={{ display: 'flex', gap: 11, opacity: hovered ? 0.6 : 0.18, transition: 'opacity 0.2s ease' }}>
@@ -328,6 +328,8 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const [shareQuote, setShareQuote] = useState<Quote | null>(null);
   const [showEditBook, setShowEditBook] = useState(false);
   const [deleteQuoteId, setDeleteQuoteId] = useState<string | null>(null);
+  const swipeStartX = useRef(0);
+  const swipeStartY = useRef(0);
 
   // ─── Direct DB query — no store indirection, no useCallback chain ────────
   // Use isMounted ref to prevent state updates after unmount
@@ -453,10 +455,18 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div
+      onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; swipeStartY.current = e.touches[0].clientY; }}
+      onTouchEnd={(e) => {
+        const delta = e.changedTouches[0].clientX - swipeStartX.current;
+        const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
+        if (delta > 70 && Math.abs(delta) > Math.abs(deltaY)) {
+          onBack();
+        }
+      }}
       style={{
         position: 'absolute',
         inset: 0,
-        background: '#F6F0E7',
+        background: 'var(--color-bg)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -496,7 +506,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         <button
           onClick={() => setShowEditBook(true)}
           style={{
-            background: 'none', border: 'none', cursor: 'pointer', color: '#8a7a60',
+            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)',
             fontSize: 11, fontFamily: '-apple-system, sans-serif', padding: '4px 6px',
           }}
         >
@@ -509,7 +519,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         <div
           style={{
             margin: '4px 14px 0', padding: '8px 12px', borderRadius: 8,
-            background: '#fff0ee', color: '#a04030', fontSize: 11,
+            background: 'var(--color-danger-bg)', color: '#a04030', fontSize: 11,
             fontFamily: '-apple-system, sans-serif', textAlign: 'center',
           }}
         >
@@ -541,10 +551,10 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         <div style={{ display: 'flex', gap: 15, padding: '10px 18px 20px', alignItems: 'flex-start' }}>
           <SmallBookCover book={book} />
           <div style={{ flex: 1, paddingTop: 6 }}>
-            <h2 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 17, fontWeight: 'bold', color: '#2c2416', lineHeight: 1.3, margin: '0 0 7px' }}>
+            <h2 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 17, fontWeight: 'bold', color: 'var(--color-text)', lineHeight: 1.3, margin: '0 0 7px' }}>
               {book.title}
             </h2>
-            <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 12, color: '#8a7a60', margin: '0 0 5px', fontWeight: 400 }}>
+            <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 12, color: 'var(--color-text-secondary)', margin: '0 0 5px', fontWeight: 400 }}>
               {book.author}
             </p>
             <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 11, color: '#aaa090', margin: 0, fontWeight: 400 }}>
@@ -571,11 +581,11 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
 
         {/* Quote cards or empty state */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#b8ae9a', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--color-text-muted)', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>
             加载中…
           </div>
         ) : quotes.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#b8ae9a', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 12, lineHeight: 1.8 }}>
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--color-text-muted)', fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 12, lineHeight: 1.8 }}>
             还没有摘录
             <br />
             点击下方按钮添加第一条
@@ -602,7 +612,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         <button
           onClick={() => setShowAddSheet(true)}
           style={{
-            background: '#2a1e0e', color: '#f0e8d4', border: 'none', borderRadius: 20,
+            background: 'var(--color-btn)', color: 'var(--color-btn-text)', border: 'none', borderRadius: 20,
             paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32,
             fontSize: 13, fontWeight: 700,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',

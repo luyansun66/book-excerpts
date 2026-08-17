@@ -34,7 +34,7 @@ export default function SearchBar() {
             outline: 'none',
             fontSize: 13,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif',
-            color: '#2c2416',
+            color: 'var(--color-text)',
           }}
         />
         {searchQuery && (

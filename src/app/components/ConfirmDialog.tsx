@@ -62,7 +62,7 @@ export default function ConfirmDialog({
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'relative',
-          background: '#FFFDF4',
+          background: 'var(--color-bg-card-alt)',
           borderRadius: 16,
           padding: '24px 20px 20px',
           maxWidth: 300,
@@ -79,7 +79,7 @@ export default function ConfirmDialog({
             fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
             fontSize: 14,
             fontWeight: 700,
-            color: '#2c2416',
+            color: 'var(--color-text)',
           }}
         >
           {title}
@@ -90,7 +90,7 @@ export default function ConfirmDialog({
             fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
             fontSize: 12,
             lineHeight: 1.6,
-            color: '#8a7a60',
+            color: 'var(--color-text-secondary)',
           }}
         >
           {message}
@@ -104,7 +104,7 @@ export default function ConfirmDialog({
               borderRadius: 8,
               border: '1px solid #d4c4a0',
               background: 'transparent',
-              color: '#8a7a60',
+              color: 'var(--color-text-secondary)',
               fontSize: 13,
               fontWeight: 600,
               fontFamily: '-apple-system, sans-serif',
@@ -121,7 +121,7 @@ export default function ConfirmDialog({
               padding: '10px 0',
               borderRadius: 8,
               border: 'none',
-              background: destructive ? '#c0392b' : '#2a1e0e',
+              background: destructive ? 'var(--color-danger)' : 'var(--color-btn)',
               color: 'white',
               fontSize: 13,
               fontWeight: 700,

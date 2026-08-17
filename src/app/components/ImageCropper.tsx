@@ -123,8 +123,8 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
           选择识别区域
         </span>
         <button onClick={handleCrop} style={{
-          background: '#d4a830', border: 'none', borderRadius: 8,
-          padding: '10px 22px', color: '#2c2416', fontSize: 14, fontWeight: 700,
+          background: 'var(--color-gold)', border: 'none', borderRadius: 8,
+          padding: '10px 22px', color: 'var(--color-text)', fontSize: 14, fontWeight: 700,
           cursor: 'pointer', zIndex: 10,
         }}>
           识别
@@ -182,7 +182,7 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
               {/* Visible dot inside handle */}
               <div style={{
                 width: 14, height: 14, borderRadius: '50%',
-                background: '#d4a830', border: '2px solid #fff',
+                background: 'var(--color-gold)', border: '2px solid #fff',
                 margin: '11px auto',
               }} />
             </div>

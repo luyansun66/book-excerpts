@@ -399,7 +399,7 @@ function ShelfRow({
           style={{
             fontSize: 11,
             letterSpacing: 2,
-            color: '#9a8a6a',
+            color: 'var(--color-text-accent)',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
             textTransform: 'uppercase',
             fontWeight: 600,
@@ -411,7 +411,7 @@ function ShelfRow({
           <span
             style={{
               fontSize: 9,
-              color: '#b8ae9a',
+              color: 'var(--color-text-muted)',
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
             }}
           >
@@ -425,14 +425,14 @@ function ShelfRow({
                 userSelect: 'none',
                 fontSize: 14,
                 lineHeight: 1,
-                color: isCatDragged ? '#9a8a6a' : '#d4c4a0',
+                color: isCatDragged ? 'var(--color-text-accent)' : 'var(--color-border)',
                 padding: '2px 4px',
                 borderRadius: 4,
                 transition: 'color 0.15s, background 0.15s',
                 touchAction: 'none',
               }}
-              onMouseEnter={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = '#9a8a6a'; }}
-              onMouseLeave={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = '#d4c4a0'; }}
+              onMouseEnter={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = 'var(--color-text-accent)'; }}
+              onMouseLeave={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = 'var(--color-border)'; }}
             >
               ⠿
             </span>
@@ -762,8 +762,8 @@ function ShelfView() {
               margin: '8px 18px 0',
               padding: '10px 14px',
               borderRadius: 10,
-              background: seedMsg.includes('✅') ? '#e8f5e0' : seedMsg.includes('❌') ? '#ffe8e0' : '#fff8e0',
-              color: seedMsg.includes('✅') ? '#2d6a30' : seedMsg.includes('❌') ? '#a04030' : '#8a7a40',
+              background: seedMsg.includes('✅') ? 'var(--color-success-bg)' : seedMsg.includes('❌') ? '#ffe8e0' : '#fff8e0',
+              color: seedMsg.includes('✅') ? 'var(--color-success-text)' : seedMsg.includes('❌') ? '#a04030' : '#8a7a40',
               fontSize: 12,
               fontFamily: '-apple-system, sans-serif',
               textAlign: 'center',
@@ -843,7 +843,7 @@ function ShelfView() {
                 style={{
                   textAlign: 'center',
                   padding: '40px 20px',
-                  color: '#b8ae9a',
+                  color: 'var(--color-text-muted)',
                   fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                   fontSize: 12,
                 }}
@@ -871,8 +871,8 @@ function ShelfView() {
           <button
             onClick={() => setShowAddBook(true)}
             style={{
-              background: '#2a1e0e',
-              color: '#f0e8d4',
+              background: 'var(--color-btn)',
+              color: 'var(--color-btn-text)',
               border: 'none',
               borderRadius: 20,
               paddingTop: 14,
@@ -906,7 +906,7 @@ function ShelfView() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-            style={{ position: 'absolute', inset: 0, zIndex: 50, background: '#F6F0E7' }}
+            style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'var(--color-bg)' }}
           >
             <StatsPage onBack={() => setShowStats(false)} />
           </motion.div>
@@ -925,7 +925,7 @@ export default function App() {
       style={{
         height: '100dvh',
         width: '100%',
-        background: '#F6F0E7',
+        background: 'var(--color-bg)',
         position: 'relative',
         overflow: 'hidden',
         margin: '0 auto',

@@ -139,7 +139,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
           position: 'relative',
           width: '100%',
           maxHeight: '85vh',
-          background: '#F6F0E7',
+          background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflow: 'hidden',
           display: 'flex',
@@ -148,7 +148,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
       >
         {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
 
         {/* Header */}
@@ -167,7 +167,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
               fontSize: 16,
               fontFamily: 'Georgia, serif',
               fontWeight: 'bold',
-              color: '#2c2416',
+              color: 'var(--color-text)',
             }}
           >
             添加书籍
@@ -196,7 +196,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
               fontSize: 13,
               outline: 'none',
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              color: '#2c2416',
+              color: 'var(--color-text)',
             }}
           />
 
@@ -213,7 +213,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
               fontSize: 13,
               outline: 'none',
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              color: '#2c2416',
+              color: 'var(--color-text)',
             }}
           />
 
@@ -229,7 +229,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
               fontSize: 13,
               outline: 'none',
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              color: '#2c2416',
+              color: 'var(--color-text)',
             }}
           >
             {categories.map((cat) => (
@@ -258,7 +258,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                 background: '#fffcf5',
                 cursor: 'pointer',
                 fontSize: 13,
-                color: '#8a7a60',
+                color: 'var(--color-text-secondary)',
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
               }}
             >
@@ -291,8 +291,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
               padding: '12px 0',
               borderRadius: 10,
               border: 'none',
-              background: isValid ? '#2a1e0e' : '#c4b498',
-              color: isValid ? '#f0e8d4' : '#f5f0e8',
+              background: isValid ? 'var(--color-btn)' : 'var(--color-btn-disabled)',
+              color: isValid ? 'var(--color-btn-text)' : '#f5f0e8',
               fontSize: 14,
               fontWeight: 700,
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',

@@ -1,0 +1,93 @@
+/* ─── 摘录 — 设计令牌 ───────────────────────────────────────────────────────── */
+/* 使用 CSS 自定义属性，便于深色模式切换和主题统一 */
+
+:root {
+  /* 背景色 */
+  --color-bg: #F6F0E7;
+  --color-bg-card: #FFFDF3;
+  --color-bg-card-alt: #FFFDF4;
+  --color-bg-overlay: rgba(0, 0, 0, 0.35);
+
+  /* 文字 */
+  --color-text: #2c2416;
+  --color-text-secondary: #8a7a60;
+  --color-text-muted: #b8ae9a;
+  --color-text-accent: #9a8a6a;
+
+  /* 强调色 / 金色 */
+  --color-gold: #d4a830;
+  --color-gold-light: rgba(212, 168, 48, 0.33);
+
+  /* 边框 */
+  --color-border: #d4c4a0;
+
+  /* 按钮 */
+  --color-btn: #2a1e0e;
+  --color-btn-text: #f0e8d4;
+  --color-btn-disabled: #c4b498;
+
+  /* 危险 */
+  --color-danger: #c0392b;
+  --color-danger-bg: #fff0ee;
+
+  /* 成功 */
+  --color-success-bg: #e8f5e0;
+  --color-success-text: #2d6a30;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-pill: 20px;
+
+  /* 字体 */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-kai: "FWKaiShu", Georgia, serif;
+
+  /* 字号 */
+  --text-xs: 9px;
+  --text-sm: 11px;
+  --text-base: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 17px;
+
+  /* 阴影 */
+  --shadow-card: 0 1px 6px rgba(0, 0, 0, 0.06);
+  --shadow-button: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── 深色模式 ──────────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1a1510;
+    --color-bg-card: #2a2418;
+    --color-bg-card-alt: #2c2618;
+    --color-bg-overlay: rgba(0, 0, 0, 0.55);
+
+    --color-text: #e8ddd0;
+    --color-text-secondary: #b8a88a;
+    --color-text-muted: #8a7a60;
+    --color-text-accent: #c4b080;
+
+    --color-gold: #d4a830;
+    --color-gold-light: rgba(212, 168, 48, 0.25);
+
+    --color-border: #5a4a30;
+
+    --color-btn: #e8ddd0;
+    --color-btn-text: #1a1510;
+    --color-btn-disabled: #5a4a3a;
+
+    --color-danger: #e07060;
+    --color-danger-bg: #3a2018;
+
+    --color-success-bg: #1a3020;
+    --color-success-text: #6aaa6a;
+
+    --shadow-card: 0 1px 6px rgba(0, 0, 0, 0.3);
+    --shadow-button: 0 4px 20px rgba(0, 0, 0, 0.5);
+  }
+}

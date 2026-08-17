@@ -87,7 +87,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
           position: 'relative',
           width: '100%',
           maxHeight: '82vh',
-          background: '#F6F0E7',
+          background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflow: 'hidden',
           display: 'flex',
@@ -96,7 +96,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
       >
         {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
 
         {/* Header */}
@@ -115,7 +115,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
               fontSize: 16,
               fontFamily: 'Georgia, serif',
               fontWeight: 'bold',
-              color: '#2c2416',
+              color: 'var(--color-text)',
             }}
           >
             {editQuote ? '编辑摘录' : '添加摘录'}
@@ -132,7 +132,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Quote text */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#8a7a60', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
               摘录原文 *
             </label>
             <textarea
@@ -176,7 +176,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                   padding: '6px 12px', borderRadius: 6, border: '1px solid #d4c4a0',
                   background: ocrLoading ? '#ece4d8' : '#fffcf5',
-                  color: ocrLoading ? '#b8ae9a' : '#8a7a60',
+                  color: ocrLoading ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
                   fontSize: 11, fontWeight: 600, cursor: ocrLoading ? 'not-allowed' : 'pointer',
                   fontFamily: '-apple-system, sans-serif',
                 }}
@@ -211,7 +211,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
 
           {/* Page */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#8a7a60', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
               页码
             </label>
             <input
@@ -227,7 +227,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                 background: '#fffcf5',
                 fontSize: 13,
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                color: '#2c2416',
+                color: 'var(--color-text)',
                 outline: 'none',
               }}
             />
@@ -235,7 +235,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
 
           {/* Thought */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#8a7a60', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
               我的感悟
             </label>
             <textarea
@@ -260,7 +260,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
 
           {/* Date */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#8a7a60', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
               日期
             </label>
             <input
@@ -274,7 +274,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                 background: '#fffcf5',
                 fontSize: 13,
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                color: '#2c2416',
+                color: 'var(--color-text)',
                 outline: 'none',
               }}
             />
@@ -284,7 +284,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
         {/* Footer */}
         <div style={{ padding: '12px 20px 24px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
           {saveError && (
-            <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 6, background: '#fff0ee', color: '#a04030', fontSize: 11, fontFamily: '-apple-system, sans-serif', textAlign: 'center' }}>
+            <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--color-danger-bg)', color: '#a04030', fontSize: 11, fontFamily: '-apple-system, sans-serif', textAlign: 'center' }}>
               {saveError}
             </div>
           )}
@@ -296,7 +296,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
               padding: '12px 0',
               borderRadius: 10,
               border: 'none',
-              background: isValid && !saving ? '#3F3F3F' : '#c4b498',
+              background: isValid && !saving ? '#3F3F3F' : 'var(--color-btn-disabled)',
               color: isValid && !saving ? '#ffffff' : '#f5f0e8',
               fontSize: 14,
               fontWeight: 700,

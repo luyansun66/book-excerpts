@@ -53,7 +53,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
           position: 'relative',
           width: '100%',
           maxHeight: '80vh',
-          background: '#F6F0E7',
+          background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflow: 'hidden',
           display: 'flex',
@@ -62,7 +62,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
       >
         {/* Handle */}
         <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 4px' }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: '#d4c4a0' }} />
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
 
         {/* Header */}
@@ -81,7 +81,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
               fontSize: 16,
               fontFamily: 'Georgia, serif',
               fontWeight: 'bold',
-              color: '#2c2416',
+              color: 'var(--color-text)',
             }}
           >
             管理分类
@@ -123,7 +123,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
                     border: '1px solid #d4c4a0',
                     fontSize: 13,
                     fontFamily: '-apple-system, sans-serif',
-                    color: '#2c2416',
+                    color: 'var(--color-text)',
                     outline: 'none',
                     background: '#fff',
                   }}
@@ -134,13 +134,13 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
                     flex: 1,
                     fontSize: 13,
                     fontFamily: '-apple-system, sans-serif',
-                    color: '#2c2416',
+                    color: 'var(--color-text)',
                     fontWeight: cat.isPreset ? 600 : 400,
                   }}
                 >
                   {cat.name}
                   {cat.isPreset && (
-                    <span style={{ fontSize: 10, color: '#b8ae9a', marginLeft: 6 }}>
+                    <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 6 }}>
                       预置
                     </span>
                   )}
@@ -152,7 +152,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
                 <>
                   <button
                     onClick={() => handleRename(cat.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, fontSize: 11, color: '#8a7a60', fontFamily: '-apple-system, sans-serif' }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif' }}
                   >
                     保存
                   </button>
@@ -176,7 +176,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
                       <button
                         onClick={() => handleDelete(cat.id)}
                         style={{
-                          background: '#c0392b',
+                          background: 'var(--color-danger)',
                           color: 'white',
                           border: 'none',
                           borderRadius: 4,
@@ -224,7 +224,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
                 background: '#fffcf5',
                 fontSize: 13,
                 fontFamily: '-apple-system, sans-serif',
-                color: '#2c2416',
+                color: 'var(--color-text)',
                 outline: 'none',
               }}
             />
@@ -238,8 +238,8 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
                 padding: '10px 16px',
                 borderRadius: 8,
                 border: 'none',
-                background: newName.trim() ? '#2a1e0e' : '#c4b498',
-                color: '#f0e8d4',
+                background: newName.trim() ? 'var(--color-btn)' : 'var(--color-btn-disabled)',
+                color: 'var(--color-btn-text)',
                 fontSize: 12,
                 fontWeight: 600,
                 fontFamily: '-apple-system, sans-serif',
@@ -257,7 +257,7 @@ export default function CategoryManager({ open, onClose }: CategoryManagerProps)
           style={{
             padding: '8px 20px 24px',
             fontSize: 11,
-            color: '#b8ae9a',
+            color: 'var(--color-text-muted)',
             fontFamily: '-apple-system, sans-serif',
             textAlign: 'center',
             borderTop: '1px solid rgba(0,0,0,0.04)',

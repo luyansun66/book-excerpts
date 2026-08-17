@@ -14,7 +14,7 @@ export default function SearchResults({ onSelectResult }: SearchResultsProps) {
         style={{
           padding: '60px 20px',
           textAlign: 'center',
-          color: '#b8ae9a',
+          color: 'var(--color-text-muted)',
           fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
           fontSize: 13,
         }}
@@ -42,7 +42,7 @@ export default function SearchResults({ onSelectResult }: SearchResultsProps) {
       <div
         style={{
           fontSize: 11,
-          color: '#b8ae9a',
+          color: 'var(--color-text-muted)',
           fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
           paddingLeft: 4,
           letterSpacing: 0.3,
@@ -58,7 +58,7 @@ export default function SearchResults({ onSelectResult }: SearchResultsProps) {
             display: 'block',
             width: '100%',
             textAlign: 'left',
-            background: '#FFFDF3',
+            background: 'var(--color-bg-card)',
             borderRadius: 14,
             padding: '14px 16px',
             border: 'none',
@@ -86,7 +86,7 @@ export default function SearchResults({ onSelectResult }: SearchResultsProps) {
               justifyContent: 'space-between',
               alignItems: 'center',
               fontSize: 10.5,
-              color: '#b8ae9a',
+              color: 'var(--color-text-muted)',
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
             }}
           >
