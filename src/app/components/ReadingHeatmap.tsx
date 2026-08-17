@@ -82,7 +82,6 @@ export default function ReadingHeatmap({ dailyCounts, year, onYearChange, minYea
   const CELL = 14;
   const GAP = 2;
   const COL_W = CELL + GAP;
-  const ROW_H = CELL + GAP;
 
   const hasData = Object.keys(dailyCounts).some(k => k.startsWith(String(year)));
 

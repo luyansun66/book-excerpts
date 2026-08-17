@@ -55,10 +55,6 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
     (e.currentTarget as HTMLElement).style.transform = '';
     (e.currentTarget as HTMLElement).style.boxShadow = sharedStyle.boxShadow as string;
   };
-  // Prevent browser/OS context menu on long press (iOS callout, etc.)
-  const preventContext = (e: React.TouchEvent | React.MouseEvent | React.PointerEvent) => {
-    e.preventDefault();
-  };
 
   // Has cover image
   if (book.coverType && book.coverData) {
@@ -135,7 +131,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
       <p
         style={{
           color: '#d4a840',
-          fontSize: 7,
+          fontSize: 10,
           fontFamily: 'Georgia, "Times New Roman", serif',
           textAlign: 'center',
           lineHeight: 1.35,
@@ -154,7 +150,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
       <p
         style={{
           color: 'rgba(200,151,42,0.6)',
-          fontSize: 6,
+          fontSize: 9,
           fontFamily: 'Georgia, "Times New Roman", serif',
           textAlign: 'center',
           margin: 0,
@@ -381,6 +377,10 @@ function ShelfRow({
     dragTracking.current = { startX: clientX, index: idx, book };
     holdTimerRef.current = window.setTimeout(() => {
       if (!dragTracking.current) return;
+      // 触觉反馈（移动端，静默失败）
+      if (typeof navigator.vibrate === 'function') {
+        navigator.vibrate(10);
+      }
       setDragState({
         index: dragTracking.current.index,
         targetIndex: dragTracking.current.index,
@@ -415,7 +415,7 @@ function ShelfRow({
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
             }}
           >
-            {bookCount} books
+            {bookCount} 本
           </span>
           {onCatDragPointerDown && (
             <span
@@ -888,7 +888,7 @@ function ShelfView() {
               boxShadow: '0 4px 20px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.15)',
             }}
           >
-            Add Books
+            添加书籍
           </button>
         </div>
       )}

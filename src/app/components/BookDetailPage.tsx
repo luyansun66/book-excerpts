@@ -46,7 +46,6 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
 
   return (
     <div
-      data-quote-id={quote.id}
       style={{
         position: 'fixed',
         inset: 0,
@@ -251,6 +250,7 @@ function QuoteCard({
 
   return (
     <div
+      data-quote-id={quote.id}
       style={{
         background: '#FFFDF3',
         borderRadius: 16,
@@ -610,7 +610,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
             boxShadow: '0 4px 18px rgba(0,0,0,0.24)',
           }}
         >
-          Add Quotes
+          添加摘录
         </button>
       </div>
 
