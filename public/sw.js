@@ -5,7 +5,24 @@
 
 const CACHE_NAME = 'zhai-lu-v5';
 
+// 安装时预缓存核心静态资源，确保离线首次打开不白屏
+const PRECACHE_URLS = [
+  '/book-excerpts/',
+  '/book-excerpts/index.html',
+  '/book-excerpts/manifest-pwa.json',
+  '/book-excerpts/icon.svg',
+  '/book-excerpts/icon-180.png',
+  '/book-excerpts/icon-512.png',
+];
+
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return Promise.allSettled(
+        PRECACHE_URLS.map((url) => cache.add(url).catch(() => {}))
+      );
+    })
+  );
   self.skipWaiting();
 });
 

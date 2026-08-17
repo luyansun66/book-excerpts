@@ -94,7 +94,14 @@ export async function deleteCategory(id: string): Promise<void> {
   const firstCat = await db.categories.orderBy('order').first();
   const targetId = firstCat && firstCat.id !== id ? firstCat.id : null;
   if (targetId) {
-    await db.books.where('categoryId').equals(id).modify({ categoryId: targetId });
+    // 获取目标分类当前最大 sortOrder，依次为移入的书分配递增序号
+    const existing = await db.books.where('categoryId').equals(targetId).toArray();
+    let nextOrder = existing.reduce((max, b) => Math.max(max, b.sortOrder ?? 0), 0) + 1;
+    const movedBooks = await db.books.where('categoryId').equals(id).toArray();
+    for (const b of movedBooks) {
+      await db.books.update(b.id, { categoryId: targetId, sortOrder: nextOrder, updatedAt: new Date().toISOString() });
+      nextOrder++;
+    }
   }
   await db.categories.delete(id);
 }
@@ -136,7 +143,10 @@ export async function getBooksByCategory(categoryId: string): Promise<Book[]> {
 
 export async function addBook(book: Omit<Book, 'id' | 'createdAt' | 'updatedAt'>): Promise<Book> {
   const now = new Date().toISOString();
-  const newBook: Book = { ...book, id: uid(), createdAt: now, updatedAt: now };
+  // 新书 sortOrder 设为该分类最大值 + 1，保证排序稳定
+  const catBooks = await db.books.where('categoryId').equals(book.categoryId).toArray();
+  const maxOrder = catBooks.reduce((max, b) => Math.max(max, b.sortOrder ?? 0), 0);
+  const newBook: Book = { ...book, id: uid(), sortOrder: maxOrder + 1, createdAt: now, updatedAt: now };
   await db.books.add(newBook);
   return newBook;
 }
@@ -204,21 +214,27 @@ export async function searchQuotes(keyword: string): Promise<SearchResult[]> {
   if (!keyword.trim()) return [];
   const lower = keyword.toLowerCase();
   const allQuotes = await db.quotes.toArray();
-  const matched = allQuotes.filter((q) => q.text.toLowerCase().includes(lower));
+  const allBooks = await db.books.toArray();
+  const bookMap = new Map(allBooks.map((b) => [b.id, b]));
 
-  // Batch resolve book info
-  const bookIds = [...new Set(matched.map((q) => q.bookId))];
-  const books = await db.books.where('id').anyOf(bookIds).toArray();
-  const bookMap = new Map(books.map((b) => [b.id, b]));
+  // 同时搜索摘录正文、感悟、书名、作者
+  const results: SearchResult[] = [];
+  for (const q of allQuotes) {
+    const book = bookMap.get(q.bookId);
+    const bookTitle = book?.title ?? '未知书籍';
+    const bookAuthor = book?.author ?? '';
+    const haystack = [
+      q.text,
+      q.thought,
+      bookTitle,
+      bookAuthor,
+    ].filter(Boolean).join(' ');
 
-  return matched.map((quote) => {
-    const book = bookMap.get(quote.bookId);
-    return {
-      quote,
-      bookTitle: book?.title ?? '未知书籍',
-      bookAuthor: book?.author ?? '',
-    };
-  });
+    if (haystack.toLowerCase().includes(lower)) {
+      results.push({ quote: q, bookTitle, bookAuthor });
+    }
+  }
+  return results;
 }
 
 // ─── Quote count for a book ───────────────────────────────────────────────────

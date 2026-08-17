@@ -30,6 +30,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [saving, setSaving] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [saveHint, setSaveHint] = useState(false);
   const [html2canvasReady, setHtml2canvasReady] = useState<boolean | null>(null);
   const theme = PRESETS[themeIndex];
   const cardRef = useRef<HTMLDivElement>(null);
@@ -173,8 +174,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           setSaving(false);
           return;
         } catch {
-          // User cancelled share or share failed — image is already displayed below,
-          // user can long-press to save. No action needed.
+          // 分享失败或用户取消 — 提示长按保存
+          setSaveHint(true);
+          setTimeout(() => setSaveHint(false), 4000);
         }
       }
 
@@ -186,6 +188,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         document.body.appendChild(link);
         link.click();
         setTimeout(() => document.body.removeChild(link), 300);
+      } else {
+        // 移动端不支持 share 或 share 不可用，提示长按保存
+        setSaveHint(true);
+        setTimeout(() => setSaveHint(false), 4000);
       }
     } catch (err: any) {
       const msg = err?.message || '图片生成失败';
@@ -501,6 +507,20 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             >
               ✅ 图片已生成 — 长按↓保存到相册
             </p>
+            {saveHint && (
+              <p
+                style={{
+                  fontSize: 11,
+                  color: '#c0392b',
+                  fontFamily: '-apple-system, sans-serif',
+                  margin: 0,
+                  fontWeight: 700,
+                  animation: 'fadeIn 0.3s ease',
+                }}
+              >
+                💡 系统分享不可用，长按上方图片即可保存到相册
+              </p>
+            )}
             <img
               src={imageUrl}
               alt="摘录卡片"

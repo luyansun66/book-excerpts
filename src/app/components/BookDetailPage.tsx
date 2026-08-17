@@ -4,6 +4,7 @@ import { useApp } from '../store';
 import { getQuotesByBook, addQuote as dbAddQuote, updateQuote as dbUpdateQuote, deleteQuote as dbDeleteQuote } from '../db';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
 import ShareSheet from './sheets/ShareSheet';
+import ConfirmDialog from './ConfirmDialog';
 import type { Book, Quote } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
 
   return (
     <div
+      data-quote-id={quote.id}
       style={{
         position: 'fixed',
         inset: 0,
@@ -314,6 +316,7 @@ interface BookDetailPageProps {
 }
 
 export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
+  const { targetQuoteId, setTargetQuoteId } = useApp();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -324,10 +327,27 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const [editQuote, setEditQuote] = useState<Quote | null>(null);
   const [shareQuote, setShareQuote] = useState<Quote | null>(null);
   const [showEditBook, setShowEditBook] = useState(false);
+  const [deleteQuoteId, setDeleteQuoteId] = useState<string | null>(null);
 
   // ─── Direct DB query — no store indirection, no useCallback chain ────────
   // Use isMounted ref to prevent state updates after unmount
   const isMounted = useRef(true);
+
+  // Scroll to target quote when navigating from search results
+  useEffect(() => {
+    if (!targetQuoteId || loading) return;
+    const el = document.querySelector(`[data-quote-id="${targetQuoteId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Highlight briefly
+      (el as HTMLElement).style.transition = 'box-shadow 0.3s ease';
+      (el as HTMLElement).style.boxShadow = '0 0 0 3px rgba(212,168,48,0.5)';
+      setTimeout(() => {
+        (el as HTMLElement).style.boxShadow = '';
+      }, 2000);
+    }
+    setTargetQuoteId(null);
+  }, [targetQuoteId, loading]);
 
   const loadQuotes = async (isRetry = false) => {
     if (!isMounted.current) return;
@@ -568,9 +588,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
                 quote={q}
                 onEdit={() => setEditQuote(q)}
                 onDelete={() => {
-                  if (window.confirm('确认删除此摘录？')) {
-                    handleDeleteQuote(q.id);
-                  }
+                  setDeleteQuoteId(q.id);
                 }}
                 onShare={() => setShareQuote(q)}
               />
@@ -605,6 +623,19 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
       )}
 
       <EditBookSheet open={showEditBook} onClose={() => setShowEditBook(false)} book={book} />
+
+      <ConfirmDialog
+        open={deleteQuoteId !== null}
+        title="确认删除此摘录？"
+        message="该操作不可撤销，删除后无法恢复。"
+        onConfirm={() => {
+          if (deleteQuoteId) {
+            handleDeleteQuote(deleteQuoteId);
+            setDeleteQuoteId(null);
+          }
+        }}
+        onCancel={() => setDeleteQuoteId(null)}
+      />
     </div>
   );
 }

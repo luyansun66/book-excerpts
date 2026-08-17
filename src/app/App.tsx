@@ -643,7 +643,7 @@ function ShelfRow({
 
 // ─── Shelf view (bookshelf page) ──────────────────────────────────────────────
 function ShelfView() {
-  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, showStats, setShowStats, moveBookTo, moveCategoryTo } = useApp();
+  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, showStats, setShowStats, moveBookTo, moveCategoryTo, setTargetQuoteId } = useApp();
   const [showAddBook, setShowAddBook] = useState(false);
   const [showCatManager, setShowCatManager] = useState(false);
   const [seedMsg, setSeedMsg] = useState('');
@@ -732,6 +732,10 @@ function ShelfView() {
     const book = books.find((b) => b.id === result.quote.bookId);
     if (book) {
       selectBookFromSearch(book);
+      // 延迟设置 targetQuoteId，等 BookDetailPage 挂载后再滚动
+      setTimeout(() => {
+        setTargetQuoteId(result.quote.id);
+      }, 300);
     }
   };
 
