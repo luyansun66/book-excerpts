@@ -2,27 +2,51 @@
 // 跨域说明：百度 OCR API 使用 Content-Type: application/x-www-form-urlencoded,
 // 属于「简单请求」，浏览器跨域不需要预检（preflight），GitHub Pages 可直接调用。
 //
-// Token 管理：内嵌 access_token，有效期 30 天。过期后终端执行以下命令刷新：
-//   curl 'https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=ci8aC97iWSF6Gb6Dn5yCtfqM&client_secret=EhkbZQNmrQMh5wVl2DTwpo9pcyZ2swew'
+// Token 通过 Vite 环境变量注入（只有 VITE_ 前缀会暴露给客户端）：
+//   - 本地开发：复制 .env.example 为 .env.local 并填写（已被 .gitignore 忽略）
+//   - GitHub Pages：在仓库 Secrets 中配置，构建时由 .github/workflows/deploy.yml 注入
+//
+// 注意：纯前端静态站无法真正隐藏密钥，生产环境建议改用服务端代理刷新 token。
 
 const API_BASE = 'https://aip.baidubce.com/rest/2.0/ocr/v1';
-const ACCESS_TOKEN = '24.29b40977b0651bae0e1adc775812c3b0.2592000.1785040642.282335-123829048';
-const TOKEN_EXPIRES = Date.parse('2026-07-22T00:00:00Z'); // token 到期日
+const ACCESS_TOKEN = import.meta.env.VITE_OCR_ACCESS_TOKEN ?? '';
+const TOKEN_EXPIRES = parseTokenExpiry();
 
 const ENDPOINTS = [
   `${API_BASE}/accurate_basic`,
   `${API_BASE}/general_basic`,
 ];
 
+/** 读取 token 到期时间：优先使用显式配置，否则解析百度 token 自带的时间戳。 */
+function parseTokenExpiry(): number {
+  const explicit = import.meta.env.VITE_OCR_TOKEN_EXPIRES;
+  if (explicit) {
+    const parsed = Date.parse(String(explicit));
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+
+  // 百度 access_token 格式：24.<token>.<expires_in>.<expire_ts>.<scope>
+  const parts = ACCESS_TOKEN.split('.');
+  if (parts.length >= 4) {
+    const expiresAt = Number(parts[3]) * 1000;
+    if (!Number.isNaN(expiresAt) && expiresAt > 0) return expiresAt;
+  }
+
+  return 0; // 未知到期时间 → 交由接口错误处理
+}
+
 // ─── 公共 API ───────────────────────────────────────────────────────────────
 
 /** 识别图片中的文字。 */
 export async function recognizeText(imageData: string): Promise<string> {
+  if (!ACCESS_TOKEN) {
+    throw new Error('OCR 未配置：请设置 VITE_OCR_ACCESS_TOKEN（参考 .env.example）后重新构建。');
+  }
+
   // 检查 token 是否过期
-  if (Date.now() > TOKEN_EXPIRES) {
+  if (TOKEN_EXPIRES > 0 && Date.now() > TOKEN_EXPIRES) {
     throw new Error(
-      'OCR 服务 Token 已过期，请运行以下命令刷新：\n' +
-      "curl 'https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=ci8aC97iWSF6Gb6Dn5yCtfqM&client_secret=EhkbZQNmrQMh5wVl2DTwpo9pcyZ2swew'",
+      'OCR 服务 Token 已过期，请刷新 VITE_OCR_ACCESS_TOKEN 后重新构建部署。',
     );
   }
 
@@ -46,7 +70,7 @@ export async function recognizeText(imageData: string): Promise<string> {
       // 百度 API 错误
       if (data.error_code) {
         if (data.error_code === 110 || data.error_code === 111) {
-          throw new Error('OCR 服务 Token 已过期，请运行刷新命令更新');
+          throw new Error('OCR 服务 Token 已过期，请刷新 VITE_OCR_ACCESS_TOKEN 后重新构建部署。');
         }
         lastError = `[${data.error_code}] ${data.error_msg || ''}`;
         continue;

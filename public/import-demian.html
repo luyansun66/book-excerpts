@@ -41,7 +41,7 @@
       将自动导入 1 本书 + 25 条精选摘录
     </p>
 
-    <a href="/?seed=demian" class="btn btn-primary">导入《德米安》</a>
+    <a href="./?seed=demian" class="btn btn-primary">导入《德米安》</a>
 
     <button onclick="resetAndImport()" class="btn btn-danger" style="margin-top:8px">
       清除旧数据并重新导入
@@ -73,7 +73,7 @@
 
         status.textContent = '✅ 已清除旧数据，正在跳转导入…';
         setTimeout(() => {
-          window.location.href = '/?seed=demian';
+          window.location.href = './?seed=demian';
         }, 800);
       } catch (e) {
         status.className = 'status show error';

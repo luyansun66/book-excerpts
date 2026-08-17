@@ -12,7 +12,15 @@ function uid(): string {
 }
 
 const DB_NAME = 'bookwrite';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+
+// v1 使用英文预置分类，v2 起统一为中文；迁移时仅替换未改名的默认分类。
+const LEGACY_CATEGORY_NAMES: Record<string, string> = {
+  Literature: '文学',
+  Sociology: '社会学',
+  Philosophy: '哲学',
+  Fiction: '小说',
+};
 
 export class BookWriteDB extends Dexie {
   categories!: EntityTable<Category, 'id'>;
@@ -21,11 +29,23 @@ export class BookWriteDB extends Dexie {
 
   constructor() {
     super(DB_NAME);
-    this.version(DB_VERSION).stores({
+
+    const stores = {
       categories: 'id, name, order, isPreset',
       books: 'id, title, author, categoryId, createdAt',
       quotes: 'id, bookId, text, date, createdAt',
-    });
+    };
+
+    this.version(1).stores(stores);
+
+    this.version(DB_VERSION)
+      .stores(stores)
+      .upgrade(async (tx) => {
+        await tx.table('categories').toCollection().modify((cat) => {
+          const migrated = LEGACY_CATEGORY_NAMES[cat.name];
+          if (migrated) cat.name = migrated;
+        });
+      });
   }
 }
 
@@ -33,10 +53,10 @@ export const db = new BookWriteDB();
 
 // ─── Default preset categories ────────────────────────────────────────────────
 export const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-lit', name: 'Literature', isPreset: true, order: 0, createdAt: new Date().toISOString() },
-  { id: 'cat-soc', name: 'Sociology', isPreset: true, order: 1, createdAt: new Date().toISOString() },
-  { id: 'cat-phi', name: 'Philosophy', isPreset: true, order: 2, createdAt: new Date().toISOString() },
-  { id: 'cat-nov', name: 'Fiction', isPreset: true, order: 3, createdAt: new Date().toISOString() },
+  { id: 'cat-lit', name: '文学', isPreset: true, order: 0, createdAt: new Date().toISOString() },
+  { id: 'cat-soc', name: '社会学', isPreset: true, order: 1, createdAt: new Date().toISOString() },
+  { id: 'cat-phi', name: '哲学', isPreset: true, order: 2, createdAt: new Date().toISOString() },
+  { id: 'cat-nov', name: '小说', isPreset: true, order: 3, createdAt: new Date().toISOString() },
 ];
 
 /** Ensure default categories exist in DB (idempotent – safe to call concurrently) */

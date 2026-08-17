@@ -23,6 +23,7 @@ function lighten(hex: string): string {
 
 const COVER_W = 96;
 const COVER_H = 148;
+const APP_BASE_URL = import.meta.env.BASE_URL;
 const CATEGORY_DISPLAY_MAP: Record<string, string> = {
   '文学': 'Literature', '社会学': 'Sociology', '哲学': 'Philosophy', '小说': 'Fiction',
 };
@@ -711,10 +712,10 @@ function ShelfView() {
           const result = await seedDemianBook();
           if (result === 'success') {
             setSeedMsg('✅ 《德米安》导入完成！页面即将刷新…');
-            setTimeout(() => { window.location.href = '/'; }, 1200);
+            setTimeout(() => { window.location.href = APP_BASE_URL; }, 1200);
           } else if (result === 'exists') {
             setSeedMsg('ℹ️ 《德米安》已存在');
-            setTimeout(() => { window.location.href = '/'; }, 1000);
+            setTimeout(() => { window.location.href = APP_BASE_URL; }, 1000);
           } else {
             setSeedMsg('❌ 导入失败：' + result);
           }

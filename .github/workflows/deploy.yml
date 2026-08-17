@@ -31,6 +31,9 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          VITE_OCR_ACCESS_TOKEN: ${{ secrets.VITE_OCR_ACCESS_TOKEN }}
+          VITE_OCR_TOKEN_EXPIRES: ${{ secrets.VITE_OCR_TOKEN_EXPIRES }}
         run: npm run build
 
       - uses: actions/configure-pages@v4

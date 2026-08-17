@@ -11,7 +11,7 @@
   try {
     // ─── 1. 获取封面图片 base64 ─────────────────────────────────
     console.log('🔄 正在下载封面图片…');
-    const resp = await fetch('/demian-cover.png');
+    const resp = await fetch('./demian-cover.png');
     const blob = await resp.blob();
     const coverBase64 = await new Promise((resolve) => {
       const reader = new FileReader();
@@ -22,10 +22,9 @@
 
     // ─── 2. IndexedDB 数据库引用 ────────────────────────────────
     const DB_NAME = 'bookwrite';
-    const DB_VERSION = 1;
 
     const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      const req = indexedDB.open(DB_NAME);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
@@ -39,7 +38,7 @@
     });
     catTx.commit();
 
-    const novelCat = categories.find(c => c.name === '小说' || c.name === 'Novel');
+    const novelCat = categories.find(c => c.name === '小说');
     if (!novelCat) {
       console.error('❌ 未找到「小说」分类，请先确认分类已初始化');
       return;

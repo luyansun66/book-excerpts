@@ -28,6 +28,20 @@ npm install
 npm run dev
 ```
 
+## OCR 配置
+
+拍照识字使用百度 OCR，密钥不写入源码，通过环境变量注入：
+
+```bash
+cp .env.example .env.local
+# 编辑 .env.local，填写 VITE_OCR_ACCESS_TOKEN / VITE_OCR_TOKEN_EXPIRES
+```
+
+GitHub Pages 构建时，在仓库 `Settings → Secrets and variables → Actions` 中配置
+`VITE_OCR_ACCESS_TOKEN` 与 `VITE_OCR_TOKEN_EXPIRES`，部署流程会自动注入。
+
+> 注意：纯前端静态站无法真正隐藏密钥，发布版中的 token 仍可被查看。生产环境建议改用服务端代理刷新并调用 OCR。
+
 ## 构建部署
 
 ```bash
