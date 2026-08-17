@@ -11,7 +11,7 @@ import { useApp } from './store';
 import { seedDemianBook } from './db';
 import type { Book } from './types';
 import type { SearchResult } from './db';
-import { Settings, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
+import { Settings2, ChevronLeft, ChevronRight, ChartColumnIncreasing } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function lighten(hex: string): string {
@@ -183,62 +183,57 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
 
 // ─── Decorative pattern header ────────────────────────────────────────────────
 function PatternHeader({ onManageCategories, onOpenStats }: { onManageCategories: () => void; onOpenStats: () => void }) {
-  const today = new Date();
-  const dateStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
-  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-  const weekday = weekdays[today.getDay()];
   return (
     <div style={{ padding: '0 20px', position: 'relative' }}>
-      {/* Warm gradient decorative bar */}
-      <div
-        style={{
-          height: 3,
-          marginTop: 4,
-          borderRadius: 2,
-          background: 'linear-gradient(90deg, #D4A830 0%, #B8860B 40%, #DFD6C4 70%, transparent 100%)',
-          opacity: 0.5,
-        }}
-      />
-
       {/* Statistics button */}
       <button
         onClick={onOpenStats}
+        aria-label="阅读统计"
+        title="阅读统计"
         style={{
           position: 'absolute',
           right: 52,
-          top: 14,
+          top: 12,
           zIndex: 5,
-          background: 'none',
-          border: 'none',
+          width: 30,
+          height: 30,
+          borderRadius: '50%',
+          background: 'var(--color-bg-card)',
+          border: '1px solid var(--color-border-light)',
+          boxShadow: 'var(--shadow-sm)',
           cursor: 'pointer',
-          padding: 4,
-          lineHeight: 1,
           display: 'flex',
-          opacity: 0.45,
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-text-secondary)',
         }}
       >
-        <BarChart3 size={15} color="#2c2416" strokeWidth={1.8} />
-        <BarChart3 size={15} color="var(--color-text)" strokeWidth={1.8} />
+        <ChartColumnIncreasing size={16} strokeWidth={1.7} />
       </button>
       {/* Settings gear */}
       <button
         onClick={onManageCategories}
+        aria-label="分类管理"
+        title="分类管理"
         style={{
           position: 'absolute',
-          right: 26,
-          top: 14,
+          right: 14,
+          top: 12,
           zIndex: 5,
-          background: 'none',
-          border: 'none',
+          width: 30,
+          height: 30,
+          borderRadius: '50%',
+          background: 'var(--color-bg-card)',
+          border: '1px solid var(--color-border-light)',
+          boxShadow: 'var(--shadow-sm)',
           cursor: 'pointer',
-          padding: 4,
-          lineHeight: 1,
           display: 'flex',
-          opacity: 0.45,
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'var(--color-text-secondary)',
         }}
       >
-        <Settings size={15} color="#2c2416" strokeWidth={1.8} />
-        <Settings size={15} color="var(--color-text)" strokeWidth={1.8} />
+        <Settings2 size={16} strokeWidth={1.7} />
       </button>
 
       {/* Decorative pattern area */}
@@ -248,25 +243,11 @@ function PatternHeader({ onManageCategories, onOpenStats }: { onManageCategories
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '14px 0 2px',
+          padding: '10px 0 2px',
         }}
       >
-
         {/* Library building illustration */}
         <LibraryBuilding />
-
-        {/* Date */}
-        <p
-          style={{
-            margin: '2px 0 0',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 10,
-            color: 'var(--color-text-muted)',
-            letterSpacing: 0.5,
-          }}
-        >
-          {dateStr} 星期{weekday}
-        </p>
 
         {/* Tagline */}
         <p
@@ -428,22 +409,18 @@ function ShelfRow({
     <div>
       {/* Category header */}
       <div style={{ paddingLeft: 18, paddingTop: 14, paddingBottom: 4, paddingRight: 14, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <span
-            style={{
-              fontSize: 11,
-              letterSpacing: 2,
-              color: 'var(--color-text-accent)',
-              fontFamily: 'var(--font-sans)',
-              textTransform: 'uppercase',
-              fontWeight: 600,
-            }}
-          >
-            {displayName}
-          </span>
-          {/* Gold underline */}
-          <div style={{ height: 2, width: 24, borderRadius: 1, background: 'linear-gradient(90deg, var(--color-gold), transparent)', opacity: 0.5 }} />
-        </div>
+        <span
+          style={{
+            fontSize: 11,
+            letterSpacing: 2,
+            color: 'var(--color-text-accent)',
+            fontFamily: 'var(--font-sans)',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+          }}
+        >
+          {displayName}
+        </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
             style={{
