@@ -24,10 +24,6 @@ function lighten(hex: string): string {
 const COVER_W = 96;
 const COVER_H = 148;
 const APP_BASE_URL = import.meta.env.BASE_URL;
-const CATEGORY_DISPLAY_MAP: Record<string, string> = {
-  '文学': 'Literature', '社会学': 'Sociology', '哲学': 'Philosophy', '小说': 'Fiction',
-};
-
 // ─── Book cover — adapted from original, uses real data ──────────────────────
 function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: Book) => void; dragActive?: boolean }) {
   const sharedStyle: React.CSSProperties = {
@@ -403,8 +399,6 @@ function ShelfRow({
     }, 300);
   };
 
-  const displayName = CATEGORY_DISPLAY_MAP[name] || name;
-
   return (
     <div>
       {/* Category header */}
@@ -419,7 +413,7 @@ function ShelfRow({
             fontWeight: 600,
           }}
         >
-          {displayName}
+          {name}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span
