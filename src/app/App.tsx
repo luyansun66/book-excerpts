@@ -641,37 +641,8 @@ function ShelfRow({
         )}
       </div>
 
-      {/* Physical shelf surface */}
-      <div style={{ margin: '0 18px', position: 'relative' }}>
-        {/* Wood board top surface with grain */}
-        <div
-          style={{
-            height: 16,
-            borderRadius: '6px 6px 0 0',
-            background: 'linear-gradient(180deg, #B08A5C 0%, #9A7448 100%)',
-            position: 'relative',
-            overflow: 'hidden',
-            boxShadow: '0 1px 2px rgba(60,45,20,0.08) inset',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute', inset: 0,
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='24' viewBox='0 0 120 24'%3E%3Cpath d='M0 6 Q30 3 60 6 T120 6' stroke='%237A5A38' stroke-width='1' fill='none' opacity='0.45'/%3E%3Cpath d='M0 14 Q40 11 80 15 T120 14' stroke='%237A5A38' stroke-width='1' fill='none' opacity='0.35'/%3E%3Cpath d='M0 20 Q25 23 50 20 T120 20' stroke='%237A5A38' stroke-width='1' fill='none' opacity='0.3'/%3E%3C/svg%3E")`,
-              backgroundSize: '120px 100%',
-              opacity: 0.5,
-            }}
-          />
-        </div>
-        {/* Front edge */}
-        <div
-          style={{
-            height: 8,
-            borderRadius: '0 0 6px 6px',
-            background: 'linear-gradient(180deg, #6E4F30 0%, #5C4026 100%)',
-          }}
-        />
-      </div>
+      {/* Shelf surface */}
+      <div style={{ margin: '10px 18px 0', height: 8, borderRadius: 4, background: '#C4B496' }} />
     </div>
   );
 }
