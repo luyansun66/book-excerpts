@@ -617,7 +617,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
             background: 'rgba(44, 34, 22, 0.85)', color: 'var(--color-btn-text)',
             backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
             border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20,
-            paddingTop: 14, paddingBottom: 14, paddingLeft: 32, paddingRight: 32,
+            paddingTop: 14, paddingBottom: 14, width: 108, textAlign: 'center',
             fontSize: 15, fontWeight: 700,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',
             cursor: 'pointer', letterSpacing: 0.4, pointerEvents: 'auto',
