@@ -560,10 +560,10 @@ function ShelfRow({
                       flexShrink: 0,
                     }}
                   >
-                    <div style={{ width: 14, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 11, height: Math.round(COVER_H * 0.85), borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 9, height: Math.round(COVER_H * 0.70), borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 9, height: Math.round(COVER_H * 0.55), borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0, transform: 'rotate(12deg)', transformOrigin: 'bottom center' }} />
+                    <div style={{ width: 14, height: COVER_H - 20, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 11, height: Math.round(COVER_H * 0.85) - 20, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 9, height: Math.round(COVER_H * 0.70) - 20, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 9, height: Math.round(COVER_H * 0.55) - 20, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0, transform: 'rotate(-12deg)', transformOrigin: 'bottom center' }} />
                   </div>
                 )}
               </React.Fragment>
