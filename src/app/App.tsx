@@ -550,7 +550,7 @@ function ShelfRow({
                   <BookCover book={book} onSelect={onSelect} dragActive={isDragged} />
                 </div>
 
-                {/* Hidden book placeholders between covers (3 beige rectangle "spines") */}
+                {/* Spine placeholders between covers */}
                 {idx < displayBooks.length - 1 && (
                   <div
                     style={{
@@ -558,39 +558,11 @@ function ShelfRow({
                       gap: 3,
                       alignItems: 'flex-end',
                       flexShrink: 0,
-                      paddingBottom: 3,
                     }}
                   >
-                    <div
-                      style={{
-                        width: 8,
-                        height: 104,
-                        borderRadius: '1px 1px 0 0',
-                        background: '#e0d5c5',
-                        opacity: 0.55,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div
-                      style={{
-                        width: 7,
-                        height: 92,
-                        borderRadius: '1px 1px 0 0',
-                        background: '#e0d5c5',
-                        opacity: 0.4,
-                        flexShrink: 0,
-                      }}
-                    />
-                    <div
-                      style={{
-                        width: 6,
-                        height: 98,
-                        borderRadius: '1px 1px 0 0',
-                        background: '#e0d5c5',
-                        opacity: 0.28,
-                        flexShrink: 0,
-                      }}
-                    />
+                    <div style={{ width: 6, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 6, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 6, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
                   </div>
                 )}
               </React.Fragment>
