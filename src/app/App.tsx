@@ -907,7 +907,7 @@ function ShelfView() {
               paddingBottom: 14,
               paddingLeft: 36,
               paddingRight: 36,
-              fontSize: 13,
+              fontSize: 15,
               fontWeight: 700,
               fontFamily: '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif',
               letterSpacing: 0.5,
