@@ -555,14 +555,15 @@ function ShelfRow({
                   <div
                     style={{
                       display: 'flex',
-                      gap: 3,
+                      gap: 2,
                       alignItems: 'flex-end',
                       flexShrink: 0,
                     }}
                   >
-                    <div style={{ width: 6, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 6, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 6, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 14, height: COVER_H, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 11, height: Math.round(COVER_H * 0.85), borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 9, height: Math.round(COVER_H * 0.70), borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
+                    <div style={{ width: 9, height: Math.round(COVER_H * 0.55), borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0, transform: 'rotate(12deg)', transformOrigin: 'bottom center' }} />
                   </div>
                 )}
               </React.Fragment>
