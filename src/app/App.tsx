@@ -402,10 +402,10 @@ function ShelfRow({
   return (
     <div>
       {/* Category header */}
-      <div style={{ paddingLeft: 18, paddingTop: 14, paddingBottom: 4, paddingRight: 14, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+      <div style={{ paddingLeft: 18, paddingTop: 14, paddingBottom: 10, paddingRight: 14, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <span
           style={{
-            fontSize: 11,
+            fontSize: 14,
             letterSpacing: 2,
             color: 'var(--color-text-accent)',
             fontFamily: 'var(--font-sans)',
@@ -642,7 +642,7 @@ function ShelfRow({
       </div>
 
       {/* Shelf surface */}
-      <div style={{ margin: '10px 18px 0', height: 8, borderRadius: 4, background: '#C4B496' }} />
+      <div style={{ margin: '4px 18px 0', height: 8, borderRadius: 4, background: '#C4B496' }} />
     </div>
   );
 }
