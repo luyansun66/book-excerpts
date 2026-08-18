@@ -405,7 +405,7 @@ function ShelfRow({
       <div style={{ paddingLeft: 18, paddingTop: 14, paddingBottom: 10, paddingRight: 14, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
         <span
           style={{
-            fontSize: 14,
+            fontSize: 11,
             letterSpacing: 2,
             color: 'var(--color-text-accent)',
             fontFamily: 'var(--font-sans)',
@@ -432,7 +432,7 @@ function ShelfRow({
               style={{
                 cursor: 'grab',
                 userSelect: 'none',
-                fontSize: 14,
+                fontSize: 11,
                 lineHeight: 1,
                 color: isCatDragged ? 'var(--color-text-accent)' : 'var(--color-border)',
                 padding: '2px 4px',
