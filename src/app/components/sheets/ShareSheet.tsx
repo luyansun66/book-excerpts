@@ -312,6 +312,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               padding: '0 2px',
               wordBreak: 'break-word',
               textAlign: 'justify',
+              whiteSpace: 'pre-wrap',
             }}
           >
             {quote.text}
@@ -341,6 +342,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                 borderTop: `1px solid ${theme.accentColor}22`,
                 paddingTop: 8,
                 marginTop: 4,
+                whiteSpace: 'pre-wrap',
               }}
             >
               {quote.thought.length > 80 ? quote.thought.slice(0, 78) + '…' : quote.thought}
@@ -403,7 +405,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                   whiteSpace: 'nowrap',
                 }}
               >
-                {quote.page != null && <span>P.{quote.page} · </span>}
+                {quote.page != null && <span>{/^\d+$/.test(quote.page) ? `P.${quote.page}` : quote.page} · </span>}
                 <span>{quote.date}</span>
               </div>
             </div>

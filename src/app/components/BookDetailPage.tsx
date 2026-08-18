@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Edit3, Trash2, Share2 } from 'lucide-react';
+import { ArrowLeft, Edit3, Trash2, Share2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useApp } from '../store';
 import { getQuotesByBook, addQuote as dbAddQuote, updateQuote as dbUpdateQuote, deleteQuote as dbDeleteQuote } from '../db';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
@@ -137,7 +137,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
             <div style={{ background: 'var(--color-danger-bg)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#8a3a30', fontFamily: '-apple-system, sans-serif', lineHeight: 1.6 }}>
               <strong>确认删除此书籍？</strong>
               该操作不可撤销，该书下的所有摘录也将被删除。
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center' }}>
                 <button
                   onClick={handleDelete}
                   style={{
@@ -270,7 +270,7 @@ function QuoteCard({
         <span style={{ position: 'absolute', top: -12, left: -4, fontFamily: 'Georgia, serif', fontSize: 40, color: 'var(--color-quote-mark)', lineHeight: 1, userSelect: 'none' }}>
           &#x201C;
         </span>
-        <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 13.5, lineHeight: 1.78, color: 'var(--color-text)', margin: 0, paddingTop: 8 }}>
+        <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 13.5, lineHeight: 1.78, color: 'var(--color-text)', margin: 0, paddingTop: 8, whiteSpace: 'pre-wrap' }}>
           {quote.text}
         </p>
         <div style={{ textAlign: 'right', marginTop: -4 }}>
@@ -285,7 +285,7 @@ function QuoteCard({
           <span style={{ color: 'var(--color-quote-mark)', fontSize: 13, lineHeight: 1, marginTop: 3, flexShrink: 0, userSelect: 'none' }}>
             ↳
           </span>
-          <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif', fontSize: 11.5, lineHeight: 1.65, color: 'var(--color-quote-thought)', margin: '2px 0 0', background: 'var(--color-bg-thought)', padding: '6px 10px', borderRadius: 6 }}>
+          <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif', fontSize: 11.5, lineHeight: 1.65, color: 'var(--color-quote-thought)', margin: '2px 0 0', background: 'var(--color-bg-thought)', padding: '6px 10px', borderRadius: 6, whiteSpace: 'pre-wrap' }}>
             {quote.thought}
           </p>
         </div>
@@ -293,7 +293,7 @@ function QuoteCard({
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 13 }}>
         <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 9.5, color: 'var(--color-text-muted)', letterSpacing: 0.15 }}>
-          {quote.page != null ? `P.${quote.page}` : ''}{quote.page != null && quote.date ? ' · ' : ''}{quote.date || ''}
+          {quote.page != null ? (/^\d+$/.test(quote.page) ? `P.${quote.page}` : quote.page) : ''}{quote.page != null && quote.date ? ' · ' : ''}{quote.date || ''}
         </span>
         <div style={{ display: 'flex', gap: 11, opacity: hovered ? 0.6 : 0.4, transition: 'opacity 0.2s ease' }}>
           <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }} onClick={onEdit} title="编辑">
@@ -318,7 +318,7 @@ interface BookDetailPageProps {
 }
 
 export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
-  const { targetQuoteId, setTargetQuoteId } = useApp();
+  const { targetQuoteId, setTargetQuoteId, categories } = useApp();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -332,6 +332,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const [deleteQuoteId, setDeleteQuoteId] = useState<string | null>(null);
   const swipeStartX = useRef(0);
   const swipeStartY = useRef(0);
+  const [infoExpanded, setInfoExpanded] = useState(false);
 
   // ─── Direct DB query — no store indirection, no useCallback chain ────────
   // Use isMounted ref to prevent state updates after unmount
@@ -394,7 +395,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   }, [book.id, retryTrigger]);
 
   // ─── Add quote (direct DB write + optimistic local update) ──────────────
-  const handleAddQuote = async (data: { text: string; thought: string; page: number | null; date: string }) => {
+  const handleAddQuote = async (data: { text: string; thought: string; page: string | null; date: string }) => {
     try {
       const newQuote = await dbAddQuote({
         bookId: book.id,
@@ -416,7 +417,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   };
 
   // ─── Edit quote ─────────────────────────────────────────────────────────
-  const handleEditQuote = async (data: { text: string; thought: string; page: number | null; date: string }) => {
+  const handleEditQuote = async (data: { text: string; thought: string; page: string | null; date: string }) => {
     if (!editQuote) return;
     try {
       await dbUpdateQuote(editQuote.id, {
@@ -454,6 +455,12 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
     }
   };
 
+  // ─── Computed info for collapsible bar ────────────────────────────────
+  const categoryName = categories.find((c) => c.id === book.categoryId)?.name || '未分类';
+  const lastRead = quotes[0]?.date
+    ? (() => { const [y, m, d] = quotes[0].date.split('-'); return `${y}年${Number(m)}月${Number(d)}日`; })()
+    : '暂无';
+
   // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <div
@@ -483,7 +490,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
           paddingBottom: 2,
           flexShrink: 0,
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: 'flex-start',
           alignItems: 'center',
         }}
       >
@@ -504,15 +511,6 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
           <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 12, fontWeight: 500, letterSpacing: 0.1 }}>
             书架
           </span>
-        </button>
-        <button
-          onClick={() => setShowEditBook(true)}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)',
-            fontSize: 11, fontFamily: '-apple-system, sans-serif', padding: '4px 6px',
-          }}
-        >
-          编辑
         </button>
       </div>
 
@@ -549,33 +547,96 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
           paddingBottom: 130,
         } as React.CSSProperties}
       >
-        {/* Book header card */}
-        <div style={{ display: 'flex', gap: 15, padding: '10px 18px 20px', alignItems: 'flex-start' }}>
+        {/* Centered book cover — always visible */}
+        <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10 }}>
           <SmallBookCover book={book} />
-          <div style={{ flex: 1, paddingTop: 6 }}>
-            <h2 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 17, fontWeight: 'bold', color: 'var(--color-text)', lineHeight: 1.3, margin: '0 0 7px' }}>
-              {book.title}
-            </h2>
-            <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 12, color: 'var(--color-text-secondary)', margin: '0 0 5px', fontWeight: 400 }}>
-              {book.author}
-            </p>
-            <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', fontSize: 11, color: '#aaa090', margin: 0, fontWeight: 400 }}>
-              {quotes.length} 条摘录
-            </p>
-          </div>
-          {/* Decorative quill icon */}
-          <img
-            src="icon-quill.svg"
-            alt=""
+        </div>
+
+        {/* Collapsible info bar below cover */}
+        <div style={{ padding: '14px 18px 12px' }}>
+          <button
+            onClick={() => setInfoExpanded(!infoExpanded)}
             style={{
-              height: 84,
-              width: 'auto',
-              opacity: 0.35,
-              flexShrink: 0,
-              marginTop: 24,
-              marginRight: 20,
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '4px 0 8px',
+              position: 'relative',
+              display: 'block',
+              textAlign: 'center',
             }}
-          />
+          >
+            <div style={{
+              fontFamily: 'Georgia, "Times New Roman", serif',
+              fontSize: 15,
+              fontWeight: 'bold',
+              color: 'var(--color-text)',
+              lineHeight: 1.3,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {book.title}
+            </div>
+            <div style={{
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              fontSize: 11,
+              color: 'var(--color-text-secondary)',
+              fontWeight: 400,
+              marginTop: 2,
+            }}>
+              {book.author}
+            </div>
+            <span style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}>
+              {infoExpanded ? <ChevronUp size={16} color="#8a7a60" strokeWidth={2} /> : <ChevronDown size={16} color="#8a7a60" strokeWidth={2} />}
+            </span>
+          </button>
+
+          <div style={{
+            maxHeight: infoExpanded ? 200 : 0,
+            opacity: infoExpanded ? 1 : 0,
+            overflow: 'hidden',
+            transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 8, paddingBottom: 4 }}>
+              <div style={{ display: 'flex', gap: 32, marginTop: 4, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', letterSpacing: 1, marginBottom: 3 }}>分类</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>{categoryName}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', letterSpacing: 1, marginBottom: 3 }}>摘录</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>{quotes.length} 条</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', letterSpacing: 1, marginBottom: 3 }}>最近阅读</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>{lastRead}</div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowEditBook(true)}
+                style={{
+                  marginTop: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  background: 'none',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 16,
+                  padding: '7px 16px',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-secondary)',
+                  fontSize: 12,
+                  fontFamily: '-apple-system, sans-serif',
+                }}
+              >
+                <Edit3 size={13} strokeWidth={2} />
+                编辑书籍信息
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Divider */}

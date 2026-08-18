@@ -4,14 +4,14 @@ import { BookDetailPage } from './components/BookDetailPage';
 import SearchBar from './components/SearchBar';
 import SearchResults from './components/SearchResults';
 import AddBookSheet from './components/sheets/AddBookSheet';
-import CategoryManager from './components/sheets/CategoryManager';
+import SettingsPage from './components/SettingsPage';
 import LibraryBuilding from './components/LibraryBuilding';
-import StatsPage from './components/StatsPage';
+
 import { useApp } from './store';
 import { seedDemianBook } from './db';
 import type { Book } from './types';
 import type { SearchResult } from './db';
-import { Settings2, ChevronLeft, ChevronRight, ChartColumnIncreasing } from 'lucide-react';
+import { Settings2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function lighten(hex: string): string {
@@ -21,8 +21,8 @@ function lighten(hex: string): string {
   return `rgb(${Math.min(r + 28, 255)},${Math.min(g + 28, 255)},${Math.min(b + 28, 255)})`;
 }
 
-const COVER_W = 96;
-const COVER_H = 148;
+const COVER_W = 94;
+const COVER_H = 145;
 const APP_BASE_URL = import.meta.env.BASE_URL;
 // ─── Book cover — adapted from original, uses real data ──────────────────────
 function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: Book) => void; dragActive?: boolean }) {
@@ -178,39 +178,14 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
 }
 
 // ─── Decorative pattern header ────────────────────────────────────────────────
-function PatternHeader({ onManageCategories, onOpenStats }: { onManageCategories: () => void; onOpenStats: () => void }) {
+function PatternHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
     <div style={{ padding: '0 20px', position: 'relative' }}>
-      {/* Statistics button */}
-      <button
-        onClick={onOpenStats}
-        aria-label="阅读统计"
-        title="阅读统计"
-        style={{
-          position: 'absolute',
-          right: 52,
-          top: 12,
-          zIndex: 5,
-          width: 30,
-          height: 30,
-          borderRadius: '50%',
-          background: 'var(--color-bg-card)',
-          border: '1px solid var(--color-border-light)',
-          boxShadow: 'var(--shadow-sm)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--color-text-secondary)',
-        }}
-      >
-        <ChartColumnIncreasing size={16} strokeWidth={1.7} />
-      </button>
       {/* Settings gear */}
       <button
-        onClick={onManageCategories}
-        aria-label="分类管理"
-        title="分类管理"
+        onClick={onOpenSettings}
+        aria-label="设置与统计"
+        title="设置与统计"
         style={{
           position: 'absolute',
           right: 14,
@@ -310,7 +285,7 @@ function ShelfRow({
 
   const scrollBy = (direction: number) => {
     scrollRef.current?.scrollBy({
-      left: direction * (COVER_W + 10) * 3,
+      left: direction * (COVER_W + 6) * 3,
       behavior: 'smooth',
     });
   };
@@ -347,7 +322,7 @@ function ShelfRow({
     const state = dragStateRef.current;
     if (!state) return;
     const delta = clientX - state.startX;
-    const threshold = COVER_W + 10;
+    const threshold = COVER_W + 6;
     const idxShift = Math.round(delta / threshold);
     const targetIdx = Math.max(0, Math.min(books.length - 1, state.index + idxShift));
     if (targetIdx !== state.targetIndex) {
@@ -502,7 +477,7 @@ function ShelfRow({
           className={`shelf-scroll-${bookCount}-${name.replace(/\s+/g, '')}`}
           style={{
             display: 'flex',
-            gap: 10,
+            gap: 6,
             paddingLeft: 18,
             paddingRight: 18,
             overflowX: 'auto',
@@ -560,10 +535,9 @@ function ShelfRow({
                       flexShrink: 0,
                     }}
                   >
-                    <div style={{ width: 14, height: 100, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 11, height: 116, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 9, height: 90, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0 }} />
-                    <div style={{ width: 9, height: 70, borderRadius: '1px 1px 0 0', background: '#D0C8B8', flexShrink: 0, transform: 'rotate(-4.8deg)', transformOrigin: 'bottom center', marginLeft: 4 }} />
+                    <div style={{ width: 14, height: 95, borderRadius: '1px 1px 0 0', background: '#D0C8B8', opacity: 0.7, flexShrink: 0 }} />
+                    <div style={{ width: 11, height: 111, borderRadius: '1px 1px 0 0', background: '#D0C8B8', opacity: 0.7, flexShrink: 0 }} />
+                    <div style={{ width: 9, height: 85, borderRadius: '1px 1px 0 0', background: '#D0C8B8', opacity: 0.7, flexShrink: 0, transform: 'rotate(-4.8deg)', transformOrigin: 'bottom center', marginLeft: 4 }} />
                   </div>
                 )}
               </React.Fragment>
@@ -624,9 +598,9 @@ function ShelfRow({
 
 // ─── Shelf view (bookshelf page) ──────────────────────────────────────────────
 function ShelfView() {
-  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, showStats, setShowStats, moveBookTo, moveCategoryTo, setTargetQuoteId } = useApp();
+  const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, moveBookTo, moveCategoryTo, setTargetQuoteId } = useApp();
   const [showAddBook, setShowAddBook] = useState(false);
-  const [showCatManager, setShowCatManager] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [seedMsg, setSeedMsg] = useState('');
 
   // ─── Category drag-and-drop ────────────────────────────────────────────
@@ -767,7 +741,7 @@ function ShelfView() {
             {[1, 2, 3].map((row) => (
               <div key={row}>
                 <div style={{ width: 80, height: 11, borderRadius: 4, marginBottom: 10, background: 'linear-gradient(90deg, #ece4d8 25%, #f5efe4 50%, #ece4d8 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
                   {[1, 2, 3, 4].map((b) => (
                     <div key={b} style={{ width: COVER_W, height: COVER_H, borderRadius: 4, flexShrink: 0, background: 'linear-gradient(90deg, #ece4d8 25%, #f5efe4 50%, #ece4d8 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
                   ))}
@@ -780,7 +754,7 @@ function ShelfView() {
           <SearchResults onSelectResult={handleSearchResultSelect} />
         ) : (
           <>
-            <PatternHeader onManageCategories={() => setShowCatManager(true)} onOpenStats={() => setShowStats(true)} />
+            <PatternHeader onOpenSettings={() => setShowSettings(true)} />
 
             {/* Decorative divider */}
             <div
@@ -895,20 +869,19 @@ function ShelfView() {
 
       {/* Sheets */}
       <AddBookSheet open={showAddBook} onClose={() => setShowAddBook(false)} />
-      <CategoryManager open={showCatManager} onClose={() => setShowCatManager(false)} />
 
-      {/* Stats page overlay */}
+      {/* Settings page overlay */}
       <AnimatePresence>
-        {showStats && (
+        {showSettings && (
           <motion.div
-            key="stats-page"
+            key="settings-page"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 34 }}
             style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'var(--color-bg)' }}
           >
-            <StatsPage onBack={() => setShowStats(false)} />
+            <SettingsPage onBack={() => setShowSettings(false)} />
           </motion.div>
         )}
       </AnimatePresence>

@@ -74,6 +74,7 @@ export default function SearchResults({ onSelectResult }: SearchResultsProps) {
               lineHeight: 1.7,
               color: '#333',
               marginBottom: 8,
+              whiteSpace: 'pre-wrap',
             }}
           >
             {highlight(result.quote.text, searchQuery)}

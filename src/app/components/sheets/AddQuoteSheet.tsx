@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Camera } from 'lucide-react';
 import { recognizeText, compressImage } from '../../ocr';
 import type { Quote } from '../../types';
@@ -7,7 +7,7 @@ import ImageCropper from '../ImageCropper';
 interface AddQuoteSheetProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { text: string; thought: string; page: number | null; date: string }) => Promise<void>;
+  onSave: (data: { text: string; thought: string; page: string | null; date: string }) => Promise<void>;
   editQuote?: Quote | null; // if provided, we're editing
 }
 
@@ -20,6 +20,23 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
   const [saveError, setSaveError] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
   const [cropImage, setCropImage] = useState<string | null>(null);
+
+  const textRef = useRef<HTMLTextAreaElement | null>(null);
+  const thoughtRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
+
+  // Auto-grow textareas when content or sheet visibility changes
+  useEffect(() => {
+    if (open) {
+      autoResize(textRef.current);
+      autoResize(thoughtRef.current);
+    }
+  }, [open, text, thought]);
 
   // Sync form state when editQuote changes
   useEffect(() => {
@@ -48,7 +65,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
       await onSave({
         text: text.trim(),
         thought: thought.trim(),
-        page: page ? parseInt(page, 10) : null,
+        page: page.trim() || null,
         date,
       });
       reset();
@@ -136,6 +153,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
               摘录原文 *
             </label>
             <textarea
+              ref={textRef}
               placeholder="输入引用的原文段落…"
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -151,6 +169,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                 color: '#333',
                 outline: 'none',
                 resize: 'none',
+                overflow: 'hidden',
               }}
             />
 
@@ -215,11 +234,10 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
               页码
             </label>
             <input
-              type="number"
-              placeholder="页码（选填）"
+              type="text"
+              placeholder="页码 / 位置（选填）"
               value={page}
               onChange={(e) => setPage(e.target.value)}
-              min={1}
               style={{
                 padding: '10px 12px',
                 borderRadius: 8,
@@ -239,6 +257,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
               我的感悟
             </label>
             <textarea
+              ref={thoughtRef}
               placeholder="输入你对这段话的想法…"
               value={thought}
               onChange={(e) => setThought(e.target.value)}
@@ -254,6 +273,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
                 color: '#555',
                 outline: 'none',
                 resize: 'none',
+                overflow: 'hidden',
               }}
             />
           </div>

@@ -31,7 +31,6 @@ interface AppState {
   // Navigation
   selectedBook: Book | null;
   targetQuoteId: string | null;
-  showStats: boolean;
 
   // Search
   searchQuery: string;
@@ -41,7 +40,6 @@ interface AppState {
   // Actions – Navigation
   selectBook: (book: Book | null) => void;
   setTargetQuoteId: (id: string | null) => void;
-  setShowStats: (show: boolean) => void;
 
   // Actions – Search
   setSearchQuery: (q: string) => void;
@@ -77,7 +75,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [targetQuoteId, setTargetQuoteId] = useState<string | null>(null);
-  const [showStats, setShowStats] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -233,13 +230,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     initialLoading,
     selectedBook,
     targetQuoteId,
-    showStats,
     searchQuery,
     searchResults,
     isSearching,
     selectBook: setSelectedBook,
     setTargetQuoteId,
-    setShowStats,
     setSearchQuery,
     refreshData,
     addCategory,

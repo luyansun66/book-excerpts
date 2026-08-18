@@ -28,7 +28,7 @@ export interface Quote {
   bookId: string;
   text: string;
   thought: string;
-  page: number | null;
+  page: string | null;
   date: string;
   createdAt: string;
   updatedAt: string;
