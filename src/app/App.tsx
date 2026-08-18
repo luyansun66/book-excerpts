@@ -812,7 +812,7 @@ function ShelfView() {
             {/* Decorative divider */}
             <div
               style={{
-                margin: '4px 20px 2px',
+                margin: '4px 20px 12px',
                 height: 1,
                 background: 'linear-gradient(90deg, transparent 0%, #d4c4a0 30%, #d4c4a0 70%, transparent 100%)',
                 opacity: 0.5,
