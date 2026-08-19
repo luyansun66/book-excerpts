@@ -25,8 +25,15 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
 
   const scrollToSection = (key: SegmentKey) => {
     const el = key === 'cat' ? catRef.current : key === 'stats' ? statsRef.current : backupRef.current;
+    const scrollEl = scrollRef.current;
+    if (!el || !scrollEl) return;
     setActiveSegment(key);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Manual scroll with offset — avoids iOS PWA safe-area conflict from scrollIntoView
+    const navHeight = 54; // top nav bar height
+    const segHeight = 70; // segmented control container height
+    const extraPad = 8;   // breathing room
+    const targetY = el.offsetTop - navHeight - segHeight - extraPad;
+    scrollEl.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
   };
 
   const handleScroll = () => {
@@ -55,7 +62,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
       {/* Top navigation bar */}
       <div
         style={{
-          paddingTop: 10,
+          paddingTop: 'calc(10px + env(safe-area-inset-top))',
           paddingLeft: 14,
           paddingRight: 14,
           paddingBottom: 2,
