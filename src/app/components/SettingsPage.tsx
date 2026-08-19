@@ -28,11 +28,9 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
     const scrollEl = scrollRef.current;
     if (!el || !scrollEl) return;
     setActiveSegment(key);
-    // Manual scroll with offset — avoids iOS PWA safe-area conflict from scrollIntoView
-    const navHeight = 54; // top nav bar height
-    const segHeight = 70; // segmented control container height
-    const extraPad = 8;   // breathing room
-    const targetY = el.offsetTop - navHeight - segHeight - extraPad;
+    // Segment control is now fixed outside scroll area — no need to subtract its height
+    const extraPad = 12;
+    const targetY = el.offsetTop - extraPad;
     scrollEl.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
   };
 
@@ -40,7 +38,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
     const scrollEl = scrollRef.current;
     if (!scrollEl) return;
     const containerTop = scrollEl.getBoundingClientRect().top;
-    const offset = containerTop + 80;
+    const offset = containerTop + 20; // small headroom
     const statsTop = statsRef.current?.getBoundingClientRect().top ?? Infinity;
     const backupTop = backupRef.current?.getBoundingClientRect().top ?? Infinity;
     if (backupTop <= offset) setActiveSegment('backup');
@@ -98,6 +96,57 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
         <div style={{ width: 40, visibility: 'hidden' }} />
       </div>
 
+      {/* Fixed segmented control — outside scroll area */}
+      <div
+        style={{
+          flexShrink: 0,
+          padding: '30px 18px 12px',
+          background: 'var(--color-bg)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            background: 'var(--color-bg-card)',
+            borderRadius: 12,
+            padding: 3,
+            border: '1px solid var(--color-border-light)',
+            boxShadow: 'var(--shadow-sm)',
+          }}
+        >
+          {SEGMENTS.map((seg) => {
+            const Icon = seg.icon;
+            const isActive = activeSegment === seg.key;
+            return (
+              <button
+                key={seg.key}
+                onClick={() => scrollToSection(seg.key)}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 5,
+                  padding: '9px 4px',
+                  borderRadius: 9,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: isActive ? 'var(--color-btn)' : 'transparent',
+                  color: isActive ? 'var(--color-btn-text)' : 'var(--color-text-secondary)',
+                  fontSize: 11.5,
+                  fontWeight: isActive ? 700 : 500,
+                  fontFamily: '-apple-system, sans-serif',
+                  transition: 'background 0.15s ease, color 0.15s ease',
+                }}
+              >
+                <Icon size={13} strokeWidth={2} />
+                {seg.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Scrollable content */}
       <div
         ref={scrollRef}
@@ -110,61 +159,8 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
           padding: '0 18px 48px',
         } as React.CSSProperties}
       >
-        {/* Sticky segmented control */}
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 20,
-            padding: '30px 0 12px',
-            background: 'var(--color-bg)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              background: 'var(--color-bg-card)',
-              borderRadius: 12,
-              padding: 3,
-              border: '1px solid var(--color-border-light)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            {SEGMENTS.map((seg) => {
-              const Icon = seg.icon;
-              const isActive = activeSegment === seg.key;
-              return (
-                <button
-                  key={seg.key}
-                  onClick={() => scrollToSection(seg.key)}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 5,
-                    padding: '9px 4px',
-                    borderRadius: 9,
-                    border: 'none',
-                    cursor: 'pointer',
-                    background: isActive ? 'var(--color-btn)' : 'transparent',
-                    color: isActive ? 'var(--color-btn-text)' : 'var(--color-text-secondary)',
-                    fontSize: 11.5,
-                    fontWeight: isActive ? 700 : 500,
-                    fontFamily: '-apple-system, sans-serif',
-                    transition: 'background 0.15s ease, color 0.15s ease',
-                  }}
-                >
-                  <Icon size={13} strokeWidth={2} />
-                  {seg.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         {/* Section 1: Category management */}
-        <section ref={catRef} style={{ scrollMarginTop: 70, marginBottom: 30 }}>
+        <section ref={catRef} style={{ marginBottom: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 12 }}>
             <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
               <Layers size={14} strokeWidth={1.8} />
@@ -180,7 +176,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
         </section>
 
         {/* Section 2: Reading stats */}
-        <section ref={statsRef} style={{ scrollMarginTop: 70, marginBottom: 30 }}>
+        <section ref={statsRef} style={{ marginBottom: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 12 }}>
             <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
               <ChartColumnIncreasing size={14} strokeWidth={1.8} />
@@ -194,7 +190,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
         </section>
 
         {/* Section 3: Data backup */}
-        <section ref={backupRef} style={{ scrollMarginTop: 70 }}>
+        <section ref={backupRef}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 12 }}>
             <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
               <Database size={14} strokeWidth={1.8} />
