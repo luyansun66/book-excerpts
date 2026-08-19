@@ -60,7 +60,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
       {/* Top navigation bar */}
       <div
         style={{
-          paddingTop: 'clamp(45px, env(safe-area-inset-top), 50px)',
+          paddingTop: 'clamp(30px, env(safe-area-inset-top), 35px)',
           paddingLeft: 14,
           paddingRight: 14,
           paddingBottom: 2,
