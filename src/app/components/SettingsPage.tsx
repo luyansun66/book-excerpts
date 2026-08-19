@@ -1,14 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, Layers, ChartColumnIncreasing, Database } from 'lucide-react';
 import CategorySection from './sections/CategorySection';
 import StatsSection from './sections/StatsSection';
 import DataBackupSection from './sections/DataBackupSection';
 
-type SegmentKey = 'cat' | 'stats' | 'backup';
+type SegmentKey = 'stats' | 'cat' | 'backup';
 
 const SEGMENTS: { key: SegmentKey; label: string; icon: typeof Layers }[] = [
-  { key: 'cat', label: '分类管理', icon: Layers },
   { key: 'stats', label: '阅读统计', icon: ChartColumnIncreasing },
+  { key: 'cat', label: '分类管理', icon: Layers },
   { key: 'backup', label: '数据备份', icon: Database },
 ];
 
@@ -17,34 +17,7 @@ interface SettingsPageProps {
 }
 
 export default function SettingsPage({ onBack }: SettingsPageProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const catRef = useRef<HTMLElement>(null);
-  const statsRef = useRef<HTMLElement>(null);
-  const backupRef = useRef<HTMLElement>(null);
-  const [activeSegment, setActiveSegment] = useState<SegmentKey>('cat');
-
-  const scrollToSection = (key: SegmentKey) => {
-    const el = key === 'cat' ? catRef.current : key === 'stats' ? statsRef.current : backupRef.current;
-    const scrollEl = scrollRef.current;
-    if (!el || !scrollEl) return;
-    setActiveSegment(key);
-    // Segment control is now fixed outside scroll area — no need to subtract its height
-    const extraPad = 12;
-    const targetY = el.offsetTop - extraPad;
-    scrollEl.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
-  };
-
-  const handleScroll = () => {
-    const scrollEl = scrollRef.current;
-    if (!scrollEl) return;
-    const containerTop = scrollEl.getBoundingClientRect().top;
-    const offset = containerTop + 20; // small headroom
-    const statsTop = statsRef.current?.getBoundingClientRect().top ?? Infinity;
-    const backupTop = backupRef.current?.getBoundingClientRect().top ?? Infinity;
-    if (backupTop <= offset) setActiveSegment('backup');
-    else if (statsTop <= offset) setActiveSegment('stats');
-    else setActiveSegment('cat');
-  };
+  const [activeSegment, setActiveSegment] = useState<SegmentKey>('stats');
 
   return (
     <div
@@ -96,7 +69,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
         <div style={{ width: 40, visibility: 'hidden' }} />
       </div>
 
-      {/* Fixed segmented control — outside scroll area */}
+      {/* Fixed segmented control */}
       <div
         style={{
           flexShrink: 0,
@@ -120,7 +93,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             return (
               <button
                 key={seg.key}
-                onClick={() => scrollToSection(seg.key)}
+                onClick={() => setActiveSegment(seg.key)}
                 style={{
                   flex: 1,
                   display: 'flex',
@@ -147,63 +120,50 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
         </div>
       </div>
 
-      {/* Scrollable content */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          scrollbarWidth: 'none',
-          padding: '0 18px 48px',
-        } as React.CSSProperties}
-      >
-        {/* Section 1: Category management */}
-        <section ref={catRef} style={{ marginBottom: 30 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 12 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
-              <Layers size={14} strokeWidth={1.8} />
-            </span>
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 'bold', color: 'var(--color-text)' }}>分类管理</div>
-              <div style={{ fontSize: 10.5, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', marginTop: 1 }}>新增、重命名与删除书架分类</div>
-            </div>
+      {/* Active section content — each scrolls independently */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {activeSegment === 'stats' && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'none',
+              padding: '0 18px 48px',
+            } as React.CSSProperties}
+          >
+            <StatsSection />
           </div>
-          <div style={{ background: 'var(--color-bg-card)', borderRadius: 14, padding: 14, border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-card)' }}>
+        )}
+        {activeSegment === 'cat' && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'none',
+              padding: '0 18px 48px',
+            } as React.CSSProperties}
+          >
             <CategorySection />
           </div>
-        </section>
-
-        {/* Section 2: Reading stats */}
-        <section ref={statsRef} style={{ marginBottom: 30 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 12 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
-              <ChartColumnIncreasing size={14} strokeWidth={1.8} />
-            </span>
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 'bold', color: 'var(--color-text)' }}>阅读统计</div>
-              <div style={{ fontSize: 10.5, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', marginTop: 1 }}>连续阅读、月度节奏与日历热力图</div>
-            </div>
-          </div>
-          <StatsSection />
-        </section>
-
-        {/* Section 3: Data backup */}
-        <section ref={backupRef}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 12 }}>
-            <span style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-card)', border: '1px solid var(--color-border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-secondary)' }}>
-              <Database size={14} strokeWidth={1.8} />
-            </span>
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 'bold', color: 'var(--color-text)' }}>数据备份</div>
-              <div style={{ fontSize: 10.5, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', marginTop: 1 }}>导出或导入全部书籍与摘录数据</div>
-            </div>
-          </div>
-          <div style={{ background: 'var(--color-bg-card)', borderRadius: 14, padding: 16, border: '1px solid var(--color-border-light)', boxShadow: 'var(--shadow-card)' }}>
+        )}
+        {activeSegment === 'backup' && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              scrollbarWidth: 'none',
+              padding: '0 18px 48px',
+            } as React.CSSProperties}
+          >
             <DataBackupSection />
           </div>
-        </section>
+        )}
       </div>
     </div>
   );
