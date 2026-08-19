@@ -62,7 +62,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
       {/* Top navigation bar */}
       <div
         style={{
-          paddingTop: 'calc(10px + env(safe-area-inset-top))',
+          paddingTop: 'calc(2px + env(safe-area-inset-top))',
           paddingLeft: 14,
           paddingRight: 14,
           paddingBottom: 2,
