@@ -12,7 +12,16 @@ export default function DataBackupSection() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+      <div style={{
+        background: 'var(--color-bg-card)',
+        borderRadius: 14,
+        padding: '28px 16px',
+        border: '1px solid var(--color-border-light)',
+        boxShadow: 'var(--shadow-card)',
+        marginTop: 4,
+        marginBottom: 12,
+      }}>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
         <button
           onClick={async () => {
             try {
@@ -54,6 +63,7 @@ export default function DataBackupSection() {
           <Upload size={13} strokeWidth={1.8} />
           导入备份
         </button>
+        </div>
       </div>
 
       <input

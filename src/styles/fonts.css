@@ -23,10 +23,68 @@
   font-display: swap;
 }
 
-/* 方正北魏楷书简体 — for share card text */
+/* 方正北魏楷书简体 — for share card text (legacy) */
 @font-face {
   font-family: 'FWKaiShu';
   src: url('/book-excerpts/fonts/方正北魏楷书简体.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Share card fonts ───────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'SourceHanSerifCN';
+  src: url('/book-excerpts/fonts/SourceHanSerifCN-SemiBold.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZLanTingXiHei';
+  src: url('/book-excerpts/fonts/FZLanTingXiHei.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZBeiWeiKaiShu';
+  src: url('/book-excerpts/fonts/方正北魏楷书简体.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZSongHei';
+  src: url('/book-excerpts/fonts/FZSongHei.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZXiaoZhuan';
+  src: url('/book-excerpts/fonts/FZXiaoZhuan.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZZhengXianHei';
+  src: url('/book-excerpts/fonts/FZZhengXianHei.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HuiWenMingChao';
+  src: url('/book-excerpts/fonts/HuiWenMingChao.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

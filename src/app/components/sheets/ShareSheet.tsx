@@ -1,21 +1,51 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Download, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { Quote, ThemePreset } from '../../types';
-import catSvg from '../../../assets/icon-cat.svg?raw';
+import { X, Download } from 'lucide-react';
+import type { Quote } from '../../types';
+import { STICKERS } from './stickerData';
 
-// ─── Theme presets ────────────────────────────────────────────────────────────
-const PRESETS: ThemePreset[] = [
-  { id: 'warm', name: '暖黄复古', bgColor: 'var(--color-bg-card-alt)', textColor: '#333333', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'clean', name: '极简白', bgColor: '#ffffff', textColor: '#1a1a1a', accentColor: '#555555', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'dark', name: '深色典雅', bgColor: 'var(--color-text)', textColor: '#e8ddd0', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'green', name: '清新绿', bgColor: '#f0f5ec', textColor: '#2d4a2e', accentColor: '#5a8a5c', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'blue', name: '静谧蓝', bgColor: '#eef3f8', textColor: '#2c3e50', accentColor: '#5a7a9a', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'cream', name: '暖白', bgColor: '#FEFCF8', textColor: '#333333', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
-  { id: 'navy', name: '深蓝', bgColor: '#233073', textColor: '#CBECFE', accentColor: 'var(--color-gold)', fontFamily: "'FWKaiShu', Georgia, serif" },
+// ─── Color themes ─────────────────────────────────────────────────────────────
+interface ColorTheme {
+  id: string;
+  name: string;
+  bgColor: string;
+  textColor: string;
+  accentColor: string;
+}
+
+const COLOR_THEMES: ColorTheme[] = [
+  { id: 'athens', name: '雅典黑', bgColor: '#1B1C1F', textColor: '#F4E1B8', accentColor: '#C8A96E' },
+  { id: 'deepblue', name: '深蓝', bgColor: '#233073', textColor: '#CCEDFF', accentColor: '#FFD700' },
+  { id: 'darkbrown', name: '深棕色', bgColor: '#2C2415', textColor: '#D5CABE', accentColor: '#C8A96E' },
+  { id: 'grayblue', name: '灰蓝', bgColor: '#6A85B6', textColor: '#FFFFFF', accentColor: '#F4E1B8' },
+  { id: 'lavender', name: '烟灰紫', bgColor: '#F0EFF5', textColor: '#3B3545', accentColor: '#7A6B8E' },
+  { id: 'freshgreen', name: '清新绿', bgColor: '#F0F5EC', textColor: '#2D4A2E', accentColor: '#5A8A5' },
+  { id: 'plainwhite', name: '素白', bgColor: '#FAFAFA', textColor: '#2D1F16', accentColor: '#A69060' },
+  { id: 'bookcream', name: '书卷米', bgColor: '#FEFCF8', textColor: '#2D1F16', accentColor: '#B08D57' },
 ];
 
+// ─── Font options ─────────────────────────────────────────────────────────────
+interface FontOption {
+  id: string;
+  name: string;
+  family: string;
+  face: string; // primary face for document.fonts.load
+}
+
+const FONTS: FontOption[] = [
+  { id: 'system', name: '系统默认', family: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', face: 'system' },
+  { id: 'siyuan', name: '思源宋体', family: '"SourceHanSerifCN", "Noto Serif SC", Georgia, serif', face: 'SourceHanSerifCN' },
+  { id: 'lanting', name: '兰亭细黑', family: '"FZLanTingXiHei", "PingFang SC", sans-serif', face: 'FZLanTingXiHei' },
+  { id: 'beiwei', name: '北魏楷书', family: '"FZBeiWeiKaiShu", "KaiTi", serif', face: 'FZBeiWeiKaiShu' },
+  { id: 'songhei', name: '宋黑', family: '"FZSongHei", "PingFang SC", sans-serif', face: 'FZSongHei' },
+  { id: 'xiaozhuan', name: '小篆体', family: '"FZXiaoZhuan", serif', face: 'FZXiaoZhuan' },
+  { id: 'zhengxian', name: '正纤黑', family: '"FZZhengXianHei", "PingFang SC", sans-serif', face: 'FZZhengXianHei' },
+  { id: 'mingchao', name: '明朝体', family: '"HuiWenMingChao", "Noto Serif SC", serif', face: 'HuiWenMingChao' },
+];
+
+
+
 // Preview at 270px, output at 1080px wide (scale=4), height auto
-const CARD_W = 270; // preview width — output is 1080×1440
+const CARD_W = 270;
 
 interface ShareSheetProps {
   open: boolean;
@@ -26,20 +56,24 @@ interface ShareSheetProps {
 }
 
 export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor }: ShareSheetProps) {
-  const [themeIndex, setThemeIndex] = useState(0);
+  const [colorIndex, setColorIndex] = useState(4); // default: bookcream (书卷米)
+  const [fontIndex, setFontIndex] = useState(0);  // default: system
+  const [stickerIndex, setStickerIndex] = useState(1); // default: Kitty (index 1, 0 = 无贴纸)
   const [saving, setSaving] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [saveHint, setSaveHint] = useState(false);
   const [html2canvasReady, setHtml2canvasReady] = useState<boolean | null>(null);
-  const theme = PRESETS[themeIndex];
+  const [showThoughts, setShowThoughts] = useState(true);
+
+  const color = COLOR_THEMES[colorIndex];
+  const font = FONTS[fontIndex];
+  const sticker = stickerIndex > 0 ? STICKERS[stickerIndex - 1] : null;
+
   const cardRef = useRef<HTMLDivElement>(null);
   const html2canvasRef = useRef<any>(null);
 
-  // Pre-load html2canvas when the sheet opens — the dynamic import is the most
-  // fragile step in the export flow (Safari PWA + Service Worker cache race).
-  // Loading it early lets the SW cache the chunk while the user picks a theme,
-  // and surfaces any module-load error immediately instead of after clicking save.
+  // Pre-load html2canvas when the sheet opens
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -82,27 +116,30 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     };
   }, [imageUrl]);
 
-  // html2canvas can't parse `oklch()` colors (Tailwind CSS 4 default).
-  // Walk the cloned element subtree and override any computed style containing
-  // `oklch` with an inline style — preventing html2canvas's CSS parser from choking.
-  const onClone = async (_doc: Document, _element: HTMLElement) => {
-    // Force-load the custom font in the cloned document (fonts.ready may
-    // resolve immediately when no font is actively loading in the clone)
-    try {
-      await _doc.fonts.load('14px "FWKaiShu"');
-    } catch { /* fallback fonts will be used */ }
 
-    const walk = (el: HTMLElement) => {
-      const cs = _doc.defaultView?.getComputedStyle(el);
-      if (!cs) return;
-      for (let i = 0; i < cs.length; i++) {
-        const prop = cs[i];
-        if (cs.getPropertyValue(prop).includes('oklch')) {
-          const isBg = /background|bg/i.test(prop);
-          el.style.setProperty(prop, isBg ? 'transparent' : theme.textColor, 'important');
+
+  // onClone: replace oklch colors in cloned DOM for html2canvas compatibility
+  const onClone = (_doc: Document, _element: HTMLElement) => {
+    const walk = (el: Element): void => {
+      try {
+        const cs = _doc.defaultView?.getComputedStyle(el);
+        if (!cs) return;
+        for (let i = 0; i < cs.length; i++) {
+          const prop = cs[i];
+          const val = cs.getPropertyValue(prop);
+          if (typeof val === 'string' && val.includes('oklch')) {
+            const isBg = /background|bg/i.test(prop);
+            (el as HTMLElement).style.setProperty(
+              prop,
+              isBg ? 'transparent' : color.textColor,
+              'important'
+            );
+          }
         }
+        Array.from(el.children).forEach((c) => walk(c));
+      } catch {
+        // skip elements that can't be processed (e.g. SVG)
       }
-      Array.from(el.children).forEach((c) => walk(c as HTMLElement));
     };
     walk(_element);
   };
@@ -113,90 +150,52 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       setErrorMsg('图片库未加载完成，请稍后再试');
       return;
     }
+
+    // Preload selected font in main document before capture
+    if (font.face !== 'system') {
+      try {
+        await document.fonts.load(`14px "${font.face}"`);
+      } catch { /* continue */ }
+    }
+
     setSaving(true);
     setErrorMsg(null);
     setImageUrl(null);
+
     try {
-      // Ensure the custom font is loaded before capturing
-      try {
-        await document.fonts.load('14px "FWKaiShu"');
-      } catch { /* fallback fonts will be used */ }
-
       const html2canvas = html2canvasRef.current;
-
-      // Capture at natural (auto) height, scale=4 → output width 1080px
-      const rawCanvas = await html2canvas(cardRef.current, {
-        backgroundColor: theme.bgColor,
-        scale: 4,
+      const canvas = await html2canvas(cardRef.current, {
+        scale: 3,
         useCORS: true,
-        allowTaint: false,
+        backgroundColor: null,
         logging: false,
-        onclone: onClone,
+        onClone,
+      });
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b: Blob | null) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png');
       });
 
-      // Output at 1080px wide with dynamic height (no fixed aspect ratio)
-      const TARGET_W = 1080;
-      const TARGET_H = rawCanvas.height;
-      const canvas = document.createElement('canvas');
-      canvas.width = TARGET_W;
-      canvas.height = TARGET_H;
-      const ctx = canvas.getContext('2d')!;
-
-      // Fill background
-      ctx.fillStyle = theme.bgColor;
-      ctx.fillRect(0, 0, TARGET_W, TARGET_H);
-
-      // Draw at native resolution (scale=4 already gives us 1080px width)
-      ctx.drawImage(rawCanvas, 0, 0);
-
-      // Convert to blob
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob((b) => resolve(b), 'image/png'),
-      );
-      if (!blob) {
-        throw new Error('图片生成失败，请重试');
-      }
-
-      // Create object URL
       const url = URL.createObjectURL(blob);
       setImageUrl(url);
 
-      // Also try to share (iOS/Android system share sheet → user can save to photos)
+      // Also try to share
       const shareFile = new File([blob], `摘录-${bookTitle}.png`, { type: 'image/png' });
-      // Check if share is available — use feature detection
       if (typeof navigator.share === 'function') {
         try {
-          await navigator.share({
-            title: `摘录 - ${bookTitle}`,
-            files: [shareFile],
-          });
-          // User completed sharing — done
-          setSaving(false);
-          return;
-        } catch {
-          // 分享失败或用户取消 — 提示长按保存
-          setSaveHint(true);
-          setTimeout(() => setSaveHint(false), 4000);
+          await navigator.share({ files: [shareFile], title: `摘录：${bookTitle}` });
+        } catch (shareErr: any) {
+          if (shareErr.name !== 'AbortError') {
+            setSaveHint(true);
+            setTimeout(() => setSaveHint(false), 6000);
+          }
         }
-      }
-
-      // Fallback: on desktop, try download via link
-      if (window.navigator.userAgent.includes('Windows') || window.navigator.userAgent.includes('Macintosh') || window.navigator.userAgent.includes('Linux')) {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `摘录-${bookTitle}.png`;
-        document.body.appendChild(link);
-        link.click();
-        setTimeout(() => document.body.removeChild(link), 300);
       } else {
-        // 移动端不支持 share 或 share 不可用，提示长按保存
         setSaveHint(true);
-        setTimeout(() => setSaveHint(false), 4000);
+        setTimeout(() => setSaveHint(false), 6000);
       }
-    } catch (err: any) {
-      const msg = err?.message || '图片生成失败';
-      console.error('Save image failed:', err);
-      setErrorMsg(msg);
+    } catch (e: any) {
+      console.error('[ShareSheet] Export failed:', e?.message || e, e?.stack || '');
+      setErrorMsg(e?.message ? `图片生成失败：${e.message}` : '图片生成失败，请重试');
     } finally {
       setSaving(false);
     }
@@ -214,7 +213,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         alignItems: 'flex-end',
       }}
       onClick={(e) => {
-        // Close when tapping backdrop, release object URL
         if (e.target === e.currentTarget) {
           if (imageUrl) URL.revokeObjectURL(imageUrl);
           onClose();
@@ -232,6 +230,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflowY: 'auto',
+          overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -257,8 +256,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             style={{
               margin: 0,
               fontSize: 16,
-              fontFamily: "'FWKaiShu', Georgia, serif",
-              fontWeight: 'bold',
+              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+              fontWeight: 600,
               color: 'var(--color-text)',
             }}
           >
@@ -272,17 +271,15 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           </button>
         </div>
 
-        {/* Card preview — simple block layout, no overflow hidden or ellipsis
-            html2canvas has known flexbox height miscalculation issues with
-            overflow:hidden + textOverflow:ellipsis, which clips the last line.
-            A share card should show ALL content — no clipping at all. */}
+        {/* Card preview */}
         <div
           ref={cardRef}
           style={{
             width: CARD_W,
             padding: '28px 26px 22px',
-            background: theme.bgColor,
-            borderRadius: 12,
+            background: color.bgColor,
+            color: color.textColor,
+            borderRadius: 0,
             boxShadow: '0 8px 40px rgba(0,0,0,0.12)',
             display: 'flex',
             flexDirection: 'column',
@@ -291,9 +288,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         >
           <span
             style={{
-              fontFamily: theme.fontFamily,
+              fontFamily: font.family,
               fontSize: Math.min(quoteFontSize * 1.8, 34),
-              color: theme.accentColor,
+              color: color.accentColor,
               lineHeight: 0.7,
               opacity: 0.35,
               userSelect: 'none',
@@ -304,14 +301,15 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           </span>
           <p
             style={{
-              fontFamily: theme.fontFamily,
+              fontFamily: font.family,
               fontSize: quoteFontSize,
               lineHeight: 1.7,
-              color: theme.textColor,
+              color: color.textColor,
               margin: 0,
               padding: '0 2px',
               wordBreak: 'break-word',
               textAlign: 'justify',
+              textJustify: 'inter-ideograph' as any,
               whiteSpace: 'pre-wrap',
             }}
           >
@@ -320,9 +318,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           <div style={{ textAlign: 'right', marginTop: 2 }}>
             <span
               style={{
-                fontFamily: theme.fontFamily,
+                fontFamily: font.family,
                 fontSize: Math.min(quoteFontSize * 1.8, 34),
-                color: theme.accentColor,
+                color: color.accentColor,
                 lineHeight: 0.7,
                 opacity: 0.35,
                 userSelect: 'none',
@@ -331,23 +329,25 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               &rdquo;
             </span>
           </div>
-          {quote.thought && (
+          {showThoughts && quote.thought && (
             <div
               style={{
                 fontSize: 10,
                 lineHeight: 1.5,
-                color: theme.textColor,
+                color: color.textColor,
                 opacity: 0.5,
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                borderTop: `1px solid ${theme.accentColor}22`,
+                borderTop: `1px solid ${color.accentColor}22`,
                 paddingTop: 8,
                 marginTop: 4,
                 whiteSpace: 'pre-wrap',
               }}
             >
-              {quote.thought.length > 80 ? quote.thought.slice(0, 78) + '…' : quote.thought}
+              {quote.thought}
             </div>
           )}
+
+          {/* Bottom: sticker + book info */}
           <div
             style={{
               display: 'flex',
@@ -357,28 +357,30 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               height: 55,
             }}
           >
-            {/* Cat icon — fill matches text color on dark themes */}
-            <div
-              dangerouslySetInnerHTML={{
-                __html: ['navy', 'dark'].includes(theme.id)
-                  ? catSvg.replace(/#442e1e/g, theme.textColor)
-                  : catSvg,
-              }}
-              style={{
-                width: 30,
-                height: 45,
-                opacity: 0.9,
-                flex: 'none',
-                lineHeight: 0,
-              }}
-            />
+            {/* Sticker — fixed bottom-left */}
+            {sticker ? (
+              <div
+                dangerouslySetInnerHTML={{ __html: sticker.svg }}
+                style={{
+                  height: 40,
+                  width: 'auto',
+                  maxWidth: 45,
+                  opacity: 0.9,
+                  flex: 'none',
+                  lineHeight: 0,
+                  color: color.textColor,
+                }}
+              />
+            ) : (
+              <div style={{ width: 40, flex: 'none' }} />
+            )}
             <div style={{ textAlign: 'right', flex: 1 }}>
               <div
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
                   fontFamily: 'Georgia, serif',
-                  color: theme.accentColor,
+                  color: color.accentColor,
                   lineHeight: 1.3,
                 }}
               >
@@ -387,7 +389,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               <div
                 style={{
                   fontSize: 8.5,
-                  color: theme.textColor,
+                  color: color.textColor,
                   opacity: 0.5,
                   fontFamily: 'Georgia, serif',
                   marginTop: 1,
@@ -398,7 +400,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               <div
                 style={{
                   fontSize: 8,
-                  color: theme.textColor,
+                  color: color.textColor,
                   opacity: 0.35,
                   fontFamily: 'Georgia, serif',
                   marginTop: 2,
@@ -412,51 +414,164 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           </div>
         </div>
 
-        {/* Theme switcher */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
-          <button
-            onClick={() => { setImageUrl(null); setThemeIndex((i) => (i - 1 + PRESETS.length) % PRESETS.length); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-          >
-            <ChevronLeft size={16} color="#8a7a60" />
-          </button>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {PRESETS.map((p, i) => (
+        {/* ─── Selectors ───────────────────────────────────────────────────── */}
+
+        {/* Color selector */}
+        <div style={{ width: '100%', marginTop: 18 }}>
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>
+            颜色
+          </div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+            {COLOR_THEMES.map((t, i) => (
               <button
-                key={p.id}
-                onClick={() => { setImageUrl(null); setThemeIndex(i); }}
+                key={t.id}
+                onClick={() => { setColorIndex(i); setImageUrl(null); }}
                 style={{
-                  width: 10,
-                  height: 10,
+                  width: 28,
+                  height: 28,
                   borderRadius: '50%',
-                  border: i === themeIndex ? '2px solid #2c2416' : '1px solid #d4c4a0',
-                  background: p.bgColor,
+                  border: i === colorIndex ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                  background: t.bgColor,
+                  flexShrink: 0,
                   cursor: 'pointer',
                   padding: 0,
                 }}
+                title={t.name}
               />
             ))}
           </div>
-          <button
-            onClick={() => { setImageUrl(null); setThemeIndex((i) => (i + 1) % PRESETS.length); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-          >
-            <ChevronRight size={16} color="#8a7a60" />
-          </button>
         </div>
-        <div
-          style={{
-            fontSize: 10,
-            color: 'var(--color-text-muted)',
-            fontFamily: '-apple-system, sans-serif',
-            marginTop: 4,
-          }}
-        >
-          {PRESETS[themeIndex].name}
+
+        {/* Font selector */}
+        <div style={{ width: '100%', marginTop: 14 }}>
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>
+            字体
+          </div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+            {FONTS.map((f, i) => (
+              <button
+                key={f.id}
+                onClick={() => { setFontIndex(i); setImageUrl(null); }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 8,
+                  border: i === fontIndex ? '1px solid var(--color-btn)' : '1px solid var(--color-border-light)',
+                  background: i === fontIndex ? 'var(--color-btn)' : 'var(--color-bg-card)',
+                  color: i === fontIndex ? 'var(--color-btn-text)' : 'var(--color-text)',
+                  fontFamily: f.family,
+                  fontSize: 12,
+                  flexShrink: 0,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {f.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Sticker selector */}
+        <div style={{ width: '100%', marginTop: 14 }}>
+          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>
+            贴纸
+          </div>
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
+            {/* "无贴纸" option */}
+              <button
+                onClick={() => { setStickerIndex(0); setImageUrl(null); }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '6px 8px',
+                  borderRadius: 8,
+                  border: stickerIndex === 0 ? '1px solid var(--color-btn)' : '1px solid var(--color-border-light)',
+                  background: stickerIndex === 0 ? 'var(--color-btn)' : 'var(--color-bg-card)',
+                  flexShrink: 0,
+                  cursor: 'pointer',
+                  minWidth: 56,
+                }}
+              >
+                <div style={{ height: 24, width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                </div>
+                <span style={{ fontSize: 9, color: stickerIndex === 0 ? 'var(--color-btn-text)' : 'var(--color-text-muted)', whiteSpace: 'nowrap', fontFamily: '-apple-system, sans-serif' }}>无</span>
+              </button>
+            {STICKERS.map((s, i) => (
+              <button
+                key={s.id}
+                onClick={() => { setStickerIndex(i + 1); setImageUrl(null); }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '6px 8px',
+                  borderRadius: 8,
+                  border: i + 1 === stickerIndex ? '1px solid var(--color-btn)' : '1px solid var(--color-border-light)',
+                  background: i + 1 === stickerIndex ? 'var(--color-btn)' : 'var(--color-bg-card)',
+                  flexShrink: 0,
+                  cursor: 'pointer',
+                  minWidth: 56,
+                }}
+              >
+                <div
+                  dangerouslySetInnerHTML={{ __html: s.svg }}
+                  style={{ height: 24, width: 'auto', maxWidth: 28, lineHeight: 0, color: color.textColor }}
+                />
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: i + 1 === stickerIndex ? 'var(--color-btn-text)' : 'var(--color-text-muted)',
+                    whiteSpace: 'nowrap',
+                    fontFamily: '-apple-system, sans-serif',
+                  }}
+                >
+                  {s.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ─── 包含感悟 toggle ──────────────────────────────────────── */}
+        <div style={{ width: '100%', marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 13, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>
+            包含感悟
+          </span>
+          <button
+            onClick={() => { setShowThoughts(!showThoughts); setImageUrl(null); }}
+            style={{
+              width: 44,
+              height: 26,
+              borderRadius: 13,
+              border: 'none',
+              background: showThoughts ? 'var(--color-btn)' : 'var(--color-border)',
+              cursor: 'pointer',
+              position: 'relative',
+              transition: 'background 0.2s',
+              padding: 0,
+            }}
+          >
+            <div
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: '#fff',
+                position: 'absolute',
+                top: 3,
+                left: showThoughts ? 21 : 3,
+                transition: 'left 0.2s',
+              }}
+            />
+          </button>
         </div>
 
         {/* Save button */}
-        <div style={{ marginTop: 18, width: '100%' }}>
+        <div style={{ marginTop: 20, width: '100%' }}>
           <button
             onClick={handleSave}
             disabled={saving || html2canvasReady === null}
@@ -483,7 +598,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           </button>
         </div>
 
-        {/* Generated image — shown after generation */}
+        {/* Generated image */}
         {imageUrl && (
           <div
             style={{
@@ -532,7 +647,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                 objectFit: 'contain',
                 borderRadius: 8,
                 boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-                background: theme.bgColor,
+                background: color.bgColor.includes('gradient') ? '#FEFCF8' : color.bgColor,
               }}
             />
           </div>

@@ -1,15 +1,14 @@
 import { useState } from 'react';
-import { ArrowLeft, Layers, ChartColumnIncreasing, Database } from 'lucide-react';
+import { ArrowLeft, Layers, ChartColumnIncreasing } from 'lucide-react';
 import CategorySection from './sections/CategorySection';
 import StatsSection from './sections/StatsSection';
 import DataBackupSection from './sections/DataBackupSection';
 
-type SegmentKey = 'stats' | 'cat' | 'backup';
+type SegmentKey = 'stats' | 'cat';
 
 const SEGMENTS: { key: SegmentKey; label: string; icon: typeof Layers }[] = [
   { key: 'stats', label: '阅读统计', icon: ChartColumnIncreasing },
   { key: 'cat', label: '分类管理', icon: Layers },
-  { key: 'backup', label: '数据备份', icon: Database },
 ];
 
 interface SettingsPageProps {
@@ -134,6 +133,9 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             } as React.CSSProperties}
           >
             <StatsSection />
+            <div style={{ marginTop: 24 }}>
+              <DataBackupSection />
+            </div>
           </div>
         )}
         {activeSegment === 'cat' && (
@@ -148,20 +150,6 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             } as React.CSSProperties}
           >
             <CategorySection />
-          </div>
-        )}
-        {activeSegment === 'backup' && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              scrollbarWidth: 'none',
-              padding: '0 18px 48px',
-            } as React.CSSProperties}
-          >
-            <DataBackupSection />
           </div>
         )}
       </div>
