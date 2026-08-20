@@ -1,7 +1,8 @@
 /**
  * @vitest-environment jsdom
- * TDD: 验证 ImageCropper 阻止 touch 事件冒泡
+ * TDD: 验证 ImageCropper 阻止 click 事件冒泡，touch 事件通过 prop 通知父组件禁用手势
  * 根因：BookDetailPage 有右滑返回手势，裁剪时 touch 事件冒泡触发 onBack
+ * 修复：touch 事件正常冒泡，BookDetailPage 通过 isCropping ref 检查是否跳过手势
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
@@ -14,7 +15,23 @@ describe('ImageCropper', () => {
     onCancel: vi.fn(),
   };
 
-  it('阻止 touchStart 事件冒泡', () => {
+  it('阻止 click 事件冒泡到父组件', () => {
+    const outerHandler = vi.fn();
+    const { container } = render(
+      <div onClick={outerHandler}>
+        <ImageCropper {...defaultProps} />
+      </div>
+    );
+
+    const cropperRoot = container.querySelector('[style*="position: fixed"]') as HTMLElement;
+    expect(cropperRoot).not.toBeNull();
+
+    fireEvent.click(cropperRoot!);
+
+    expect(outerHandler).not.toHaveBeenCalled();
+  });
+
+  it('touch 事件正常冒泡到父组件，由父组件通过 isCropping 判断是否处理', () => {
     const outerHandler = vi.fn();
     const { container } = render(
       <div onTouchStart={outerHandler}>
@@ -27,38 +44,7 @@ describe('ImageCropper', () => {
 
     fireEvent.touchStart(cropperRoot!, { touches: [{ clientX: 100, clientY: 200 }] });
 
-    expect(outerHandler).not.toHaveBeenCalled();
-  });
-
-  it('阻止 touchEnd 事件冒泡', () => {
-    const outerHandler = vi.fn();
-    const { container } = render(
-      <div onTouchEnd={outerHandler}>
-        <ImageCropper {...defaultProps} />
-      </div>
-    );
-
-    const cropperRoot = container.querySelector('[style*="position: fixed"]') as HTMLElement;
-    expect(cropperRoot).not.toBeNull();
-
-    fireEvent.touchEnd(cropperRoot!, { changedTouches: [{ clientX: 150, clientY: 200 }] });
-
-    expect(outerHandler).not.toHaveBeenCalled();
-  });
-
-  it('阻止 touchMove 事件冒泡', () => {
-    const outerHandler = vi.fn();
-    const { container } = render(
-      <div onTouchMove={outerHandler}>
-        <ImageCropper {...defaultProps} />
-      </div>
-    );
-
-    const cropperRoot = container.querySelector('[style*="position: fixed"]') as HTMLElement;
-    expect(cropperRoot).not.toBeNull();
-
-    fireEvent.touchMove(cropperRoot!, { touches: [{ clientX: 120, clientY: 200 }] });
-
-    expect(outerHandler).not.toHaveBeenCalled();
+    // touch 事件正常冒泡——父组件应收到事件，但通过 isCropping ref 判断是否处理
+    expect(outerHandler).toHaveBeenCalled();
   });
 });

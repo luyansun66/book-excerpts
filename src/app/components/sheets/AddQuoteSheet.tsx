@@ -9,9 +9,10 @@ interface AddQuoteSheetProps {
   onClose: () => void;
   onSave: (data: { text: string; thought: string; page: string | null; date: string }) => Promise<void>;
   editQuote?: Quote | null; // if provided, we're editing
+  onCroppingChange?: (cropping: boolean) => void;
 }
 
-export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQuoteSheetProps) {
+export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCroppingChange }: AddQuoteSheetProps) {
   const [text, setText] = useState(editQuote?.text ?? '');
   const [thought, setThought] = useState(editQuote?.thought ?? '');
   const [page, setPage] = useState(editQuote?.page?.toString() ?? '');
@@ -47,6 +48,11 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote }: AddQ
       setDate(editQuote.date);
     }
   }, [editQuote]);
+
+  // Notify parent when cropping state changes
+  useEffect(() => {
+    onCroppingChange?.(cropImage !== null);
+  }, [cropImage, onCroppingChange]);
 
   const reset = () => {
     if (!editQuote) {

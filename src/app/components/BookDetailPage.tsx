@@ -332,6 +332,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const [deleteQuoteId, setDeleteQuoteId] = useState<string | null>(null);
   const swipeStartX = useRef(0);
   const swipeStartY = useRef(0);
+  const isCropping = useRef(false);
   const [infoExpanded, setInfoExpanded] = useState(false);
 
   // ─── Direct DB query — no store indirection, no useCallback chain ────────
@@ -466,6 +467,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
     <div
       onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; swipeStartY.current = e.touches[0].clientY; }}
       onTouchEnd={(e) => {
+        if (isCropping.current) return;
         const delta = e.changedTouches[0].clientX - swipeStartX.current;
         const deltaY = e.changedTouches[0].clientY - swipeStartY.current;
         if (delta > 70 && Math.abs(delta) > Math.abs(deltaY)) {
@@ -690,7 +692,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
       </div>
 
       {/* Sheets */}
-      <AddQuoteSheet open={showAddSheet} onClose={() => setShowAddSheet(false)} onSave={handleAddQuote} />
+      <AddQuoteSheet open={showAddSheet} onClose={() => setShowAddSheet(false)} onSave={handleAddQuote} onCroppingChange={(v) => { isCropping.current = v; }} />
       <AddQuoteSheet open={editQuote !== null} onClose={() => setEditQuote(null)} onSave={handleEditQuote} editQuote={editQuote} />
 
       {shareQuote && (
