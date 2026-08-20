@@ -102,6 +102,7 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
 
   return (
     <div
+      onClick={(e) => e.stopPropagation()}
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
         display: 'flex', flexDirection: 'column',
