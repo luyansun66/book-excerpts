@@ -118,31 +118,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 
 
 
-  // onClone: replace oklch colors in cloned DOM for html2canvas compatibility
-  const onClone = (_doc: Document, _element: HTMLElement) => {
-    const walk = (el: Element): void => {
-      try {
-        const cs = _doc.defaultView?.getComputedStyle(el);
-        if (!cs) return;
-        for (let i = 0; i < cs.length; i++) {
-          const prop = cs[i];
-          const val = cs.getPropertyValue(prop);
-          if (typeof val === 'string' && val.includes('oklch')) {
-            const isBg = /background|bg/i.test(prop);
-            (el as HTMLElement).style.setProperty(
-              prop,
-              isBg ? 'transparent' : color.textColor,
-              'important'
-            );
-          }
-        }
-        Array.from(el.children).forEach((c) => walk(c));
-      } catch {
-        // skip elements that can't be processed (e.g. SVG)
-      }
-    };
-    walk(_element);
-  };
 
   const handleSave = async () => {
     if (!cardRef.current || saving) return;
@@ -169,7 +144,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         useCORS: true,
         backgroundColor: null,
         logging: false,
-        onClone,
       });
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((b: Blob | null) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png');
