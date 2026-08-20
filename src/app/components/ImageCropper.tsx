@@ -88,10 +88,14 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
     if (!img) return;
     const cw = img.naturalWidth;
     const ch = img.naturalHeight;
-    const sx = Math.round(sel.x / 100 * cw);
-    const sy = Math.round(sel.y / 100 * ch);
-    const sw = Math.round(sel.w / 100 * cw);
-    const sh = Math.round(sel.h / 100 * ch);
+    // Expand crop area by 10% on each side for OCR margin, clamped to image bounds
+    const padRatio = 0.10;
+    const padX = Math.round(sel.w / 100 * cw * padRatio);
+    const padY = Math.round(sel.h / 100 * ch * padRatio);
+    const sx = Math.max(0, Math.round(sel.x / 100 * cw) - padX);
+    const sy = Math.max(0, Math.round(sel.y / 100 * ch) - padY);
+    const sw = Math.min(cw - sx, Math.round(sel.w / 100 * cw) + padX * 2);
+    const sh = Math.min(ch - sy, Math.round(sel.h / 100 * ch) + padY * 2);
     const canvas = document.createElement('canvas');
     canvas.width = sw;
     canvas.height = sh;
