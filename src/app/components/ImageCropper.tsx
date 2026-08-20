@@ -89,7 +89,7 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
     const cw = img.naturalWidth;
     const ch = img.naturalHeight;
     // Expand crop area by 10% on each side for OCR margin, clamped to image bounds
-    const padRatio = 0.10;
+    const padRatio = 0.20;
     const padX = Math.round(sel.w / 100 * cw * padRatio);
     const padY = Math.round(sel.h / 100 * ch * padRatio);
     const sx = Math.max(0, Math.round(sel.x / 100 * cw) - padX);
