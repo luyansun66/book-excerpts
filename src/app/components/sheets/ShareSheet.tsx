@@ -351,34 +351,36 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             <div style={{ textAlign: 'right', flex: 1 }}>
               <div
                 style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  fontFamily: 'Georgia, serif',
-                  color: color.accentColor,
-                  lineHeight: 1.3,
+                  fontSize: 9,
+                  fontWeight: 400,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                  color: color.textColor,
+                  opacity: 0.6,
+                  lineHeight: 1.4,
                 }}
               >
                 {bookTitle}
               </div>
               <div
                 style={{
-                  fontSize: 8.5,
+                  fontSize: 9,
+                  fontWeight: 400,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                   color: color.textColor,
-                  opacity: 0.5,
-                  fontFamily: 'Georgia, serif',
-                  marginTop: 1,
+                  opacity: 0.6,
+                  lineHeight: 1.4,
                 }}
               >
                 {bookAuthor}
               </div>
               <div
                 style={{
-                  fontSize: 8,
+                  fontSize: 9,
+                  fontWeight: 400,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                   color: color.textColor,
-                  opacity: 0.35,
-                  fontFamily: 'Georgia, serif',
-                  marginTop: 2,
-                  whiteSpace: 'nowrap',
+                  opacity: 0.6,
+                  lineHeight: 1.4,
                 }}
               >
                 {quote.page != null && <span>{/^\d+$/.test(quote.page) ? `P.${quote.page}` : quote.page} · </span>}
