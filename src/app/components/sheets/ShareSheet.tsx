@@ -283,7 +283,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               padding: '0 2px',
               wordBreak: 'break-word',
               textAlign: 'justify',
-              textJustify: 'inter-ideograph' as any,
+              textJustify: 'inter-character' as any,
+              lineBreak: 'strict' as any,
               whiteSpace: 'pre-wrap',
             }}
           >
