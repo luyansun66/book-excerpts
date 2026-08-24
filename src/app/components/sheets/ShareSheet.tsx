@@ -16,12 +16,43 @@ const COLOR_THEMES: ColorTheme[] = [
   { id: 'athens', name: '雅典黑', bgColor: '#1B1C1F', textColor: '#F4E1B8', accentColor: '#C8A96E' },
   { id: 'deepblue', name: '深蓝', bgColor: '#233073', textColor: '#CCEDFF', accentColor: '#FFD700' },
   { id: 'darkbrown', name: '深棕色', bgColor: '#2C2415', textColor: '#D5CABE', accentColor: '#C8A96E' },
+  { id: 'moss', name: '苔藓绿', bgColor: '#3F5429', textColor: '#F6D6AC', accentColor: '#D4A854' },
   { id: 'grayblue', name: '灰蓝', bgColor: '#6A85B6', textColor: '#FFFFFF', accentColor: '#F4E1B8' },
   { id: 'lavender', name: '烟灰紫', bgColor: '#F0EFF5', textColor: '#3B3545', accentColor: '#7A6B8E' },
   { id: 'freshgreen', name: '清新绿', bgColor: '#F0F5EC', textColor: '#2D4A2E', accentColor: '#5A8A5' },
+  { id: 'golden', name: '金穗', bgColor: '#F5DE91', textColor: '#3D2E0E', accentColor: '#B8860B' },
+  { id: 'peach', name: '蜜桃', bgColor: '#FFD5AE', textColor: '#A73433', accentColor: '#8B1A1A' },
   { id: 'plainwhite', name: '素白', bgColor: '#FAFAFA', textColor: '#2D1F16', accentColor: '#A69060' },
   { id: 'bookcream', name: '书卷米', bgColor: '#FEFCF8', textColor: '#2D1F16', accentColor: '#B08D57' },
 ];
+// ─── Color helpers ────────────────────────────────────────────────────────────
+function getLuminance(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const [R, G, B] = [r, g, b].map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+function getTextColor(bgHex: string): string {
+  return getLuminance(bgHex) > 0.5 ? '#2D1F16' : '#F4E1B8';
+}
+
+function getAccentColor(bgHex: string): string {
+  // Use a slightly muted complementary tone
+  const r = parseInt(bgHex.slice(1, 3), 16);
+  const g = parseInt(bgHex.slice(3, 5), 16);
+  const b = parseInt(bgHex.slice(5, 7), 16);
+  const lum = getLuminance(bgHex);
+  if (lum > 0.5) {
+    // Light bg → warm accent
+    return `#${Math.min(255, r + 40).toString(16).padStart(2, '0')}${Math.max(0, g - 60).toString(16).padStart(2, '0')}${Math.max(0, b - 80).toString(16).padStart(2, '0')}`;
+  } else {
+    // Dark bg → golden accent
+    return `#${Math.min(255, r + 100).toString(16).padStart(2, '0')}${Math.min(255, Math.round(g * 0.8 + 80)).toString(16).padStart(2, '0')}${Math.max(0, b - 20).toString(16).padStart(2, '0')}`;
+  }
+}
+
 
 // ─── Font options ─────────────────────────────────────────────────────────────
 interface FontOption {
@@ -57,6 +88,10 @@ interface ShareSheetProps {
 
 export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor }: ShareSheetProps) {
   const [colorIndex, setColorIndex] = useState(4); // default: bookcream (书卷米)
+  const [customColor, setCustomColor] = useState<string | null>(() => {
+    try { return localStorage.getItem('share-custom-bg'); } catch { return null; }
+  });
+  const [useCustomColor, setUseCustomColor] = useState(customColor !== null);
   const [fontIndex, setFontIndex] = useState(0);  // default: system
   const [stickerIndex, setStickerIndex] = useState(1); // default: Kitty (index 1, 0 = 无贴纸)
   const [saving, setSaving] = useState(false);
@@ -66,7 +101,15 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [html2canvasReady, setHtml2canvasReady] = useState<boolean | null>(null);
   const [showThoughts, setShowThoughts] = useState(true);
 
-  const color = COLOR_THEMES[colorIndex];
+  const color = useCustomColor && customColor
+    ? {
+        id: 'custom',
+        name: '自定义',
+        bgColor: customColor,
+        textColor: getTextColor(customColor),
+        accentColor: getAccentColor(customColor),
+      }
+    : COLOR_THEMES[colorIndex];
   const font = FONTS[fontIndex];
   const sticker = stickerIndex > 0 ? STICKERS[stickerIndex - 1] : null;
 
@@ -399,15 +442,55 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             颜色
           </div>
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-            {COLOR_THEMES.map((t, i) => (
-              <button
-                key={t.id}
-                onClick={() => { setColorIndex(i); setImageUrl(null); }}
+            {/* Custom color picker */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              <input
+                type="color"
+                value={customColor || '#FEFCF8'}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCustomColor(v);
+                  setUseCustomColor(true);
+                  setImageUrl(null);
+                  try { localStorage.setItem('share-custom-bg', v); } catch {}
+                }}
                 style={{
                   width: 28,
                   height: 28,
                   borderRadius: '50%',
-                  border: i === colorIndex ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                  border: useCustomColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
+                  padding: 0,
+                  cursor: 'pointer',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                  flexShrink: 0,
+                }}
+                title="自定义颜色"
+              />
+              {useCustomColor && (
+                <div style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  background: color.textColor,
+                  border: '1px solid var(--color-border)',
+                  pointerEvents: 'none',
+                }} />
+              )}
+            </div>
+            {COLOR_THEMES.map((t, i) => (
+              <button
+                key={t.id}
+                onClick={() => { setColorIndex(i); setUseCustomColor(false); setImageUrl(null); }}
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  border: !useCustomColor && i === colorIndex ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
                   background: t.bgColor,
                   flexShrink: 0,
                   cursor: 'pointer',

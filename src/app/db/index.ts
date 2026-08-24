@@ -269,6 +269,53 @@ export async function exportAllData(): Promise<ExportData> {
   };
 }
 
+
+// ─── Export data as Markdown ─────────────────────────────────────────────────
+export async function exportMarkdown(): Promise<string> {
+  const categories = await db.categories.orderBy('order').toArray();
+  const books = await db.books.orderBy('createdAt').toArray();
+  const quotes = await db.quotes.toArray();
+
+  const lines: string[] = [];
+  lines.push('# 阅读摘录备份');
+  lines.push(`> 导出日期：${new Date().toLocaleDateString('zh-CN')}`);
+  lines.push('');
+
+  for (const cat of categories) {
+    const catBooks = books.filter(b => b.categoryId === cat.id);
+    if (catBooks.length === 0) continue;
+    lines.push(`## ${cat.name}`);
+    lines.push('');
+
+    for (const book of catBooks) {
+      lines.push(`### ${book.title}`);
+      if (book.author) lines.push(`*${book.author}*`);
+      lines.push('');
+      const bookQuotes = quotes.filter(q => q.bookId === book.id);
+      if (bookQuotes.length === 0) {
+        lines.push('> 暂无摘录');
+        lines.push('');
+        continue;
+      }
+      for (let i = 0; i < bookQuotes.length; i++) {
+        const q = bookQuotes[i];
+        lines.push(`> ${q.text.replace(/\n/g, '\n> ')}`);
+        if (q.thought) {
+          lines.push('');
+          lines.push(q.thought.replace(/\n/g, '\n'));
+        }
+        const meta: string[] = [];
+        if (q.page != null) meta.push(/^\d+$/.test(q.page) ? `P.${q.page}` : q.page);
+        if (q.date) meta.push(q.date);
+        if (meta.length > 0) lines.push(`*${meta.join(' · ')}*`);
+        lines.push('');
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
 // ─── Import data from JSON backup ───────────────────────────────────────────
 export interface ImportResult {
   categories: number;
