@@ -328,7 +328,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'flex-end',
-              marginTop: 8,
+              marginTop: 14,
               height: 55,
             }}
           >
@@ -338,8 +338,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                 dangerouslySetInnerHTML={{ __html: sticker.svg }}
                 style={{
                   height: 40,
-                  width: 'auto',
-                  maxWidth: 45,
+                  width: 40,
+                  overflow: "hidden",
                   opacity: 0.9,
                   flex: 'none',
                   lineHeight: 0,
@@ -496,7 +496,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               >
                 <div
                   dangerouslySetInnerHTML={{ __html: s.svg }}
-                  style={{ height: 24, width: 'auto', maxWidth: 28, lineHeight: 0, color: color.textColor }}
+                  style={{ height: 24, width: 24, overflow: 'hidden', lineHeight: 0, color: color.textColor }}
                 />
                 <span
                   style={{
