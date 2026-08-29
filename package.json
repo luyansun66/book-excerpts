@@ -9,6 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.4",
     "dexie": "^4.4.3",
     "html2canvas": "^1.4.1",
     "lucide-react": "0.487.0",

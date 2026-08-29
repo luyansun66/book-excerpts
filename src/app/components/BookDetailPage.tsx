@@ -255,7 +255,7 @@ function QuoteCard({
         background: 'var(--color-bg-card)',
         borderRadius: 16,
         padding: '18px 16px 13px 13px',
-        borderLeft: '3px solid var(--color-quote-accent)',
+        borderLeft: '3px solid ' + (quote.color || 'var(--color-quote-accent)'),
         boxShadow: 'var(--shadow-card)',
         position: 'relative',
         cursor: 'default',
@@ -266,7 +266,21 @@ function QuoteCard({
       onTouchStart={() => setHovered(true)}
       onTouchEnd={() => setTimeout(() => setHovered(false), 1500)}
     >
-      <div style={{ position: 'relative', paddingLeft: 16, paddingRight: 8 }}>
+      {/* Color overlay — skip default gold */}
+      {quote.color && quote.color !== '#B8860B' && quote.color !== '#D4A830' && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: 16,
+            background: quote.color,
+            opacity: 0.06,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        />
+      )}
+      <div style={{ position: 'relative', paddingLeft: 16, paddingRight: 8, zIndex: 1 }}>
         <span style={{ position: 'absolute', top: -12, left: -4, fontFamily: 'Georgia, serif', fontSize: 40, color: 'var(--color-quote-mark)', lineHeight: 1, userSelect: 'none' }}>
           &#x201C;
         </span>
@@ -396,7 +410,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   }, [book.id, retryTrigger]);
 
   // ─── Add quote (direct DB write + optimistic local update) ──────────────
-  const handleAddQuote = async (data: { text: string; thought: string; page: string | null; date: string }) => {
+  const handleAddQuote = async (data: { text: string; thought: string; page: string | null; date: string; color?: string }) => {
     try {
       const newQuote = await dbAddQuote({
         bookId: book.id,
@@ -404,6 +418,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         thought: data.thought.trim(),
         page: data.page,
         date: data.date,
+        color: data.color,
       });
       if (isMounted.current) {
         setQuotes(prev => [newQuote, ...prev]);
@@ -418,7 +433,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   };
 
   // ─── Edit quote ─────────────────────────────────────────────────────────
-  const handleEditQuote = async (data: { text: string; thought: string; page: string | null; date: string }) => {
+  const handleEditQuote = async (data: { text: string; thought: string; page: string | null; date: string; color?: string }) => {
     if (!editQuote) return;
     try {
       await dbUpdateQuote(editQuote.id, {
@@ -426,10 +441,11 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         thought: data.thought.trim(),
         page: data.page,
         date: data.date,
+        color: data.color,
       });
       if (isMounted.current) {
         setQuotes(prev => prev.map(q =>
-          q.id === editQuote.id ? { ...q, text: data.text, thought: data.thought, page: data.page, date: data.date, updatedAt: new Date().toISOString() } : q,
+          q.id === editQuote.id ? { ...q, text: data.text, thought: data.thought, page: data.page, date: data.date, color: data.color, updatedAt: new Date().toISOString() } : q,
         ));
         setEditQuote(null);
       }

@@ -3,6 +3,7 @@ import { ArrowLeft, Layers, ChartColumnIncreasing } from 'lucide-react';
 import CategorySection from './sections/CategorySection';
 import StatsSection from './sections/StatsSection';
 import DataBackupSection from './sections/DataBackupSection';
+import CloudSyncSection from './sections/CloudSyncSection';
 
 type SegmentKey = 'stats' | 'cat';
 
@@ -135,6 +136,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             <StatsSection />
             <div style={{ marginTop: 24 }}>
               <DataBackupSection />
+              <CloudSyncSection />
             </div>
           </div>
         )}

@@ -329,6 +329,20 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
     throw new Error('无效的备份文件格式');
   }
 
+
+  // 修复 categoryId 为 null/undefined 的书籍：归入第一个分类
+  const firstCategoryId = data.categories[0]?.id;
+  if (firstCategoryId) {
+    const fixedCount = data.books.filter(b => !b.categoryId).length;
+    if (fixedCount > 0) {
+      console.warn(`[importAllData] 修复了 ${fixedCount} 本 categoryId 为空的书籍，归入分类: ${firstCategoryId}`);
+      data.books = data.books.map(b => ({
+        ...b,
+        categoryId: b.categoryId || firstCategoryId,
+      }));
+    }
+  }
+
   // Import categories (preserve existing via bulkPut)
   await db.categories.bulkPut(data.categories);
 

@@ -20,8 +20,6 @@ const COLOR_THEMES: ColorTheme[] = [
   { id: 'grayblue', name: '灰蓝', bgColor: '#6A85B6', textColor: '#FFFFFF', accentColor: '#F4E1B8' },
   { id: 'lavender', name: '烟灰紫', bgColor: '#F0EFF5', textColor: '#3B3545', accentColor: '#7A6B8E' },
   { id: 'freshgreen', name: '清新绿', bgColor: '#F0F5EC', textColor: '#2D4A2E', accentColor: '#5A8A5' },
-  { id: 'golden', name: '金穗', bgColor: '#F5DE91', textColor: '#3D2E0E', accentColor: '#B8860B' },
-  { id: 'peach', name: '蜜桃', bgColor: '#FFD5AE', textColor: '#A73433', accentColor: '#8B1A1A' },
   { id: 'plainwhite', name: '素白', bgColor: '#FAFAFA', textColor: '#2D1F16', accentColor: '#A69060' },
   { id: 'bookcream', name: '书卷米', bgColor: '#FEFCF8', textColor: '#2D1F16', accentColor: '#B08D57' },
 ];

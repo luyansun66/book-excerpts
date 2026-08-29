@@ -30,6 +30,7 @@ export interface Quote {
   thought: string;
   page: string | null;
   date: string;
+  color?: string;
   createdAt: string;
   updatedAt: string;
 }

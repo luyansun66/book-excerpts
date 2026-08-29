@@ -893,6 +893,33 @@ function ShelfView() {
 export default function App() {
   const { selectedBook, selectBook } = useApp();
 
+  // Prevent accidental iOS swipe-back: only allow from left 20px edge
+  useEffect(() => {
+    let touchStartX = 0;
+
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartX = e.touches[0].clientX;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const currentX = e.touches[0].clientX;
+      const deltaX = currentX - touchStartX;
+      // Block rightward swipe (back gesture) only when touch started outside left 20px
+      if (touchStartX > 20 && deltaX > 5) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
+
+
   return (
     <div
       style={{

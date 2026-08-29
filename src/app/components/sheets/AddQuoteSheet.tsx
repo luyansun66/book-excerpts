@@ -7,7 +7,7 @@ import ImageCropper from '../ImageCropper';
 interface AddQuoteSheetProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { text: string; thought: string; page: string | null; date: string }) => Promise<void>;
+  onSave: (data: { text: string; thought: string; page: string | null; date: string; color?: string }) => Promise<void>;
   editQuote?: Quote | null; // if provided, we're editing
   onCroppingChange?: (cropping: boolean) => void;
 }
@@ -17,6 +17,13 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
   const [thought, setThought] = useState(editQuote?.thought ?? '');
   const [page, setPage] = useState(editQuote?.page?.toString() ?? '');
   const [date, setDate] = useState(editQuote?.date ?? new Date().toISOString().slice(0, 10));
+  const [color, setColor] = useState(editQuote?.color ?? '');
+  const [colorNames, setColorNames] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('quoteColorNames');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -46,6 +53,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
       setThought(editQuote.thought);
       setPage(editQuote.page?.toString() ?? '');
       setDate(editQuote.date);
+      setColor(editQuote.color ?? '');
     }
   }, [editQuote]);
 
@@ -60,6 +68,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
       setThought('');
       setPage('');
       setDate(new Date().toISOString().slice(0, 10));
+      setColor('');
     }
   };
 
@@ -73,6 +82,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
         thought: thought.trim(),
         page: page.trim() || null,
         date,
+        color: color || undefined,
       });
       reset();
       onClose();
@@ -304,6 +314,62 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
                 outline: 'none',
               }}
             />
+          </div>
+
+          {/* Color picker */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", fontFamily: "-apple-system, sans-serif", letterSpacing: 0.3 }}>
+              摘录分类
+            </label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {([
+                { color: "#B8860B", defaultName: "金色" },
+                { color: "#5A8A5A", defaultName: "绿色" },
+                { color: "#4A7A9A", defaultName: "蓝色" },
+                { color: "#A05050", defaultName: "红色" },
+              ] as const).map((opt) => (
+                <div key={opt.color} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <button
+                    onClick={() => setColor(opt.color === color ? "" : opt.color)}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      border: color === opt.color ? "2px solid var(--color-text)" : "2px solid transparent",
+                      background: opt.color,
+                      cursor: "pointer",
+                      outline: "none",
+                      padding: 0,
+                      flexShrink: 0,
+                      boxShadow: color === opt.color ? "0 0 0 2px var(--color-bg-card), 0 0 0 4px " + opt.color : "none",
+                      transition: "box-shadow 0.15s ease",
+                    }}
+                  />
+                  <input
+                    type="text"
+                    placeholder={opt.defaultName}
+                    value={colorNames[opt.color] ?? ""}
+                    onChange={(e) => {
+                      const next = { ...colorNames, [opt.color]: e.target.value };
+                      setColorNames(next);
+                      localStorage.setItem("quoteColorNames", JSON.stringify(next));
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "6px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #d4c4a0",
+                      background: "#fffcf5",
+                      fontSize: 12,
+                      fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+                      color: "var(--color-text)",
+                      outline: "none",
+                      maxWidth: 120,
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
