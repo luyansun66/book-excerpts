@@ -21,7 +21,7 @@ export default function DataBackupSection() {
         marginTop: 4,
         marginBottom: 12,
       }}>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
         <button
           onClick={async () => {
             try {
@@ -45,7 +45,7 @@ export default function DataBackupSection() {
             display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
             background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
-            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer',
+            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
           <Download size={13} strokeWidth={1.8} />
@@ -74,7 +74,7 @@ export default function DataBackupSection() {
             display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
             background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
-            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer',
+            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
           <Download size={13} strokeWidth={1.8} />
@@ -86,7 +86,7 @@ export default function DataBackupSection() {
             display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
             background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
-            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer',
+            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
           <Upload size={13} strokeWidth={1.8} />
