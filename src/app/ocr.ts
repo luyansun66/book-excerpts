@@ -94,25 +94,6 @@ export async function recognizeText(imageData: string): Promise<string> {
   throw new Error(`OCR 识别失败: ${lastError}`);
 }
 
-/** 拍照并识别。 */
-export async function captureAndRecognize(): Promise<string> {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.capture = 'environment';
-
-  const file: File = await new Promise((resolve, reject) => {
-    input.onchange = () => {
-      if (input.files && input.files[0]) resolve(input.files[0]);
-      else reject(new Error('未选择图片'));
-    };
-    input.onerror = () => reject(new Error('拍照失败'));
-    input.click();
-  });
-
-  return recognizeText(await compressImage(file, 2000));
-}
-
 /** 缩放图片到最长边 maxW，输出 JPEG data URL。
  *  使用 createImageBitmap 正确处理 EXIF 方向（手机拍照方向标记）。 */
 export async function compressImage(file: File, maxW: number): Promise<string> {
@@ -151,8 +132,4 @@ export async function compressImage(file: File, maxW: number): Promise<string> {
 
   if ('close' in img) img.close(); // 释放 ImageBitmap 内存
   return canvas.toDataURL('image/jpeg', 0.92);
-}
-
-export async function terminateWorker(): Promise<void> {
-  // 百度 OCR 无 Worker，本函数保留为接口兼容
 }

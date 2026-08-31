@@ -21,77 +21,77 @@ export default function DataBackupSection() {
         marginTop: 4,
         marginBottom: 12,
       }}>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-        <button
-          onClick={async () => {
-            try {
-              const data = await exportAllData();
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `摘录备份-${new Date().toISOString().slice(0, 10)}.json`;
-              document.body.appendChild(link);
-              link.click();
-              setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-              }, 300);
-            } catch (e: any) {
-              console.error('导出失败', e);
-            }
-          }}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-            background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
-            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
-          }}
-        >
-          <Download size={13} strokeWidth={1.8} />
-          导出 JSON
-        </button>
-        <button
-          onClick={async () => {
-            try {
-              const md = await exportMarkdown();
-              const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `摘录备份-${new Date().toISOString().slice(0, 10)}.md`;
-              document.body.appendChild(link);
-              link.click();
-              setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-              }, 300);
-            } catch (e: any) {
-              console.error('导出 Markdown 失败', e);
-            }
-          }}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-            background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
-            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
-          }}
-        >
-          <Download size={13} strokeWidth={1.8} />
-          导出 Markdown
-        </button>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-            background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
-            fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
-          }}
-        >
-          <Upload size={13} strokeWidth={1.8} />
-          导入备份
-        </button>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'nowrap' }}>
+          <button
+            onClick={async () => {
+              try {
+                const data = await exportAllData();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `摘录备份-${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => {
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                }, 300);
+              } catch (e: any) {
+                console.error('导出失败', e);
+              }
+            }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '10px 16px', borderRadius: 8, border: '1px solid #d4c4a0',
+              background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+              fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            <Download size={13} strokeWidth={1.8} />
+            导出 JSON
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const md = await exportMarkdown();
+                const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `摘录备份-${new Date().toISOString().slice(0, 10)}.md`;
+                document.body.appendChild(link);
+                link.click();
+                setTimeout(() => {
+                  document.body.removeChild(link);
+                  URL.revokeObjectURL(url);
+                }, 300);
+              } catch (e: any) {
+                console.error('导出 Markdown 失败', e);
+              }
+            }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '10px 16px', borderRadius: 8, border: '1px solid #d4c4a0',
+              background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+              fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            <Download size={13} strokeWidth={1.8} />
+            导出 Markdown
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '10px 16px', borderRadius: 8, border: '1px solid #d4c4a0',
+              background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+              fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            <Upload size={13} strokeWidth={1.8} />
+            导入备份
+          </button>
         </div>
         <div style={{ textAlign: 'center', marginTop: 10, fontSize: 10, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', opacity: 0.6 }}>
           导入备份，仅支持 JSON 格式

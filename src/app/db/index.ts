@@ -137,10 +137,6 @@ export async function batchUpdateCategoryOrders(updates: { id: string; order: nu
   });
 }
 
-export async function getBooksByCategory(categoryId: string): Promise<Book[]> {
-  return db.books.where('categoryId').equals(categoryId).toArray();
-}
-
 export async function addBook(book: Omit<Book, 'id' | 'createdAt' | 'updatedAt'>): Promise<Book> {
   const now = new Date().toISOString();
   // 新书 sortOrder 设为该分类最大值 + 1，保证排序稳定

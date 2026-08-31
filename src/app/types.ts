@@ -34,13 +34,3 @@ export interface Quote {
   createdAt: string;
   updatedAt: string;
 }
-
-// ─── Theme presets for share cards ────────────────────────────────────────────
-export interface ThemePreset {
-  id: string;
-  name: string;
-  bgColor: string;
-  textColor: string;
-  accentColor: string;
-  fontFamily: string;
-}
