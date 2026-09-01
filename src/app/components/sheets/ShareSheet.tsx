@@ -220,6 +220,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 
   return (
     <div
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
       style={{
         position: 'fixed',
         inset: 0,
