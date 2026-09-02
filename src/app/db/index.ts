@@ -350,10 +350,18 @@ export async function replaceAllData(data: ExportData): Promise<ImportResult> {
   const input = prepared.data;
 
   await db.transaction('rw', db.categories, db.books, db.quotes, async () => {
-    await Promise.all([db.categories.clear(), db.books.clear(), db.quotes.clear()]);
-    if (input.categories.length > 0) await db.categories.bulkPut(input.categories);
-    if (input.books.length > 0) await db.books.bulkPut(input.books);
-    if (input.quotes.length > 0) await db.quotes.bulkPut(input.quotes);
+    await db.categories.clear();
+    await db.books.clear();
+    await db.quotes.clear();
+    if (input.categories.length > 0) {
+      await db.categories.bulkPut(input.categories);
+    }
+    if (input.books.length > 0) {
+      await db.books.bulkPut(input.books);
+    }
+    if (input.quotes.length > 0) {
+      await db.quotes.bulkPut(input.quotes);
+    }
   });
 
   return {
