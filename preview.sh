@@ -11,9 +11,9 @@ fi
 
 echo ""
 echo "== 预览服务已启动 =="
-echo "本机访问: http://localhost:4173/book-excerpts/"
+echo "本机访问: http://localhost:4173/"
 if [ -n "$IP" ]; then
-  echo "手机访问: http://${IP}:4173/book-excerpts/"
+  echo "手机访问: http://${IP}:4173/"
 fi
 echo ""
 echo "请保持此终端窗口打开，关闭窗口服务即停止。"

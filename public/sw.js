@@ -3,16 +3,16 @@
 // Module scripts need special handling: the cached response must preserve the
 // Content-Type header or Safari's module loader rejects it.
 
-const CACHE_NAME = 'zhai-lu-v6';
+const CACHE_NAME = 'zhai-lu-v7';
 
 // 安装时预缓存核心静态资源，确保离线首次打开不白屏
 const PRECACHE_URLS = [
-  '/book-excerpts/',
-  '/book-excerpts/index.html',
-  '/book-excerpts/manifest-pwa.json',
-  '/book-excerpts/icon.svg',
-  '/book-excerpts/icon-180.png',
-  '/book-excerpts/icon-512.png',
+  '/',
+  '/index.html',
+  '/manifest-pwa.json',
+  '/icon.svg',
+  '/icon-180.png',
+  '/icon-512.png',
 ];
 
 self.addEventListener('install', (event) => {
