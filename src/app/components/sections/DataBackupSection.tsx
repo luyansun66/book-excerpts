@@ -136,9 +136,9 @@ export default function DataBackupSection() {
               onClick={async () => {
                 try {
                   const result = await importAllData(importPreview);
-                  setImportMsg(`✅ 导入完成：${result.categories} 个分类、${result.books} 本书、${result.quotes} 条摘录`);
                   setImportPreview(null);
-                  refreshData();
+                  await refreshData();
+                  setImportMsg(`✅ 导入完成：${result.categories} 个分类、${result.books} 本书、${result.quotes} 条摘录`);
                 } catch (e: any) {
                   setImportMsg('❌ 导入失败：' + (e?.message || String(e)));
                   setImportPreview(null);

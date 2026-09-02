@@ -1,5 +1,9 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Book, Category, Quote } from '../types';
+import { prepareImportData } from './prepare';
+import type { ExportData, ImportResult } from './prepare';
+
+export type { ExportData, ImportResult } from './prepare';
 
 // ─── Browser-compatible UUID generator ─────────────────────────────────────────
 // crypto.randomUUID() may fail on some non-https contexts
@@ -244,13 +248,6 @@ export async function getAllQuotes(): Promise<Quote[]> {
 }
 
 // ─── Export all data as JSON ─────────────────────────────────────────────────
-export interface ExportData {
-  exportDate: string;
-  version: number;
-  categories: Category[];
-  books: Book[];
-  quotes: Quote[];
-}
 
 export async function exportAllData(): Promise<ExportData> {
   const categories = await db.categories.orderBy('order').toArray();
@@ -313,11 +310,6 @@ export async function exportMarkdown(): Promise<string> {
 }
 
 // ─── Import data from JSON backup ───────────────────────────────────────────
-export interface ImportResult {
-  categories: number;
-  books: number;
-  quotes: number;
-}
 
 export async function importAllData(data: ExportData): Promise<ImportResult> {
   // Validate
@@ -325,36 +317,49 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
     throw new Error('无效的备份文件格式');
   }
 
-
-  // 修复 categoryId 为 null/undefined 的书籍：归入第一个分类
-  const firstCategoryId = data.categories[0]?.id;
-  if (firstCategoryId) {
-    const fixedCount = data.books.filter(b => !b.categoryId).length;
-    if (fixedCount > 0) {
-      console.warn(`[importAllData] 修复了 ${fixedCount} 本 categoryId 为空的书籍，归入分类: ${firstCategoryId}`);
-      data.books = data.books.map(b => ({
-        ...b,
-        categoryId: b.categoryId || firstCategoryId,
-      }));
-    }
-  }
+  // 修复 categoryId 为空或指向不存在分类的书籍：归入第一个分类
+  const prepared = prepareImportData(data);
+  const input = prepared.data;
 
   // Import categories (preserve existing via bulkPut)
-  await db.categories.bulkPut(data.categories);
+  await db.categories.bulkPut(input.categories);
 
   // Import books
-  await db.books.bulkPut(data.books);
+  await db.books.bulkPut(input.books);
 
   // Delete quotes for these books first, then import fresh from backup
-  for (const book of data.books) {
+  for (const book of input.books) {
     await db.quotes.where('bookId').equals(book.id).delete();
   }
-  await db.quotes.bulkPut(data.quotes);
+  await db.quotes.bulkPut(input.quotes);
 
   return {
-    categories: data.categories.length,
-    books: data.books.length,
-    quotes: data.quotes.length,
+    categories: input.categories.length,
+    books: input.books.length,
+    quotes: input.quotes.length,
+  };
+}
+
+// ─── Replace local data with a backup (cloud restore) ───────────────────────
+export async function replaceAllData(data: ExportData): Promise<ImportResult> {
+  if (!data || !data.version || !Array.isArray(data.categories) || !Array.isArray(data.books) || !Array.isArray(data.quotes)) {
+    throw new Error('无效的备份数据格式');
+  }
+
+  const prepared = prepareImportData(data);
+  const input = prepared.data;
+
+  await db.transaction('rw', db.categories, db.books, db.quotes, async () => {
+    await Promise.all([db.categories.clear(), db.books.clear(), db.quotes.clear()]);
+    if (input.categories.length > 0) await db.categories.bulkPut(input.categories);
+    if (input.books.length > 0) await db.books.bulkPut(input.books);
+    if (input.quotes.length > 0) await db.quotes.bulkPut(input.quotes);
+  });
+
+  return {
+    categories: input.categories.length,
+    books: input.books.length,
+    quotes: input.quotes.length,
   };
 }
 

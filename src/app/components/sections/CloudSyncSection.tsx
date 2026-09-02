@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Cloud, CloudOff, LogIn, LogOut, UserPlus } from 'lucide-react';
 import { supabase, signUp, signIn, signOut, getCurrentUser } from '../../supabase/client';
 import { pushAllData, pullAllData } from '../../supabase/sync';
+import { restoreFromCloud } from '../../supabase/restore';
 import { useApp } from '../../store';
-import { exportAllData, importAllData } from '../../db';
+import { exportAllData, replaceAllData } from '../../db';
 
 export default function CloudSyncSection() {
   const { refreshData } = useApp();
@@ -69,14 +70,13 @@ export default function CloudSyncSection() {
     setSyncing(true);
     setMsg('');
     try {
-      const remote = await pullAllData();
-      // 检查数据完整性
-      const missingCategoryBooks = remote.books.filter(b => !b.categoryId);
-      const missingCategoryCount = missingCategoryBooks.length;
-      await importAllData({ exportDate: '', version: 1, ...remote });
-      refreshData();
-      if (missingCategoryCount > 0) {
-        setMsg('⚠️ 已从云端恢复，但 ' + missingCategoryCount + ' 本书的分类数据丢失，已自动归入默认分类');
+      const { repairedCount } = await restoreFromCloud({
+        pull: pullAllData,
+        replace: replaceAllData,
+        refresh: refreshData,
+      });
+      if (repairedCount > 0) {
+        setMsg('⚠️ 已从云端恢复，但 ' + repairedCount + ' 本书的分类数据丢失，已自动归入默认分类');
       } else {
         setMsg('✅ 已从云端恢复');
       }
