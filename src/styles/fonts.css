@@ -6,7 +6,7 @@
   src:
     local('SnellRoundhand'),
     local('Snell Roundhand'),
-    url('/book-excerpts/fonts/SnellRoundhand.woff2') format('woff2');
+    url('/fonts/SnellRoundhand.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -17,7 +17,7 @@
   src:
     local('SnellRoundhand-Bold'),
     local('Snell Roundhand Bold'),
-    url('/book-excerpts/fonts/SnellRoundhand.woff2') format('woff2');
+    url('/fonts/SnellRoundhand.woff2') format('woff2');
   font-weight: bold;
   font-style: normal;
   font-display: swap;
@@ -26,7 +26,7 @@
 /* 方正北魏楷书简体 — legacy */
 @font-face {
   font-family: 'FWKaiShu';
-  src: url('/book-excerpts/fonts/方正北魏楷书简体.woff2') format('woff2');
+  src: url('/fonts/方正北魏楷书简体.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -36,7 +36,7 @@
 
 @font-face {
   font-family: 'SourceHanSerifCN';
-  src: url('/book-excerpts/fonts/SourceHanSerifCN-SemiBold.woff2') format('woff2');
+  src: url('/fonts/SourceHanSerifCN-SemiBold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
@@ -44,7 +44,7 @@
 
 @font-face {
   font-family: 'FZLanTingXiHei';
-  src: url('/book-excerpts/fonts/FZLanTingXiHei.woff2') format('woff2');
+  src: url('/fonts/FZLanTingXiHei.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -52,7 +52,7 @@
 
 @font-face {
   font-family: 'FZBeiWeiKaiShu';
-  src: url('/book-excerpts/fonts/方正北魏楷书简体.woff2') format('woff2');
+  src: url('/fonts/方正北魏楷书简体.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -60,7 +60,7 @@
 
 @font-face {
   font-family: 'FZSongHei';
-  src: url('/book-excerpts/fonts/FZSongHei.woff2') format('woff2');
+  src: url('/fonts/FZSongHei.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -68,7 +68,7 @@
 
 @font-face {
   font-family: 'FZXiaoZhuan';
-  src: url('/book-excerpts/fonts/FZXiaoZhuan.woff2') format('woff2');
+  src: url('/fonts/FZXiaoZhuan.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -76,7 +76,7 @@
 
 @font-face {
   font-family: 'FZZhengXianHei';
-  src: url('/book-excerpts/fonts/FZZhengXianHei.woff2') format('woff2');
+  src: url('/fonts/FZZhengXianHei.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -84,7 +84,7 @@
 
 @font-face {
   font-family: 'HuiWenMingChao';
-  src: url('/book-excerpts/fonts/HuiWenMingChao.woff2') format('woff2');
+  src: url('/fonts/HuiWenMingChao.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
