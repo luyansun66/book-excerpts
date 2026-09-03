@@ -138,6 +138,17 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     return () => { cancelled = true; };
   }, [open]);
 
+  // Pre-load the selected share-card font as soon as it is chosen so the
+  // preview and exported image swap away from the fallback font.
+  useEffect(() => {
+    if (!open) return;
+    if (font.face === 'system') return;
+    try {
+      document.fonts.load(`12px "${font.face}"`, font.name).catch(() => {});
+      document.fonts.load(`14px "${font.face}"`, quote.text).catch(() => {});
+    } catch { /* ignore font API errors */ }
+  }, [open, fontIndex, font.face, font.name, quote.text]);
+
   // Adaptive font size based on text length
   const quoteLen = quote.text.length;
   const quoteFontSize =
@@ -170,7 +181,11 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     // Preload selected font in main document before capture
     if (font.face !== 'system') {
       try {
-        await document.fonts.load(`14px "${font.face}"`);
+        await Promise.all([
+          document.fonts.load(`14px "${font.face}"`, quote.text),
+          document.fonts.load(`12px "${font.face}"`, font.name),
+          document.fonts.ready,
+        ]);
       } catch { /* continue */ }
     }
 
@@ -520,6 +535,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                   background: i === fontIndex ? 'var(--color-btn)' : 'var(--color-bg-card)',
                   color: i === fontIndex ? 'var(--color-btn-text)' : 'var(--color-text)',
                   fontFamily: f.family,
+                  fontWeight: 400,
                   fontSize: 12,
                   flexShrink: 0,
                   cursor: 'pointer',

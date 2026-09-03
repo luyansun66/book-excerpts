@@ -589,7 +589,7 @@ function ShelfRow({
       </div>
 
       {/* Shelf surface */}
-      <div style={{ margin: '4px 18px 0', height: 8, borderRadius: 4, background: '#C4B496', boxShadow: '0 3px 10px rgba(90,70,50,0.25)' }} />
+      <div style={{ margin: '4px 18px 0', height: 9, borderRadius: 4, background: 'linear-gradient(to bottom, rgba(234, 225, 202, 0.95) 6%, #BBAC8E 47%, #958A74 81%)', boxShadow: '0px 4px 6px 0px rgba(0, 0, 0, 0.2)' }} />
     </div>
   );
 }

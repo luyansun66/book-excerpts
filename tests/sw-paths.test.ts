@@ -21,6 +21,6 @@ describe('Service Worker for Cloudflare root deployment', () => {
   })
 
   it('uses a fresh cache version to invalidate old caches', () => {
-    expect(sw).toMatch(/const CACHE_NAME = 'zhai-lu-v9';/)
+    expect(sw).toMatch(/const CACHE_NAME = 'zhai-lu-v10';/)
   })
 })
