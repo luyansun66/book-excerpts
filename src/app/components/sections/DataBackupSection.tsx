@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Download, Upload } from 'lucide-react';
 import { exportAllData, exportMarkdown, importAllData } from '../../db';
 import type { ExportData } from '../../db';
@@ -9,6 +9,26 @@ export default function DataBackupSection() {
   const [importPreview, setImportPreview] = useState<ExportData | null>(null);
   const [importMsg, setImportMsg] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldWrap, setShouldWrap] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const check = () => {
+      const buttons = Array.from(container.children) as HTMLElement[];
+      if (buttons.length === 0) return;
+      const totalWidth = buttons.reduce((sum, btn) => sum + btn.offsetWidth, 0);
+      const totalGap = (buttons.length - 1) * 8;
+      setShouldWrap(totalWidth + totalGap > container.clientWidth);
+    };
+
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     <div>
@@ -21,7 +41,7 @@ export default function DataBackupSection() {
         marginTop: 4,
         marginBottom: 12,
       }}>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: 'nowrap' }}>
+        <div ref={containerRef} style={{ display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center', flexWrap: shouldWrap ? 'wrap' : 'nowrap' }}>
           <button
             onClick={async () => {
               try {
@@ -43,7 +63,7 @@ export default function DataBackupSection() {
             }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 16px', borderRadius: 8, border: '1px solid #d4c4a0',
+              padding: '10px 10px', borderRadius: 8, border: '1px solid #d4c4a0',
               background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
               fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
@@ -72,7 +92,7 @@ export default function DataBackupSection() {
             }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 16px', borderRadius: 8, border: '1px solid #d4c4a0',
+              padding: '10px 10px', borderRadius: 8, border: '1px solid #d4c4a0',
               background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
               fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
@@ -84,7 +104,7 @@ export default function DataBackupSection() {
             onClick={() => fileInputRef.current?.click()}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 16px', borderRadius: 8, border: '1px solid #d4c4a0',
+              padding: '10px 10px', borderRadius: 8, border: '1px solid #d4c4a0',
               background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
               fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
