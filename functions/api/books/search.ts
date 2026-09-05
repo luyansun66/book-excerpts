@@ -11,12 +11,16 @@ interface BookCandidate {
   source: 'google' | 'openlibrary';
 }
 
+function isCjk(text: string): boolean {
+  return /[\u4e00-\u9fff]/.test(text);
+}
+
 function buildCoverProxyUrl(remoteUrl: string): string {
   return `/api/books/cover?url=${encodeURIComponent(remoteUrl)}`;
 }
 
 async function searchGoogle(q: string): Promise<BookCandidate[]> {
-  const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(q)}&maxResults=5`;
+  const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&maxResults=10&printType=books`;
   const resp = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!resp.ok) return [];
 
@@ -47,7 +51,7 @@ async function searchGoogle(q: string): Promise<BookCandidate[]> {
 }
 
 async function searchOpenLibrary(q: string): Promise<BookCandidate[]> {
-  const url = `https://openlibrary.org/search.json?title=${encodeURIComponent(q)}&limit=5&fields=title,author_name,first_publish_year,isbn,cover_i`;
+  const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=10&fields=title,author_name,first_publish_year,isbn,cover_i`;
   const resp = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!resp.ok) return [];
 
@@ -102,6 +106,16 @@ export async function onRequestGet(context: SearchContext): Promise<Response> {
         seen.add(key);
         merged.push(candidate);
       }
+    }
+
+    // 中文查询：把带中文原文标题的结果排在前面，纯拼音/英文结果排到后面
+    if (isCjk(q)) {
+      const cjk: BookCandidate[] = [];
+      const rest: BookCandidate[] = [];
+      for (const candidate of merged) {
+        (isCjk(candidate.title) ? cjk : rest).push(candidate);
+      }
+      return json({ results: [...cjk, ...rest].slice(0, 6) });
     }
 
     return json({ results: merged.slice(0, 6) });

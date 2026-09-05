@@ -141,7 +141,11 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
 
   // Select a search candidate and auto-fill author + cover
   const handleSelectCandidate = (candidate: BookCandidate) => {
-    setTitle(candidate.title);
+    // 只有当候选标题是中文原文时才覆盖用户输入的书名，
+    // 避免用 Google 返回的拼音/英文标题替换掉用户输入的中文书名。
+    if (/[\u4e00-\u9fff]/.test(candidate.title)) {
+      setTitle(candidate.title);
+    }
     setAuthor(candidate.author);
     setCoverDataUrl(candidate.cover);
     setCoverFile(null);
