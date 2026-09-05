@@ -9,6 +9,15 @@ interface AddBookSheetProps {
   onClose: () => void;
 }
 
+interface BookCandidate {
+  title: string;
+  author: string;
+  year: string | null;
+  isbn: string | null;
+  cover: string | null;
+  source: 'google' | 'openlibrary';
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
   const { categories, addBook } = useApp();
@@ -27,6 +36,11 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
   const [coverDataUrl, setCoverDataUrl] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
+  // Smart search state
+  const [searchResults, setSearchResults] = useState<BookCandidate[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset form
@@ -36,7 +50,49 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
     setCategoryId(categories[0]?.id ?? '');
     setCoverDataUrl(null);
     setCoverFile(null);
+    setSearchResults([]);
+    setSearching(false);
+    setShowResults(false);
   };
+
+  // ── Smart search: debounce title input ────────────────────────────────
+  useEffect(() => {
+    const q = title.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      setShowResults(false);
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const resp = await fetch(`/api/books/search?q=${encodeURIComponent(q)}`, {
+          signal: controller.signal,
+        });
+        const data = (await resp.json()) as { results?: BookCandidate[] };
+        if (!active) return;
+        setSearchResults(data.results ?? []);
+        setShowResults(true);
+      } catch (err) {
+        if (active && (err as Error).name !== 'AbortError') {
+          setSearchResults([]);
+          setShowResults(false);
+        }
+      } finally {
+        if (active) setSearching(false);
+      }
+    }, 500);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [title]);
 
   // ── Compress image before storing ──────────────────────────────────────
   // Resizes to max 300px on the long side, JPEG 80% quality,
@@ -81,6 +137,16 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
       reader.onload = (ev) => setCoverDataUrl(ev.target?.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  // Select a search candidate and auto-fill author + cover
+  const handleSelectCandidate = (candidate: BookCandidate) => {
+    setTitle(candidate.title);
+    setAuthor(candidate.author);
+    setCoverDataUrl(candidate.cover);
+    setCoverFile(null);
+    setSearchResults([]);
+    setShowResults(false);
   };
 
   // Save
@@ -183,22 +249,87 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
         {/* Body (scrollable) */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          <input
-            type="text"
-            placeholder="书名 *"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={{
-              padding: '10px 12px',
-              borderRadius: 8,
-              border: '1px solid #d4c4a0',
-              background: '#fffcf5',
-              fontSize: 13,
-              outline: 'none',
-              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              color: 'var(--color-text)',
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              type="text"
+              placeholder="书名 *"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: '10px 12px',
+                borderRadius: 8,
+                border: '1px solid #d4c4a0',
+                background: '#fffcf5',
+                fontSize: 13,
+                outline: 'none',
+                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                color: 'var(--color-text)',
+              }}
+            />
+
+            {showResults && (searching || searchResults.length > 0) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  zIndex: 10,
+                  borderRadius: 10,
+                  border: '1px solid rgba(0,0,0,0.08)',
+                  background: '#fffcf5',
+                  boxShadow: '0 12px 28px rgba(0,0,0,0.16)',
+                  overflow: 'hidden',
+                }}
+              >
+                {searching && searchResults.length === 0 ? (
+                  <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>
+                    搜索中…
+                  </div>
+                ) : (
+                  searchResults.map((candidate) => (
+                    <button
+                      key={`${candidate.source}-${candidate.title}-${candidate.author}`}
+                      onClick={() => handleSelectCandidate(candidate)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: 'none',
+                        borderBottom: '1px solid rgba(0,0,0,0.05)',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                      }}
+                    >
+                      {candidate.cover ? (
+                        <img
+                          src={candidate.cover}
+                          alt=""
+                          style={{ width: 26, height: 36, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{ width: 26, height: 36, borderRadius: 2, flexShrink: 0, background: '#ece4d8' }} />
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {candidate.title}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {candidate.author || '未知作者'}{candidate.year ? ` · ${candidate.year}` : ''}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
 
           <input
             type="text"
