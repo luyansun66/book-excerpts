@@ -15,7 +15,7 @@ interface BookCandidate {
   year: string | null;
   isbn: string | null;
   cover: string | null;
-  source: 'google' | 'openlibrary';
+  source: 'douban' | 'google' | 'openlibrary';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -55,44 +55,25 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
     setShowResults(false);
   };
 
-  // ── Smart search: debounce title input ────────────────────────────────
-  useEffect(() => {
+  // ── Smart search: explicit button trigger ─────────────────────────────
+  const handleSearch = async () => {
     const q = title.trim();
-    if (q.length < 2) {
+    if (q.length < 2) return;
+
+    setSearching(true);
+    setShowResults(true);
+    setSearchResults([]);
+
+    try {
+      const resp = await fetch(`/api/books/search?q=${encodeURIComponent(q)}`);
+      const data = (await resp.json()) as { results?: BookCandidate[] };
+      setSearchResults(data.results ?? []);
+    } catch {
       setSearchResults([]);
+    } finally {
       setSearching(false);
-      setShowResults(false);
-      return;
     }
-
-    let active = true;
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const resp = await fetch(`/api/books/search?q=${encodeURIComponent(q)}`, {
-          signal: controller.signal,
-        });
-        const data = (await resp.json()) as { results?: BookCandidate[] };
-        if (!active) return;
-        setSearchResults(data.results ?? []);
-        setShowResults(true);
-      } catch (err) {
-        if (active && (err as Error).name !== 'AbortError') {
-          setSearchResults([]);
-          setShowResults(false);
-        }
-      } finally {
-        if (active) setSearching(false);
-      }
-    }, 500);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [title]);
+  };
 
   // ── Compress image before storing ──────────────────────────────────────
   // Resizes to max 300px on the long side, JPEG 80% quality,
@@ -254,26 +235,52 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="书名 *"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid #d4c4a0',
-                background: '#fffcf5',
-                fontSize: 13,
-                outline: 'none',
-                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                color: 'var(--color-text)',
-              }}
-            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                type="text"
+                placeholder="书名 *"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  setShowResults(false);
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  boxSizing: 'border-box',
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #d4c4a0',
+                  background: '#fffcf5',
+                  fontSize: 13,
+                  outline: 'none',
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                  color: 'var(--color-text)',
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSearch}
+                disabled={searching || title.trim().length < 2}
+                style={{
+                  flexShrink: 0,
+                  padding: '0 14px',
+                  borderRadius: 8,
+                  border: '1px solid #d4c4a0',
+                  background: '#fffcf5',
+                  color: 'var(--color-text)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                  cursor: searching || title.trim().length < 2 ? 'not-allowed' : 'pointer',
+                  opacity: searching || title.trim().length < 2 ? 0.5 : 1,
+                }}
+              >
+                {searching ? '搜索中…' : '搜索'}
+              </button>
+            </div>
 
-            {showResults && (searching || searchResults.length > 0) && (
+            {showResults && (
               <div
                 style={{
                   position: 'absolute',
@@ -288,11 +295,11 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                   overflow: 'hidden',
                 }}
               >
-                {searching && searchResults.length === 0 ? (
+                {searching ? (
                   <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>
                     搜索中…
                   </div>
-                ) : (
+                ) : searchResults.length > 0 ? (
                   searchResults.map((candidate) => (
                     <button
                       key={`${candidate.source}-${candidate.title}-${candidate.author}`}
@@ -330,6 +337,10 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                       </div>
                     </button>
                   ))
+                ) : (
+                  <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>
+                    未找到，可手动填写
+                  </div>
                 )}
               </div>
             )}
