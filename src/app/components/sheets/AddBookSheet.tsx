@@ -188,9 +188,9 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          position: 'relative',
-          width: '100%',
-          maxHeight: '85vh',
+         position: 'relative',
+         width: '100%',
+          maxHeight: '92vh',
           background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflow: 'hidden',
@@ -302,37 +302,37 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                   </div>
                 ) : searchResults.length > 0 ? (
                   searchResults.map((candidate) => (
-                    <button
-                      key={`${candidate.source}-${candidate.title}-${candidate.author}`}
-                      onClick={() => handleSelectCandidate(candidate)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: 'none',
-                        borderBottom: '1px solid rgba(0,0,0,0.05)',
-                        background: 'transparent',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                      }}
-                    >
-                      {candidate.cover ? (
-                        <img
-                          src={candidate.cover}
-                          alt=""
-                          style={{ width: 26, height: 36, objectFit: 'cover', borderRadius: 2, flexShrink: 0 }}
-                        />
-                      ) : (
-                        <div style={{ width: 26, height: 36, borderRadius: 2, flexShrink: 0, background: '#ece4d8' }} />
-                      )}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {candidate.title}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                   <button
+                     key={`${candidate.source}-${candidate.title}-${candidate.author}`}
+                     onClick={() => handleSelectCandidate(candidate)}
+                     style={{
+                       display: 'flex',
+                       alignItems: 'center',
+                        gap: 12,
+                       width: '100%',
+                        padding: '10px 14px',
+                       border: 'none',
+                       borderBottom: '1px solid rgba(0,0,0,0.05)',
+                       background: 'transparent',
+                       cursor: 'pointer',
+                       textAlign: 'left',
+                       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                     }}
+                   >
+                     {candidate.cover ? (
+                       <img
+                         src={candidate.cover}
+                         alt=""
+                          style={{ width: 36, height: 52, objectFit: 'cover', borderRadius: 3, flexShrink: 0 }}
+                       />
+                     ) : (
+                        <div style={{ width: 36, height: 52, borderRadius: 3, flexShrink: 0, background: '#ece4d8' }} />
+                     )}
+                     <div style={{ flex: 1, minWidth: 0 }}>
+                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                         {candidate.title}
+                       </div>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 3 }}>
                           {[candidate.author || '未知作者', candidate.year, candidate.publisher].filter(Boolean).join(' · ')}
                         </div>
                       </div>
