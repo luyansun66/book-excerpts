@@ -14,8 +14,9 @@ interface BookCandidate {
   author: string;
   year: string | null;
   isbn: string | null;
+  publisher: string | null;
   cover: string | null;
-  source: 'douban' | 'google' | 'openlibrary';
+  source: 'google' | 'openlibrary';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -332,7 +333,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                           {candidate.title}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {candidate.author || '未知作者'}{candidate.year ? ` · ${candidate.year}` : ''}
+                          {[candidate.author || '未知作者', candidate.year, candidate.publisher].filter(Boolean).join(' · ')}
                         </div>
                       </div>
                     </button>
