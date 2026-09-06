@@ -155,3 +155,27 @@
     --shadow-float: 2px 6px 24px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 }
+
+
+/* ─── iOS 磨砂 CTA（Add Books / Add Quotes）────────────────────────────────── */
+/* 半透明玻璃层级：backdrop-filter 负责磨砂，背景只提供极淡的 tint，
+   内高光勾勒玻璃上缘，按压时即时回缩（响应发生在 pointer-down）。 */
+.glass-cta {
+  transition:
+    transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+    background 0.2s ease;
+}
+
+.glass-cta:active {
+  transform: scale(0.96);
+  background: rgba(44, 34, 22, 0.68);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-cta {
+    transition: none;
+  }
+  .glass-cta:active {
+    transform: none;
+  }
+}

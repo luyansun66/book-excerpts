@@ -843,11 +843,12 @@ function ShelfView() {
         >
           <button
             onClick={() => setShowAddBook(true)}
+            className="glass-cta"
             style={{
-              background: 'rgba(44, 34, 22, 0.85)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(44, 34, 22, 0.55)',
+              backdropFilter: 'blur(20px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+              border: '1px solid rgba(255,255,255,0.18)',
               color: 'var(--color-btn-text)',
               borderRadius: 20,
               paddingTop: 14,
@@ -859,7 +860,7 @@ function ShelfView() {
               letterSpacing: 0.5,
               cursor: 'pointer',
               pointerEvents: 'auto',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.12)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 24px rgba(28,22,12,0.18)',
             }}
           >
             Add Books

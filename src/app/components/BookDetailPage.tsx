@@ -692,15 +692,16 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
       <div style={{ position: 'absolute', bottom: 80, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
         <button
           onClick={() => setShowAddSheet(true)}
+          className="glass-cta"
           style={{
-            background: 'rgba(44, 34, 22, 0.85)', color: 'var(--color-btn-text)',
-            backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20,
+            background: 'rgba(44, 34, 22, 0.55)', color: 'var(--color-btn-text)',
+            backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
+            border: '1px solid rgba(255,255,255,0.18)', borderRadius: 20,
             paddingTop: 14, paddingBottom: 14, width: 128, textAlign: 'center',
             fontSize: 15, fontWeight: 700,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',
             cursor: 'pointer', letterSpacing: 0.4, pointerEvents: 'auto',
-            boxShadow: '0 4px 18px rgba(0,0,0,0.2)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 24px rgba(28,22,12,0.18)',
           }}
         >
           Add Quotes
