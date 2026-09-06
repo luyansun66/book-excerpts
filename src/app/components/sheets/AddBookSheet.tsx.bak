@@ -374,14 +374,13 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
             <div style={cardStyle}>
               {/* Title */}
               <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                <span style={{ width: 60, fontSize: 14, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>书名 *</span>
+                <span style={{ width: 60, fontSize: 14, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>标题 *</span>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   style={{
                     flex: 1,
-                    marginLeft: 15,
                     border: 'none',
                     background: 'transparent',
                     fontSize: 14,
@@ -401,7 +400,6 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                   onChange={(e) => setAuthor(e.target.value)}
                   style={{
                     flex: 1,
-                    marginLeft: 15,
                     border: 'none',
                     background: 'transparent',
                     fontSize: 14,
@@ -420,14 +418,13 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                   onChange={(e) => setCategoryId(e.target.value)}
                   style={{
                     flex: 1,
-                    marginLeft: 15,
                     border: 'none',
                     background: 'transparent',
                     fontSize: 14,
                     outline: 'none',
                     fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                     color: 'var(--color-text)',
-                    textAlign: 'left',
+                    textAlign: 'center',
                     appearance: 'none',
                     WebkitAppearance: 'none',
                     cursor: 'pointer',
