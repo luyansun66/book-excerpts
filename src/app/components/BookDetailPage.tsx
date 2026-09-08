@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Edit3, Trash2, Share2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useApp } from '../store';
 import { getQuotesByBook, addQuote as dbAddQuote, updateQuote as dbUpdateQuote, deleteQuote as dbDeleteQuote } from '../db';
+import { getBookReadingMinutes } from '../db/readingTime';
+import { formatMinutesHuman } from './timer/format';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
 import ShareSheet from './sheets/ShareSheet';
 import ConfirmDialog from './ConfirmDialog';
@@ -348,6 +350,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const swipeStartY = useRef(0);
   const isCropping = useRef(false);
   const [infoExpanded, setInfoExpanded] = useState(false);
+  const [readingMinutes, setReadingMinutes] = useState<number | null>(null);
 
   // ─── Direct DB query — no store indirection, no useCallback chain ────────
   // Use isMounted ref to prevent state updates after unmount
@@ -408,6 +411,21 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
       isMounted.current = false;
     };
   }, [book.id, retryTrigger]);
+
+  useEffect(() => {
+    let mounted = true;
+    setReadingMinutes(null);
+    getBookReadingMinutes(book.id)
+      .then((minutes) => {
+        if (mounted) setReadingMinutes(minutes);
+      })
+      .catch(() => {
+        if (mounted) setReadingMinutes(0);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [book.id]);
 
   // ─── Add quote (direct DB write + optimistic local update) ──────────────
   const handleAddQuote = async (data: { text: string; thought: string; page: string | null; date: string; color?: string }) => {
@@ -630,6 +648,12 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', letterSpacing: 1, marginBottom: 3 }}>最近阅读</div>
                   <div style={{ fontSize: 12, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>{lastRead}</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', letterSpacing: 1, marginBottom: 3 }}>累计阅读</div>
+                  <div style={{ fontSize: 12, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>
+                    {readingMinutes == null ? '—' : formatMinutesHuman(readingMinutes)}
+                  </div>
                 </div>
               </div>
 

@@ -6,6 +6,8 @@ import SearchResults from './components/SearchResults';
 import AddBookSheet from './components/sheets/AddBookSheet';
 import SettingsPage from './components/SettingsPage';
 import LibraryBuilding from './components/LibraryBuilding';
+import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
+import ReadingTimerBar from './components/timer/ReadingTimerBar';
 
 import { useApp } from './store';
 import { seedDemianBook } from './db';
@@ -179,6 +181,8 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
 
 // ─── Decorative pattern header ────────────────────────────────────────────────
 function PatternHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const openTimer = useOpenTimerSheet();
+
   return (
     <div style={{ padding: '0 20px', position: 'relative' }}>
       {/* Settings gear */}
@@ -218,7 +222,7 @@ function PatternHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
         }}
       >
         {/* Library building illustration */}
-        <LibraryBuilding />
+        <LibraryBuilding onClockClick={openTimer} />
 
         {/* Tagline */}
         <p
@@ -709,6 +713,9 @@ function ShelfView() {
       >
         {/* Search bar */}
         <SearchBar />
+
+        {/* Background reading-timer status (centered, below search) */}
+        <ReadingTimerBar />
 
         {/* Seed status message */}
         {seedMsg && (

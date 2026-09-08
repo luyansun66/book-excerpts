@@ -27,6 +27,10 @@
   --color-border:         #DFD6C4;
   --color-border-light:   rgba(180, 160, 130, 0.25);
 
+  /* ── 毛玻璃材质（iOS 风格居中弹窗） ─────────────────────────────────────── */
+  --color-glass:          rgba(253, 251, 246, 0.72);
+  --color-glass-edge:     rgba(255, 255, 255, 0.55);
+
   /* ── 按钮 ──────────────────────────────────────────────────────────────── */
   --color-btn:            #2C2216;
   --color-btn-text:       #F5EFE0;
@@ -126,6 +130,9 @@
     --color-border:         #4A3D28;
     --color-border-light:   rgba(180, 160, 130, 0.12);
 
+    --color-glass:          rgba(37, 32, 22, 0.72);
+    --color-glass-edge:     rgba(255, 255, 255, 0.12);
+
     --color-btn:            #E8D8C0;
     --color-btn-text:       #1A1610;
     --color-btn-hover:      #F0E4D0;
@@ -177,5 +184,12 @@
   }
   .glass-cta:active {
     transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --color-glass: var(--color-bg-card);
+    --color-glass-edge: var(--color-border-light);
   }
 }

@@ -7,7 +7,19 @@
 
 import svgContent from '../../assets/library-decoration.svg?raw';
 
-export default function LibraryBuilding() {
+interface LibraryBuildingProps {
+  onClockClick?: () => void;
+}
+
+export default function LibraryBuilding({ onClockClick }: LibraryBuildingProps) {
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onClockClick) return;
+    const target = e.target as Element | null;
+    if (target && typeof target.closest === 'function' && target.closest('#reading-clock')) {
+      onClockClick();
+    }
+  };
+
   return (
     <div style={{ width: '100%', maxWidth: 320, margin: '0 auto' }}>
       <div
@@ -21,6 +33,7 @@ export default function LibraryBuilding() {
       >
         <div
           dangerouslySetInnerHTML={{ __html: svgContent }}
+          onClick={handleClick}
           style={{
             position: 'absolute',
             top: 0,

@@ -34,3 +34,13 @@ export interface Quote {
   createdAt: string;
   updatedAt: string;
 }
+
+// ─── Reading time (single timer session record) ───────────────────────────────
+export interface ReadingTime {
+  id: string;
+  date: string;      // "YYYY-MM-DD" — local date the session is attributed to
+  minutes: number;   // total minutes read in this session (fractional ok)
+  sessions: number;  // number of active segments (start→pause / start→end)
+  bookId: string;
+  createdAt: string;
+}

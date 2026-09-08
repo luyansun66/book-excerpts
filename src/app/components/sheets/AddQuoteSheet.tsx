@@ -162,7 +162,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="hide-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Quote text */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>

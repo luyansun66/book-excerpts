@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Book, Category, Quote } from '../types';
+import type { Book, Category, Quote, ReadingTime } from '../types';
 import { prepareImportData } from './prepare';
 import type { ExportData, ImportResult } from './prepare';
 
@@ -16,7 +16,7 @@ function uid(): string {
 }
 
 const DB_NAME = 'bookwrite';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 // v1 使用英文预置分类，v2 起统一为中文；迁移时仅替换未改名的默认分类。
 const LEGACY_CATEGORY_NAMES: Record<string, string> = {
@@ -30,26 +30,34 @@ export class BookWriteDB extends Dexie {
   categories!: EntityTable<Category, 'id'>;
   books!: EntityTable<Book, 'id'>;
   quotes!: EntityTable<Quote, 'id'>;
+  readingTime!: EntityTable<ReadingTime, 'id'>;
 
   constructor() {
     super(DB_NAME);
 
-    const stores = {
+    const storesV1 = {
       categories: 'id, name, order, isPreset',
       books: 'id, title, author, categoryId, createdAt',
       quotes: 'id, bookId, text, date, createdAt',
     };
 
-    this.version(1).stores(stores);
+    const stores = {
+      ...storesV1,
+      readingTime: 'id, date, bookId, createdAt',
+    };
 
-    this.version(DB_VERSION)
-      .stores(stores)
+    this.version(1).stores(storesV1);
+
+    this.version(2)
+      .stores(storesV1)
       .upgrade(async (tx) => {
         await tx.table('categories').toCollection().modify((cat) => {
           const migrated = LEGACY_CATEGORY_NAMES[cat.name];
           if (migrated) cat.name = migrated;
         });
       });
+
+    this.version(DB_VERSION).stores(stores);
   }
 }
 
@@ -156,6 +164,7 @@ export async function updateBook(id: string, changes: Partial<Book>): Promise<vo
 }
 
 export async function deleteBook(id: string): Promise<void> {
+  await db.readingTime.where('bookId').equals(id).delete();
   await db.quotes.where('bookId').equals(id).delete();
   await db.books.delete(id);
 }
@@ -245,6 +254,26 @@ export async function getQuoteCount(bookId: string): Promise<number> {
 // ─── All quotes (for stats) ───────────────────────────────────────────────────
 export async function getAllQuotes(): Promise<Quote[]> {
   return db.quotes.toArray();
+}
+
+// ─── Reading time CRUD ────────────────────────────────────────────────────────
+export async function addReadingTime(record: Omit<ReadingTime, 'id' | 'createdAt'>): Promise<ReadingTime> {
+  const newRecord: ReadingTime = {
+    ...record,
+    id: uid(),
+    createdAt: new Date().toISOString(),
+  };
+  await db.readingTime.add(newRecord);
+  return newRecord;
+}
+
+export async function getAllReadingTime(): Promise<ReadingTime[]> {
+  return db.readingTime.toArray();
+}
+
+export async function getReadingTimeByBook(bookId: string): Promise<ReadingTime[]> {
+  if (!bookId) return [];
+  return db.readingTime.where('bookId').equals(bookId).toArray();
 }
 
 // ─── Export all data as JSON ─────────────────────────────────────────────────

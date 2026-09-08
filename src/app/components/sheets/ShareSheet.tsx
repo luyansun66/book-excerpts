@@ -255,6 +255,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
 
       <div
+        className="hide-scrollbar"
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'relative',
