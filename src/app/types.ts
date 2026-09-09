@@ -44,3 +44,13 @@ export interface ReadingTime {
   bookId: string;
   createdAt: string;
 }
+
+
+// ─── Time mailbox (时光信箱) singleton state ───────────────────────────────────
+export interface LetterBox {
+  id: string;              // fixed key 'main' (singleton)
+  receivedCount: number;   // cumulative letters received (never decreases)
+  lastReceiveDate: string; // Beijing date "YYYY-MM-DD" of last receive
+  quoteId: string;         // quote locked for the current day's letter
+  translation: string;     // cached English translation for that quote
+}

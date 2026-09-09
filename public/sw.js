@@ -13,6 +13,10 @@ const PRECACHE_URLS = [
   '/icon.svg',
   '/icon-180.png',
   '/icon-512.png',
+  '/assets/bg01.jpg',
+  '/assets/bg.svg',
+  '/assets/bg02.jpg',
+  '/assets/bg02.svg',
 ];
 
 // 判断响应类型是否与请求目的匹配，避免把 Cloudflare 的 HTML 兜底

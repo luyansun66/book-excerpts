@@ -191,3 +191,44 @@
   width: 0;
   height: 0;
 }
+
+/* ── 时光信箱 ──────────────────────────────────────────────────────────────── */
+.letter-card {
+  height: min(78vh, 40rem);
+  aspect-ratio: 1021.9 / 1527.7;
+  max-width: 92vw;
+}
+
+.letter-card svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+.mailbox-spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #f5efe0;
+  border-radius: 50%;
+  animation: mailbox-spin 0.8s linear infinite;
+}
+
+@keyframes mailbox-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 邮筒信箱盖弹起微动效（在 LibraryBuilding 中给 #time-mailbox-lid 添加） */
+.mailbox-lid-pop {
+  animation: mailbox-lid-pop 0.7s ease;
+  transform-origin: left bottom;
+  transform-box: fill-box;
+}
+
+@keyframes mailbox-lid-pop {
+  0% { transform: rotate(0deg); }
+  40% { transform: rotate(-32deg); }
+  100% { transform: rotate(0deg); }
+}

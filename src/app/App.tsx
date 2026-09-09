@@ -7,6 +7,7 @@ import AddBookSheet from './components/sheets/AddBookSheet';
 import SettingsPage from './components/SettingsPage';
 import LibraryBuilding from './components/LibraryBuilding';
 import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
+import { useOpenMailbox } from './mailbox/MailboxProvider';
 import ReadingTimerBar from './components/timer/ReadingTimerBar';
 
 import { useApp } from './store';
@@ -182,6 +183,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
 // ─── Decorative pattern header ────────────────────────────────────────────────
 function PatternHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
   const openTimer = useOpenTimerSheet();
+  const openMailbox = useOpenMailbox();
 
   return (
     <div style={{ padding: '0 20px', position: 'relative' }}>
@@ -222,7 +224,7 @@ function PatternHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
         }}
       >
         {/* Library building illustration */}
-        <LibraryBuilding onClockClick={openTimer} />
+        <LibraryBuilding onClockClick={openTimer} onMailboxClick={openMailbox} />
 
         {/* Tagline */}
         <p

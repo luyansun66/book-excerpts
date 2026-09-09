@@ -3,3 +3,9 @@ dist/
 .DS_Store
 *.local
 .vercel
+
+# Cloudflare Pages local dev secrets
+.dev.vars
+
+# 时光信箱字体源文件（已内嵌进 letterTemplate.svg，Songti.ttc 约67MB不入库）
+书签字体/

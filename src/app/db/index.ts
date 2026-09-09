@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Book, Category, Quote, ReadingTime } from '../types';
+import type { Book, Category, LetterBox, Quote, ReadingTime } from '../types';
 import { prepareImportData } from './prepare';
 import type { ExportData, ImportResult } from './prepare';
 
@@ -16,7 +16,7 @@ function uid(): string {
 }
 
 const DB_NAME = 'bookwrite';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 // v1 使用英文预置分类，v2 起统一为中文；迁移时仅替换未改名的默认分类。
 const LEGACY_CATEGORY_NAMES: Record<string, string> = {
@@ -31,6 +31,7 @@ export class BookWriteDB extends Dexie {
   books!: EntityTable<Book, 'id'>;
   quotes!: EntityTable<Quote, 'id'>;
   readingTime!: EntityTable<ReadingTime, 'id'>;
+  letterBox!: EntityTable<LetterBox, 'id'>;
 
   constructor() {
     super(DB_NAME);
@@ -44,6 +45,7 @@ export class BookWriteDB extends Dexie {
     const stores = {
       ...storesV1,
       readingTime: 'id, date, bookId, createdAt',
+      letterBox: 'id',
     };
 
     this.version(1).stores(storesV1);
@@ -254,6 +256,36 @@ export async function getQuoteCount(bookId: string): Promise<number> {
 // ─── All quotes (for stats) ───────────────────────────────────────────────────
 export async function getAllQuotes(): Promise<Quote[]> {
   return db.quotes.toArray();
+}
+
+// ─── Time mailbox (时光信箱) state ────────────────────────────────────────────
+export const LETTER_BOX_KEY = 'main';
+
+export async function getLetterBox(): Promise<LetterBox | null> {
+  return (await db.letterBox.get(LETTER_BOX_KEY)) ?? null;
+}
+
+export async function saveLetterBox(state: LetterBox): Promise<void> {
+  await db.letterBox.put(state);
+}
+
+/** Pick a random past highlight for the letter. Returns null when no quotes exist. */
+export async function getRandomQuote(): Promise<Quote | null> {
+  const all = await db.quotes.toArray();
+  if (all.length === 0) return null;
+  return all[Math.floor(Math.random() * all.length)];
+}
+
+/** Look up a single quote by id (null-safe). */
+export async function getQuote(id: string): Promise<Quote | null> {
+  if (!id) return null;
+  return (await db.quotes.get(id)) ?? null;
+}
+
+/** Look up a single book by id (null-safe). */
+export async function getBook(id: string): Promise<Book | null> {
+  if (!id) return null;
+  return (await db.books.get(id)) ?? null;
 }
 
 // ─── Reading time CRUD ────────────────────────────────────────────────────────

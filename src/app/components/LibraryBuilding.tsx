@@ -5,18 +5,38 @@
 //
 // SVG viewBox: 0 0 882.2 781 → aspect ratio ≈ 781/882.2 ≈ 88.5%
 
+import { useRef } from 'react';
 import svgContent from '../../assets/library-decoration.svg?raw';
 
 interface LibraryBuildingProps {
   onClockClick?: () => void;
+  onMailboxClick?: () => void;
 }
 
-export default function LibraryBuilding({ onClockClick }: LibraryBuildingProps) {
+export default function LibraryBuilding({ onClockClick, onMailboxClick }: LibraryBuildingProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const playLidPop = () => {
+    const lid = containerRef.current?.querySelector('#time-mailbox-lid');
+    if (!lid) return;
+    lid.classList.remove('mailbox-lid-pop');
+    // Force reflow so the animation can restart on rapid clicks.
+    void (lid as SVGGraphicsElement).getBoundingClientRect();
+    lid.classList.add('mailbox-lid-pop');
+  };
+
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onClockClick) return;
     const target = e.target as Element | null;
-    if (target && typeof target.closest === 'function' && target.closest('#reading-clock')) {
-      onClockClick();
+    if (!target || typeof target.closest !== 'function') return;
+
+    if (target.closest('#reading-clock')) {
+      onClockClick?.();
+      return;
+    }
+
+    if (target.closest('#time-mailbox')) {
+      playLidPop();
+      onMailboxClick?.();
     }
   };
 
@@ -32,6 +52,7 @@ export default function LibraryBuilding({ onClockClick }: LibraryBuildingProps) 
         }}
       >
         <div
+          ref={containerRef}
           dangerouslySetInnerHTML={{ __html: svgContent }}
           onClick={handleClick}
           style={{
