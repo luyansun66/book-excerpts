@@ -6,7 +6,7 @@ const base = {
   dateCN: '2026/09/09',
   dateEN: 'September 9, 2026',
   bookTitle: '小王子',
-  bookAuthor: 'Antoine de Saint-Exupéry',
+  bookAuthor: 'Antoine de Saint-Exupé',
 };
 
 describe('generateLetterSvg', () => {
@@ -20,14 +20,14 @@ describe('generateLetterSvg', () => {
     expect(svg).not.toContain('{{');
     expect(svg).toContain('>47</tspan>');
     expect(svg).toContain('text-anchor="middle"');
-    expect(svg).toContain('transform="translate(283.5 250)"');
+    expect(svg).toContain('transform="translate(283.5 317)"');
     expect(svg).toContain('第47封信');
     expect(svg).toContain('Letter No. 47');
     expect(svg).toContain('折角书摘·2026/09/09');
     expect(svg).toContain('Dogear · September 9, 2026');
     expect(svg).toContain('/assets/bg01.jpg');
     expect(svg).toContain('——《小王子》');
-    expect(svg).toContain('Saint-Exupéry');
+    expect(svg).toContain('Saint-Exupé');
     expect(svg).toContain('所有的大人都曾经是小孩');
     expect(svg).toContain('All grown-ups were once children');
     expect(svg.endsWith('</svg>')).toBe(true);
@@ -59,6 +59,6 @@ describe('generateLetterSvg', () => {
     const svg = generateLetterSvg({ ...base, quote: '一句摘录。', translation: '' });
     expect(svg).toContain('一句摘录。');
     expect(svg).toContain('——《小王子》');
-    expect(svg).toContain('Saint-Exupéry');
+    expect(svg).toContain('Saint-Exupé');
   });
 });

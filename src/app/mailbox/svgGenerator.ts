@@ -14,12 +14,10 @@ const BOTTOM = 1403.1;       // 底部横线 y=1413.1 上留 10px 安全边距
 
 // 字号分档（按字数/高度自适应，逐档缩小）
 const TIERS = [
-  { q: 60, t: 26, a: 26 },
-  { q: 52, t: 24, a: 24 },
+  { q: 48, t: 24, a: 24 },
   { q: 46, t: 22, a: 22 },
-  { q: 40, t: 20, a: 20 },
-  { q: 34, t: 18, a: 18 },
-  { q: 30, t: 16, a: 16 },
+  { q: 44, t: 20, a: 20 },
+  { q: 42, t: 18, a: 18 },
 ];
 
 interface LetterFields {
@@ -220,7 +218,7 @@ interface Layout {
 function lhQ(q: number): number { return Math.round(q * 1.42); }
 function lhT(t: number): number { return Math.round(t * 1.54); }
 function gapQT(q: number): number { return Math.round(q * 1.333); }
-function gapTA(t: number): number { return Math.round(t * 2.1); }
+function gapTA(t: number): number { return 55; }
 
 function layoutFor(
   quote: string,
@@ -230,7 +228,22 @@ function layoutFor(
 ): Layout {
   const quoteLines = wrapText(quote, tier.q, RIGHT - QUOTE_X);
   const transLines = translation.trim() ? wrapText(translation, tier.t, RIGHT - TRANS_X) : [];
-  const attrLines = wrapText(attribution, tier.a, RIGHT - ATTR_X);
+  // 出处强制单行，超出宽度截断并加"…"
+  const attrMaxW = RIGHT - ATTR_X;
+  let attrFullW = measureWidth(attribution, tier.a);
+  let attrLines: string[];
+  if (attrFullW <= attrMaxW) {
+    attrLines = [attribution];
+  } else {
+    let truncated = attribution;
+    while (truncated.length > 1) {
+      truncated = truncated.slice(0, -1);
+      if (measureWidth(truncated + '…', tier.a) <= attrMaxW) {
+        break;
+      }
+    }
+    attrLines = [truncated + '…'];
+  }
 
   const quoteYs = quoteLines.map((_, i) => QUOTE_TOP + i * lhQ(tier.q));
   const quoteBottom = QUOTE_TOP + quoteLines.length * lhQ(tier.q);
@@ -278,7 +291,7 @@ function computeLayout(quote: string, translation: string, attribution: string):
 function textNode(cls: string, x: number, y: number | string, content: string, fontSize: number): string {
   let extraStyle = '';
   if (cls === 'letter-st12') {
-    extraStyle = 'font-family:&quot;Songti SC&quot;,&quot;STSong&quot;,serif;font-weight:300;';
+    extraStyle = 'font-family:&quot;Songti SC&quot;,&quot;STSong&quot;,serif;font-weight:400;';
   } else if (cls === 'letter-st6') {
     extraStyle = 'font-family:Georgia,&quot;Times New Roman&quot;,serif;font-style:italic;';
   }
@@ -308,7 +321,7 @@ function mixedTextNode(cls: string, x: number, y: number | string, content: stri
     .map((r, i) => {
       const pos = i === 0 ? ' x="0" y="0"' : '';
       const font = r.zh
-        ? ' font-family="Songti SC" font-weight="300"'
+        ? ' font-family="Songti SC" font-weight="400"'
         : ' font-family="Georgia" font-style="italic"';
       return `<tspan${pos}${font}>${esc(r.text)}</tspan>`;
     })
@@ -321,7 +334,7 @@ function bigNumberNode(number: number): string {
   const digits = String(number);
   const len = digits.length;
   const size = len <= 2 ? 220 : len === 3 ? 170 : len === 4 ? 130 : 105;
-  return `<text class="letter-st10" text-anchor="middle" style="font-size:${size}px" transform="translate(283.5 297)"><tspan x="0" y="0">${digits}</tspan></text>`;
+  return `<text class="letter-st10" text-anchor="middle" style="font-size:${size}px" transform="translate(283.5 317)"><tspan x="0" y="0">${digits}</tspan></text>`;
 }
 
 function verticalDigitsNode(number: number): string {
