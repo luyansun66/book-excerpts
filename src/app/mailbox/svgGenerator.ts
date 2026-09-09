@@ -8,16 +8,26 @@ import template from './letterTemplate.svg?raw';
 const RIGHT = 960.2;         // 内容右边界
 const QUOTE_X = 225.2;       // 中文摘录 x
 const TRANS_X = 385;         // 英文译文 x
-const ATTR_X = 510.1;        // 出处 x
+const ATTR_X = 510.1;        // 书名行 x（出处块左起点）
 const QUOTE_TOP = 891.7;     // 摘录首行基线 y
-const BOTTOM = 1403.1;       // 底部横线 y=1413.1 上留 10px 安全边距
+
+// 出处拆成两行并固定在底部横线上方：
+//   书名行基线 → 作者行基线相隔 ATTR_LINE_STEP，作者行距底部横线 40px（落在 35~45px）。
+const BOTTOM_LINE_Y = 1413.1;        // 底部横线 y
+const AUTHOR_LINE_GAP = 40;          // 作者行基线距底部横线 40px
+const ATTR_VISUAL_GAP = 20;          // 书名行底部到作者行顶部留约 20px 空白
+const ATTR_TITLE_DESCENT = 5;        // 40px 书名行（中文/破折号）基线下方约 5px
+const ATTR_AUTHOR_ASCENT = 30;       // 40px 作者行（拉丁大写/上伸）顶部约 30px
+const ATTR_LINE_STEP = ATTR_VISUAL_GAP + ATTR_TITLE_DESCENT + ATTR_AUTHOR_ASCENT; // 55px
+const AUTHOR_Y = BOTTOM_LINE_Y - AUTHOR_LINE_GAP; // 作者行基线 1373.1
+const TITLE_Y = AUTHOR_Y - ATTR_LINE_STEP;         // 书名行基线 1318.1
 
 // 字号分档（按字数/高度自适应，逐档缩小）
 const TIERS = [
-  { q: 48, t: 24, a: 24 },
-  { q: 46, t: 22, a: 22 },
-  { q: 44, t: 20, a: 20 },
-  { q: 42, t: 18, a: 18 },
+  { q: 48, t: 24, a: 40 },
+  { q: 46, t: 22, a: 40 },
+  { q: 44, t: 20, a: 40 },
+  { q: 42, t: 18, a: 40 },
 ];
 
 interface LetterFields {
@@ -88,7 +98,7 @@ function isChineseGlyph(ch: string): boolean {
 
 function charWidth(ch: string, fontSize: number): number {
   if (ch === ' ') return fontSize * 0.32;
-  if (isCjk(ch)) return fontSize;
+  if (isChineseGlyph(ch)) return fontSize;
   if (/[A-Z]/.test(ch)) return fontSize * 0.72;
   if (/[a-z]/.test(ch)) return fontSize * 0.52;
   if (/[0-9]/.test(ch)) return fontSize * 0.62;
@@ -203,77 +213,111 @@ function wrapText(text: string, fontSize: number, maxWidth: number): string[] {
 }
 
 // ─── 布局计算 ──────────────────────────────────────────────────────────────────
+// 出处拆为两行：书名行固定于底部横线上方（距作者行约 20px 视觉空距），作者行为最后一行。
 interface Layout {
   q: number;
   t: number;
   a: number;
   quoteLines: string[];
   transLines: string[];
-  attrLines: string[];
+  titleLine: string;
+  authorLine: string;
   quoteYs: number[];
   transYs: number[];
-  attrY: number;
+  titleX: number;
+  authorX: number;
+  titleY: number;
+  authorY: number;
+  fits: boolean;
 }
 
 function lhQ(q: number): number { return Math.round(q * 1.42); }
 function lhT(t: number): number { return Math.round(t * 1.54); }
 function gapQT(q: number): number { return Math.round(q * 1.333); }
-function gapTA(t: number): number { return 55; }
+function gapTA(): number { return 55; }
+
+// 单行截断：超出宽度时从尾部删字并加"…"
+function truncateToWidth(text: string, fontSize: number, maxWidth: number): string {
+  if (measureWidth(text, fontSize) <= maxWidth) return text;
+  let truncated = text;
+  while (truncated.length > 1) {
+    truncated = truncated.slice(0, -1);
+    if (measureWidth(truncated + '…', fontSize) <= maxWidth) {
+      break;
+    }
+  }
+  return truncated + '…';
+}
+
+// 书名行：保留「——《书名》」结构，书名超宽时截断中间并保留右书名号。
+function titleLineFor(bookTitle: string, fontSize: number): string {
+  const open = '——《';
+  const close = '》';
+  const maxW = RIGHT - ATTR_X;
+  const available = maxW - measureWidth(open + close, fontSize);
+  const title = measureWidth(bookTitle, fontSize) <= available
+    ? bookTitle
+    : truncateToWidth(bookTitle, fontSize, available);
+  return open + title + close;
+}
 
 function layoutFor(
   quote: string,
   translation: string,
-  attribution: string,
+  bookTitle: string,
+  bookAuthor: string,
   tier: { q: number; t: number; a: number },
 ): Layout {
   const quoteLines = wrapText(quote, tier.q, RIGHT - QUOTE_X);
   const transLines = translation.trim() ? wrapText(translation, tier.t, RIGHT - TRANS_X) : [];
-  // 出处强制单行，超出宽度截断并加"…"
-  const attrMaxW = RIGHT - ATTR_X;
-  let attrFullW = measureWidth(attribution, tier.a);
-  let attrLines: string[];
-  if (attrFullW <= attrMaxW) {
-    attrLines = [attribution];
-  } else {
-    let truncated = attribution;
-    while (truncated.length > 1) {
-      truncated = truncated.slice(0, -1);
-      if (measureWidth(truncated + '…', tier.a) <= attrMaxW) {
-        break;
-      }
-    }
-    attrLines = [truncated + '…'];
-  }
+
+  const titleLine = titleLineFor(bookTitle, tier.a);
+  const titleX = ATTR_X;
+  // 作者首字/首字母左边缘与「《」左边缘对齐；「——」为两个全角破折号。
+  const authorX = titleX + 2 * tier.a;
+  const authorLine = truncateToWidth(bookAuthor, tier.a, RIGHT - authorX);
 
   const quoteYs = quoteLines.map((_, i) => QUOTE_TOP + i * lhQ(tier.q));
   const quoteBottom = QUOTE_TOP + quoteLines.length * lhQ(tier.q);
   const transYs: number[] = [];
-  let attrY: number;
+  let contentBottom: number;
+  let clearance: number;
 
   if (transLines.length === 0) {
-    attrY = quoteBottom + gapQT(tier.q);
+    contentBottom = QUOTE_TOP + (quoteLines.length - 1) * lhQ(tier.q);
+    clearance = gapQT(tier.q);
   } else {
     const transTop = quoteBottom + gapQT(tier.q);
     transYs.push(...transLines.map((_, j) => transTop + j * lhT(tier.t)));
-    attrY = transTop + transLines.length * lhT(tier.t) + gapTA(tier.t);
+    contentBottom = transTop + (transLines.length - 1) * lhT(tier.t);
+    clearance = gapTA();
   }
 
-  return { q: tier.q, t: tier.t, a: tier.a, quoteLines, transLines, attrLines, quoteYs, transYs, attrY };
+  const fits = contentBottom + clearance <= TITLE_Y;
+
+  return {
+    q: tier.q, t: tier.t, a: tier.a,
+    quoteLines, transLines, titleLine, authorLine,
+    quoteYs, transYs,
+    titleX, authorX,
+    titleY: TITLE_Y, authorY: AUTHOR_Y,
+    fits,
+  };
 }
 
-function computeLayout(quote: string, translation: string, attribution: string): Layout {
+function computeLayout(quote: string, translation: string, bookTitle: string, bookAuthor: string): Layout {
   for (const tier of TIERS) {
-    const layout = layoutFor(quote, translation, attribution, tier);
-    if (layout.attrY <= BOTTOM) return layout;
+    const layout = layoutFor(quote, translation, bookTitle, bookAuthor, tier);
+    if (layout.fits) return layout;
   }
 
   // 最小档仍放不下 → 优先截断摘录，其次截断译文，末尾加 …
   const min = TIERS[TIERS.length - 1];
   let q = quote;
   let tr = translation;
-  let layout = layoutFor(q, tr, attribution, min);
+  let layout = layoutFor(q, tr, bookTitle, bookAuthor, min);
   let guard = 0;
-  while (layout.attrY > BOTTOM && guard < 500) {
+  while (!layout.fits && guard < 500) {
     if (q.length > 1) {
       q = q.length <= 3 ? '…' : `${q.slice(0, q.length - 3).trimEnd()}…`;
     } else if (tr.length > 1) {
@@ -281,7 +325,7 @@ function computeLayout(quote: string, translation: string, attribution: string):
     } else {
       break;
     }
-    layout = layoutFor(q, tr, attribution, min);
+    layout = layoutFor(q, tr, bookTitle, bookAuthor, min);
     guard++;
   }
   return layout;
@@ -291,7 +335,7 @@ function computeLayout(quote: string, translation: string, attribution: string):
 function textNode(cls: string, x: number, y: number | string, content: string, fontSize: number): string {
   let extraStyle = '';
   if (cls === 'letter-st12') {
-    extraStyle = 'font-family:&quot;Songti SC&quot;,&quot;STSong&quot;,serif;font-weight:400;';
+    extraStyle = 'font-family:&quot;DFPSongW3-GB&quot;,serif;font-weight:300;';
   } else if (cls === 'letter-st6') {
     extraStyle = 'font-family:Georgia,&quot;Times New Roman&quot;,serif;font-style:italic;';
   }
@@ -321,7 +365,7 @@ function mixedTextNode(cls: string, x: number, y: number | string, content: stri
     .map((r, i) => {
       const pos = i === 0 ? ' x="0" y="0"' : '';
       const font = r.zh
-        ? ' font-family="Songti SC" font-weight="400"'
+        ? ' font-family="DFPSongW3-GB" font-weight="300"'
         : ' font-family="Georgia" font-style="italic"';
       return `<tspan${pos}${font}>${esc(r.text)}</tspan>`;
     })
@@ -334,7 +378,7 @@ function bigNumberNode(number: number): string {
   const digits = String(number);
   const len = digits.length;
   const size = len <= 2 ? 220 : len === 3 ? 170 : len === 4 ? 130 : 105;
-  return `<text class="letter-st10" text-anchor="middle" style="font-size:${size}px" transform="translate(283.5 317)"><tspan x="0" y="0">${digits}</tspan></text>`;
+  return `<text class="letter-st10" text-anchor="middle" style="font-size:${size}px" transform="translate(283.5 364)"><tspan x="0" y="0">${digits}</tspan></text>`;
 }
 
 function verticalDigitsNode(number: number): string {
@@ -348,8 +392,7 @@ function verticalDigitsNode(number: number): string {
 export function generateLetterSvg(fields: LetterFields): string {
   const quoteText = normalizeChinesePunctuation(fields.quote);
   const transText = normalizeEnglishPunctuation(fields.translation);
-  const attribution = `——《${fields.bookTitle}》· ${fields.bookAuthor}`;
-  const layout = computeLayout(quoteText, transText, attribution);
+  const layout = computeLayout(quoteText, transText, fields.bookTitle, fields.bookAuthor);
 
   const quoteSvg = layout.quoteLines
     .map((line, i) => textNode('letter-st12', QUOTE_X, round1(layout.quoteYs[i]), line, layout.q))
@@ -357,9 +400,10 @@ export function generateLetterSvg(fields: LetterFields): string {
   const transSvg = layout.transLines
     .map((line, j) => textNode('letter-st6', TRANS_X, round1(layout.transYs[j]), line, layout.t))
     .join('\n');
-  const attrSvg = layout.attrLines
-    .map((line, i) => mixedTextNode('letter-st8', ATTR_X, round1(layout.attrY + i * lhT(layout.a)), line, layout.a))
-    .join('\n');
+  const attrSvg = [
+    mixedTextNode('letter-st8', layout.titleX, round1(layout.titleY), layout.titleLine, layout.a),
+    mixedTextNode('letter-st8', layout.authorX, round1(layout.authorY), layout.authorLine, layout.a),
+  ].join('\n');
 
   return template
     .replace('{{BIG_NUMBER}}', bigNumberNode(fields.number))
@@ -370,7 +414,8 @@ export function generateLetterSvg(fields: LetterFields): string {
     .replace('{{QUOTE_LINES}}', quoteSvg)
     .replace('{{TRANS_LINES}}', transSvg)
     .replace('{{ATTR_LINE}}', attrSvg)
-    .replace('{{VERTICAL_DIGITS}}', verticalDigitsNode(fields.number));
+    .replace('{{VERTICAL_DIGITS}}', verticalDigitsNode(fields.number))
+    .trimEnd();
 }
 
 function round1(n: number): string {
