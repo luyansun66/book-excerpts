@@ -3,6 +3,32 @@ import { Upload } from 'lucide-react';
 import { useApp } from '../../store';
 import type { Book } from '../../types';
 
+const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
+  douban: '豆瓣',
+  google: 'Google Books',
+  openlibrary: 'Open Library',
+};
+
+/** 封面缩略图：图挂了（代理返回 404、或网络抖动）就退回空封面框。
+ *  直接 <img> 的话浏览器会留一个破图图标，比空框更像 bug。
+ *  记的是「哪张图挂了」而不是布尔值，这样换一本书时能自动恢复。 */
+function CoverThumb({ src, width, height, radius }: { src: string | null; width: number; height: number; radius: number }) {
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
+  const box = { width, height, borderRadius: radius, flexShrink: 0, background: '#ece4d8' } as const;
+
+  if (!src || brokenSrc === src) return <div style={box} />;
+
+  return (
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={() => setBrokenSrc(src)}
+      style={{ ...box, objectFit: 'cover' }}
+    />
+  );
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface AddBookSheetProps {
   open: boolean;
@@ -16,7 +42,7 @@ interface BookCandidate {
   isbn: string | null;
   publisher: string | null;
   cover: string | null;
-  source: 'google' | 'openlibrary';
+  source: 'douban' | 'google' | 'openlibrary';
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -337,15 +363,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                         fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                       }}
                     >
-                      {candidate.cover ? (
-                        <img
-                          src={candidate.cover}
-                          alt=""
-                          style={{ width: 56, height: 78, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }}
-                        />
-                      ) : (
-                        <div style={{ width: 56, height: 78, borderRadius: 4, flexShrink: 0, background: '#ece4d8' }} />
-                      )}
+                      <CoverThumb src={candidate.cover} width={56} height={78} radius={4} />
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
                         <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {candidate.title}
@@ -354,7 +372,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                           {candidate.author || '未知作者'}{candidate.year ? ` · ${candidate.year}` : ''}
                         </div>
                         <div style={{ fontSize: 11, color: '#9a8a70', marginTop: 2 }}>
-                          {candidate.source === 'google' ? 'Google Books' : 'Open Library'}
+                          {SOURCE_LABEL[candidate.source]}
                         </div>
                       </div>
                     </button>
@@ -454,11 +472,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
               />
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px' }}>
                 {coverDataUrl ? (
-                  <img
-                    src={coverDataUrl}
-                    alt="封面预览"
-                    style={{ width: 80, height: 120, objectFit: 'cover', borderRadius: 6 }}
-                  />
+                  <CoverThumb src={coverDataUrl} width={80} height={120} radius={6} />
                 ) : (
                   <div style={{ width: 80, height: 120, borderRadius: 6, background: '#ece4d8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Upload size={24} color="#b0a080" />

@@ -14,7 +14,7 @@ interface BookCandidate {
   isbn: string | null;
   publisher: string | null;
   cover: string | null;
-  source: 'google' | 'openlibrary';
+  source: 'douban' | 'google' | 'openlibrary';
 }
 
 interface SourceResult {
@@ -40,11 +40,18 @@ function buildCoverProxyUrl(remoteUrl: string): string {
   return `/api/books/cover?url=${encodeURIComponent(remoteUrl)}`;
 }
 
-async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number,
+  headers: Record<string, string> = {},
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    return await fetch(url, {
+      headers: { Accept: 'application/json', ...headers },
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timer);
   }
@@ -110,6 +117,49 @@ async function searchGoogle(q: string, apiKey?: string): Promise<SourceResult> {
   }
 }
 
+// ─── 豆瓣：中文书的封面几乎只有这里有 ──────────────────────────────────────────
+// Google Books 对中文版基本不给 imageLinks，实测「昨日的世界」20 条结果里
+// 0 条有封面，而同样的查询在豆瓣 top 结果条条都有封面，所以中文查询以豆瓣优先。
+// 用 subject_suggest 这个轻量 JSON 接口，不抓搜索结果页的 HTML（那份 HTML 结构
+// 易变，且整页抓取更容易被拦）。
+const DOUBAN_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Referer: 'https://book.douban.com/',
+};
+
+function parseDoubanSuggest(items: any[]): BookCandidate[] {
+  return items
+    // subject_suggest 会混进影音条目（type = 'm'/'mv'），只要书
+    .filter((d: any) => d?.type === 'b' && typeof d.title === 'string' && d.title.length > 0)
+    .map((d: any): BookCandidate => ({
+      title: d.title,
+      author: typeof d.author_name === 'string' ? d.author_name : '',
+      year: d.year ? String(d.year).slice(0, 4) : null,
+      isbn: null,
+      publisher: null,
+      cover: typeof d.pic === 'string' && d.pic ? buildCoverProxyUrl(d.pic) : null,
+      source: 'douban',
+    }));
+}
+
+async function searchDouban(q: string): Promise<SourceResult> {
+  const started = Date.now();
+  const url = `https://book.douban.com/j/subject_suggest?q=${encodeURIComponent(q)}`;
+
+  try {
+    const resp = await fetchWithTimeout(url, SOURCE_TIMEOUT_MS, DOUBAN_HEADERS);
+    if (!resp.ok) {
+      return { ok: false, results: [], ms: Date.now() - started };
+    }
+    const data = (await resp.json()) as any;
+    const items = Array.isArray(data) ? data : [];
+    return { ok: true, results: parseDoubanSuggest(items), ms: Date.now() - started };
+  } catch {
+    return { ok: false, results: [], ms: Date.now() - started };
+  }
+}
+
 function parseOpenLibraryDocs(docs: any[]): BookCandidate[] {
   return docs
     .map((d: any): BookCandidate => {
@@ -144,11 +194,11 @@ async function searchOpenLibrary(q: string): Promise<SourceResult> {
   }
 }
 
-function mergeResults(a: BookCandidate[], b: BookCandidate[]): BookCandidate[] {
+function mergeResults(...groups: BookCandidate[][]): BookCandidate[] {
   const merged: BookCandidate[] = [];
   const seen = new Set<string>();
 
-  for (const candidate of [...a, ...b]) {
+  for (const candidate of groups.flat()) {
     // 用「书名|作者|年份|ISBN|出版社」去重，保留不同版本
     const key = [candidate.title, candidate.author, candidate.year, candidate.isbn, candidate.publisher]
       .map((v) => (v ?? '').toLowerCase())
@@ -205,15 +255,22 @@ export async function onRequestGet(context: SearchContext): Promise<Response> {
   }
 
   const apiKey = context.env?.GOOGLE_BOOKS_API_KEY ?? '';
-  const [google, openlibrary] = await Promise.allSettled([
+  const [douban, google, openlibrary] = await Promise.allSettled([
+    searchDouban(q),
     searchGoogle(q, apiKey),
     searchOpenLibrary(q),
   ]);
 
-  const googleResult: SourceResult = google.status === 'fulfilled' ? google.value : { ok: false, results: [], ms: 0 };
-  const openResult: SourceResult = openlibrary.status === 'fulfilled' ? openlibrary.value : { ok: false, results: [], ms: 0 };
+  const empty: SourceResult = { ok: false, results: [], ms: 0 };
+  const doubanResult: SourceResult = douban.status === 'fulfilled' ? douban.value : empty;
+  const googleResult: SourceResult = google.status === 'fulfilled' ? google.value : empty;
+  const openResult: SourceResult = openlibrary.status === 'fulfilled' ? openlibrary.value : empty;
 
-  const merged = mergeResults(googleResult.results, openResult.results);
+  // 中文查询把豆瓣排在最前：它的中文版封面覆盖是三者里最好的。
+  // 非中文查询则把豆瓣放最后，避免它拿中文译本挤掉用户真正要找的原版。
+  const merged = isCjk(q)
+    ? mergeResults(doubanResult.results, googleResult.results, openResult.results)
+    : mergeResults(googleResult.results, openResult.results, doubanResult.results);
   const relevant = filterRelevant(merged, q);
   const ranked = rankResults(relevant, q);
 
@@ -224,10 +281,12 @@ export async function onRequestGet(context: SearchContext): Promise<Response> {
   if (debug) {
     payload.debug = {
       query: q,
+      douban: { ok: doubanResult.ok, count: doubanResult.results.length, ms: doubanResult.ms },
       google: { ok: googleResult.ok, count: googleResult.results.length, ms: googleResult.ms },
       openlibrary: { ok: openResult.ok, count: openResult.results.length, ms: openResult.ms },
       merged: merged.length,
       relevant: relevant.length,
+      withCover: ranked.filter((c) => c.cover).length,
     };
   }
 
