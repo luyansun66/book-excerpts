@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { bigNumberInkCenter, generateLetterSvg } from '../svgGenerator';
 import { GEO_ITALIC_UPEM, HAN_UPEM, georgiaItalicGlyph, hanGlyph } from '../letterMetrics';
 
-// 独立复算：文本「最后一个字形墨迹最右缘」到笔位起点的距离（px）= visibleBounds 右缘。
+// 独立复算：按字形真实轮廓求「字身总宽 advance」与「墨迹右缘 inkRight」（px）。
 // 中文字形走华康宋体、西文走 Georgia Italic，与出处行的分字体规则一致。
-function inkRightPx(text: string, size: number): number {
+function metricsOf(text: string, size: number): { advance: number; inkRight: number } {
   let pen = 0;
   let trailingBearing = 0;
   let han = false;
@@ -20,26 +20,89 @@ function inkRightPx(text: string, size: number): number {
     pen += (glyph.adv / upem) * size;
     trailingBearing = ((glyph.adv - glyph.xMax) / upem) * size;
   }
-  return pen - trailingBearing;
+  return { advance: pen, inkRight: pen - trailingBearing };
 }
 
-/** 取出摘录各行（字号 + 基线 + 文本）。 */
-function quoteLinesOf(svg: string): Array<{ size: number; y: number; text: string }> {
-  return [...svg.matchAll(
-    /class="letter-quote" style="font-size:([\d.]+)px" transform="translate\(220 ([\d.]+)\)"><tspan x="0" y="0">([^<]+)<\/tspan>/g,
-  )].map(([, size, y, text]) => ({ size: Number(size), y: Number(y), text }));
+/** 文本「最后一个字形墨迹最右缘」到笔位起点的距离（px）= visibleBounds 右缘。 */
+function inkRightPx(text: string, size: number): number {
+  return metricsOf(text, size).inkRight;
 }
 
-/** 取出出处各行（文字左端 x + 基线 y + 文本）。 */
-function attrLinesOf(svg: string): Array<{ x: number; y: number; text: string }> {
+/** 正文列的可用宽度（RIGHT − QUOTE_X）。 */
+const COL_W = 960.2 - 220;
+
+// 摘录正文会因为「中西文间隙 / 连续标点挤压」被切成多个 tspan，所以文本要把
+// 整段内的 tspan 拼回来，才是真正落在纸面上的那串字。
+function unescapeXml(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&');
+}
+
+interface QuoteLine {
+  size: number;
+  y: number;
+  text: string;
+  /** 依次输出的 tspan：文字 + 该段之前的 dx（字距调整，px） */
+  tspans: Array<{ text: string; dx: number }>;
+}
+
+/** 取出摘录各行（字号 + 基线 + 文本 + 实际输出的 tspan/dx）。 */
+function quoteLinesOf(svg: string): QuoteLine[] {
   return [...svg.matchAll(
-    /<text class="letter-attr" style="font-size:35px" transform="translate\(([\d.]+) ([\d.]+)\)">([\s\S]*?)<\/text>/g,
-  )].map(([, x, y, inner]) => ({
+    /class="letter-quote" style="font-size:([\d.]+)px" transform="translate\(220 ([\d.]+)\)">([\s\S]*?)<\/text>/g,
+  )].map(([, size, y, inner]) => {
+    const tspans = [...inner.matchAll(/<tspan([^>]*)>([\s\S]*?)<\/tspan>/g)].map((m) => {
+      const dx = /dx="(-?[\d.]+)"/.exec(m[1]);
+      return { text: unescapeXml(m[2]), dx: dx ? Number(dx[1]) : 0 };
+    });
+    return { size: Number(size), y: Number(y), text: tspans.map((t) => t.text).join(''), tspans };
+  });
+}
+
+// 摘录正文整行都用华康宋体，因此逐字查 hanGlyph 即可；字距调整直接读 SVG 里
+// 实际输出的 dx —— 这样「断行时的宽度判定」和「渲染时的字距」是两条独立路径，
+// 谁写错了都会在这里对不上。
+function renderedMetricsPx(line: QuoteLine): { advance: number; inkRight: number } {
+  let pen = 0;
+  let inkRight = 0;
+  for (const span of line.tspans) {
+    pen += span.dx;
+    for (const ch of span.text) {
+      const g = hanGlyph(ch.codePointAt(0)!);
+      const adv = g ? (g.adv / HAN_UPEM) * line.size : 0;
+      pen += adv;
+      inkRight = pen - (g ? ((g.adv - g.xMax) / HAN_UPEM) * line.size : 0);
+    }
+  }
+  return { advance: pen, inkRight };
+}
+
+/** 一行摘录渲染后的墨迹右缘（px）。 */
+function quoteInkRightPx(line: QuoteLine): number {
+  return renderedMetricsPx(line).inkRight;
+}
+
+/** 取出出处各行（字号 + 文字左端 x + 基线 y + 文本）。 */
+function attrLinesOf(svg: string): Array<{ size: number; x: number; y: number; text: string }> {
+  return [...svg.matchAll(
+    /<text class="letter-attr" style="font-size:([\d.]+)px" transform="translate\(([\d.]+) ([\d.]+)\)">([\s\S]*?)<\/text>/g,
+  )].map(([, size, x, y, inner]) => ({
+    size: Number(size),
     x: Number(x),
     y: Number(y),
     text: [...inner.matchAll(/>([^<]*)<\/tspan>/g)].map((m) => m[1]).join(''),
   }));
 }
+
+// 出处字号固定 34px（不随摘录字号变化）；横线长 2em、上移 12/35 em、行距 1.25em。
+const round1 = (n: number) => Math.round(n * 10) / 10;
+const ATTR_SIZE = 34;
+const ruleLen = (attrSize: number) => round1(2 * attrSize);
+const ruleDy = (attrSize: number) => round1((-12 / 35) * attrSize);
 
 const base = {
   number: 47,
@@ -83,14 +146,14 @@ describe('generateLetterSvg', () => {
     expect(svg).toContain('所有的大人都曾经是小孩');
   });
 
-  it('caps the quote at 45px and floors it at 40px', () => {
+  it('caps the quote at 45px and floors it at 37px', () => {
     const short = generateLetterSvg({ ...base, quote: '一句摘录。' });
     expect(short).toContain('style="font-size:45px"');
     expect(short).not.toContain('style="font-size:48px"');
 
-    // 逐档缩到 40px 仍放不下时才截断摘录
+    // 逐档缩到下限 37px 仍放不下时才截断摘录
     const huge = generateLetterSvg({ ...base, quote: '这句话特别长，'.repeat(200) });
-    expect(huge).toContain('style="font-size:40px"');
+    expect(huge).toContain('style="font-size:37px"');
     expect(huge).toContain('…');
   });
 
@@ -125,22 +188,23 @@ describe('generateLetterSvg', () => {
     }
   });
 
-  it('right-aligns the attribution to the quote right edge with a 70px rule', () => {
+  it('right-aligns the attribution to the quote right edge with a 2em rule', () => {
     const svg = generateLetterSvg({ ...base, quote, bookTitle: '三体', bookAuthor: '刘慈欣' });
     expect(svg.match(/class="letter-attr"/g)).toHaveLength(1);
 
     const quoteLines = quoteLinesOf(svg);
-    const quoteRight = Math.max(...quoteLines.map((l) => 220 + inkRightPx(l.text, l.size)));
+    const quoteRight = Math.max(...quoteLines.map((l) => 220 + quoteInkRightPx(l)));
 
     const attrs = attrLinesOf(svg);
     expect(attrs).toHaveLength(1);
-    expect(attrs[0].x + inkRightPx('《三体》· 刘慈欣', 35)).toBeCloseTo(quoteRight, 1);
+    expect(attrs[0].x + inkRightPx('《三体》· 刘慈欣', attrs[0].size)).toBeCloseTo(quoteRight, 1);
+    expect(attrs[0].size).toBe(ATTR_SIZE);
 
-    // 等长横线挂在文字左侧，长度 70px，纵向在基线上方 12px
+    // 等长横线挂在文字左侧，长度 2em，纵向在基线上方 12/35 em
     const rule = /<line class="letter-attr-rule" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)"/.exec(svg)!;
-    expect(Number(rule[3]) - Number(rule[1])).toBeCloseTo(70, 1);
+    expect(Number(rule[3]) - Number(rule[1])).toBeCloseTo(ruleLen(attrs[0].size), 1);
     expect(Number(rule[3])).toBeCloseTo(attrs[0].x, 1);
-    expect(Number(rule[2])).toBeCloseTo(attrs[0].y - 12, 1);
+    expect(Number(rule[2])).toBeCloseTo(attrs[0].y + ruleDy(attrs[0].size), 1);
     expect(svg).toContain('《三体》· 刘慈欣');
     expect(svg).not.toContain('——');
   });
@@ -159,11 +223,186 @@ describe('generateLetterSvg', () => {
       const lines = quoteLinesOf(svg);
       expect(lines.length).toBeGreaterThan(1);
 
-      const quoteRight = Math.max(...lines.map((l) => 220 + inkRightPx(l.text, l.size)));
-      const [, attrX] = /class="letter-attr" style="font-size:35px" transform="translate\(([\d.]+) /.exec(svg)!;
-      const attrRight = Number(attrX) + inkRightPx(`《${bookTitle}》· ${bookAuthor}`, 35);
+      const quoteRight = Math.max(...lines.map((l) => 220 + quoteInkRightPx(l)));
+      const attrs = attrLinesOf(svg);
+      expect(attrs).toHaveLength(1);
+      expect(attrs[0].size).toBe(ATTR_SIZE);
+      const attrRight = attrs[0].x + inkRightPx(`《${bookTitle}》· ${bookAuthor}`, attrs[0].size);
 
       expect(attrRight, `${bookAuthor} 未与摘录右缘对齐`).toBeCloseTo(quoteRight, 1);
+    }
+  });
+
+  it('keeps the attribution at a fixed 34px across every quote tier', () => {
+    // 出处字号不跟摘录字号联动：摘录从 45 一路降到 37，出处始终是 34px。
+    // 从最短到最长扫一遍，覆盖 45→37 的每一档（不写死每档对应多少字，
+    // 免得断行规则一调、档位边界一动这条测试就假红）。
+    const seen = new Set<number>();
+    for (let n = 1; n <= 20; n++) {
+      const svg = generateLetterSvg({ ...base, quote: '四季更替，草木荣枯，'.repeat(n) + '夜。' });
+      const quoteSize = quoteLinesOf(svg)[0].size;
+      expect(quoteSize).toBeGreaterThanOrEqual(37);
+      expect(quoteSize).toBeLessThanOrEqual(45);
+      seen.add(quoteSize);
+
+      for (const line of attrLinesOf(svg)) {
+        expect(line.size, `n=${n} 出处字号应固定为 34px`).toBe(ATTR_SIZE);
+      }
+    }
+    // 顶档和下限都要走到，确认全档位下出处都是 34px
+    expect(seen.has(45)).toBe(true);
+    expect(seen.has(37)).toBe(true);
+  });
+
+  // 避头尾：行末撞线的句读不再无脑推排（会把前一个字一起顶到下一行，留下一个字的洞）。
+  // 全角句读的墨迹只占字身靠左一小段（「，」0.31em、「！」0.56em），字身右侧那片空白
+  // 本来就是留给避头尾的余量：只要标点「墨迹右缘」仍在列宽内，就让它留在行末。
+  it('keeps a line-final comma on its line instead of pushing a character down', () => {
+    const svg = generateLetterSvg({ ...base, quote: '测'.repeat(16) + '，' + '测'.repeat(30) + '。' });
+    const first = quoteLinesOf(svg)[0];
+
+    expect(first.text.endsWith('，')).toBe(true);
+    // 该行的「字身宽」已经越过列宽，但「墨迹右缘」没有 —— 这正是被允许的悬挂
+    expect(renderedMetricsPx(first).advance).toBeGreaterThan(COL_W);
+    expect(quoteInkRightPx(first)).toBeLessThanOrEqual(COL_W);
+  });
+
+  it('still pushes a character down when even the punctuation ink cannot fit', () => {
+    const svg = generateLetterSvg({ ...base, quote: '测'.repeat(16) + '！' + '测'.repeat(30) + '。' });
+    const lines = quoteLinesOf(svg);
+
+    // 「！」墨迹 0.56em，悬挂也塞不下 → 回到追い出し，连「测」一起推到下一行
+    expect(lines[0].text.endsWith('！')).toBe(false);
+    expect(lines[1].text.startsWith('测！')).toBe(true);
+  });
+
+  it('never lets any quote line’s ink cross the right column edge', () => {
+    const samples = [
+      '测'.repeat(16) + '，' + '测'.repeat(30) + '。',
+      '测'.repeat(16) + '！' + '测'.repeat(30) + '。',
+      '所有的大人都曾经是小孩，虽然，只有少数的人记得。',
+      '人生一世，最后会发现名利财富都是空，人能够拥有的只有生命本身。但生命的流逝使得它难以实现超越时段的自我确认，唯有文字能够担当此任，宣告生命曾经在场。经由它们，我们得以端详生命的纹理，探寻生命的本质与深意。',
+      '四季更替，草木荣枯，'.repeat(16) + '夜。',
+    ];
+    for (const quote of samples) {
+      for (const line of quoteLinesOf(generateLetterSvg({ ...base, quote }))) {
+        expect(quoteInkRightPx(line), `越出列宽：${line.text}`).toBeLessThanOrEqual(COL_W + 0.01);
+      }
+    }
+  });
+
+  // ─── 摘录正文排版规范 ───────────────────────────────────────────────────────
+  // 逐字的笔位与墨迹范围，用来验证字距规则在纸面上的实际观感。
+  interface GlyphRun { ch: string; penStart: number; inkEnd: number }
+
+  function glyphRuns(line: QuoteLine): GlyphRun[] {
+    const out: GlyphRun[] = [];
+    let pen = 0;
+    for (const span of line.tspans) {
+      pen += span.dx;
+      for (const ch of span.text) {
+        const g = hanGlyph(ch.codePointAt(0)!);
+        const adv = g ? (g.adv / HAN_UPEM) * line.size : 0;
+        out.push({ ch, penStart: pen, inkEnd: pen + (g ? (g.xMax / HAN_UPEM) * line.size : 0) });
+        pen += adv;
+      }
+    }
+    return out;
+  }
+
+  /** 前一个字墨迹右端 → 后一个字笔位起点之间的空白（px），即肉眼看到的字距。 */
+  function gapBeforePx(runs: GlyphRun[], i: number): number {
+    return runs[i].penStart - runs[i - 1].inkEnd;
+  }
+
+  const breakingSamples = [
+    '测'.repeat(14) + '「引号开始的句子」' + '测'.repeat(10) + '。',
+    '测'.repeat(14) + '（括号内容）' + '测'.repeat(10) + '。',
+    '测'.repeat(13) + '《书名号》' + '测'.repeat(12) + '。',
+    '测'.repeat(16) + '，' + '测'.repeat(30) + '。',
+    '测'.repeat(16) + '！' + '测'.repeat(30) + '。',
+    '所有的大人都曾经是小孩，虽然，只有少数的人记得。',
+    '四季更替，草木荣枯，'.repeat(16) + '夜。',
+  ];
+
+  it('避尾：行末不出现起首标点（左引号 / 左括号 / 书名号）', () => {
+    // 15 个全角字 + 左括号正好填满一行：旧实现会把「（」留在行末，内容被切在下一行
+    const svg = generateLetterSvg({ ...base, quote: '测'.repeat(15) + '（括号内容）' + '测'.repeat(9) + '。' });
+    const lines = quoteLinesOf(svg);
+    expect(lines[0].text).toBe('测'.repeat(15));
+    expect(lines[1].text.startsWith('（括号内容）')).toBe(true);
+
+    const prohibitedEnd = '（《「『【〔〈';
+    for (const quote of breakingSamples) {
+      for (const line of quoteLinesOf(generateLetterSvg({ ...base, quote }))) {
+        expect(prohibitedEnd.includes(line.text[line.text.length - 1]), `行末标点：${line.text}`).toBe(false);
+      }
+    }
+  });
+
+  it('避头：行首不出现收尾标点', () => {
+    const prohibitedStart = '，。、；：！？）」』】〕〉》…';
+    for (const quote of breakingSamples) {
+      for (const line of quoteLinesOf(generateLetterSvg({ ...base, quote }))) {
+        expect(prohibitedStart.includes(line.text[0]), `行首标点：${line.text}`).toBe(false);
+      }
+    }
+  });
+
+  const PUNCT = '，。、；：！？）」』】〕〉》…（《「『【〔〈';
+  const isPunct = (ch: string) => PUNCT.includes(ch);
+
+  /** 与实现同一套「中文/西文」归类：CJK 标点算中文一侧。 */
+  const isCjkChar = (ch: string) => {
+    const cp = ch.codePointAt(0)!;
+    return (
+      (cp >= 0x4e00 && cp <= 0x9fff) || (cp >= 0x3000 && cp <= 0x303f) ||
+      (cp >= 0xff00 && cp <= 0xffef) || (cp >= 0x2e80 && cp <= 0x2eff) ||
+      (cp >= 0xf900 && cp <= 0xfaff)
+    );
+  };
+
+  it('连续标点之间挤压空白余量，不留整格空洞', () => {
+    const svg = generateLetterSvg({ ...base, quote: '他把这句话叫作「命运。」然后转身离开了，天气很好。' });
+    const line = quoteLinesOf(svg)[0];
+    const runs = glyphRuns(line);
+
+    let checked = 0;
+    for (let i = 1; i < runs.length; i++) {
+      if (!isPunct(runs[i - 1].ch) || !isPunct(runs[i].ch)) continue;
+      checked++;
+      // 不挤压时两字之间会空掉前一个标点的整段自带空白（」约 0.61em、。约 0.64em）；
+      // 压掉一半后剩约 0.3em，与正常的字间差不多。
+      const gapEm = gapBeforePx(runs, i) / line.size;
+      const pair = `${runs[i - 1].ch}${runs[i].ch}`;
+      expect(gapEm, pair).toBeLessThan(0.4);
+      expect(gapEm, pair).toBeGreaterThan(0.15);
+    }
+    expect(checked, '样本里应出现相邻标点').toBeGreaterThan(0);
+  });
+
+  it('中西文之间补足 1/4em 空隙', () => {
+    const svg = generateLetterSvg({ ...base, quote: '他说hello world然后离开了，天气很好。' });
+    const line = quoteLinesOf(svg)[0];
+    const runs = glyphRuns(line);
+
+    let checked = 0;
+    for (let i = 1; i < runs.length; i++) {
+      const cur = runs[i].ch;
+      if (cur === ' ') continue;
+      if (isCjkChar(runs[i - 1].ch) === isCjkChar(cur)) continue;
+      checked++;
+      // 前一个字自带的右侧空白算在内，补足到 1/4em
+      expect(gapBeforePx(runs, i) / line.size, `${runs[i - 1].ch}→${cur}`).toBeGreaterThan(0.2);
+    }
+    expect(checked, '样本里应出现中西文交界').toBeGreaterThan(0);
+  });
+
+  it('行首与行末都不留空格', () => {
+    const svg = generateLetterSvg({ ...base, quote: '测'.repeat(15) + ' 后面 ' + '测'.repeat(24) + ' 收尾。' });
+    for (const line of quoteLinesOf(svg)) {
+      expect(line.text.startsWith(' '), `行首空格：|${line.text}|`).toBe(false);
+      expect(line.text.endsWith(' '), `行末空格：|${line.text}|`).toBe(false);
     }
   });
 
@@ -174,17 +413,18 @@ describe('generateLetterSvg', () => {
     const attrs = attrLinesOf(svg);
     return attrs[0].y - Math.max(...quoteLines.map((l) => l.y));
   };
-  const impliedBaselineGap = (inkGap: number, quoteSize: number) =>
-    0.22 * quoteSize + inkGap + 0.85 * 35;
+  const impliedBaselineGap = (inkGap: number, quoteSize: number, attrSize: number) =>
+    0.22 * quoteSize + inkGap + 0.85 * attrSize;
 
   it('uses the comfortable ink gap when the quote leaves room below', () => {
     const svg = generateLetterSvg({ ...base, quote: '一句摘录。' });
-    const size = quoteLinesOf(svg)[0].size;
-    expect(baselineGapOf(svg)).toBeCloseTo(impliedBaselineGap(120, size), 0);
-
     const attrs = attrLinesOf(svg);
+    const size = quoteLinesOf(svg)[0].size;
+    expect(attrs[0].size).toBe(ATTR_SIZE);
+    expect(baselineGapOf(svg)).toBeCloseTo(impliedBaselineGap(120, size, attrs[0].size), 0);
+
     const [, ruleY] = /class="letter-attr-rule" x1="[\d.]+" y1="([\d.]+)"/.exec(svg)!;
-    expect(Number(ruleY)).toBeCloseTo(attrs[0].y - 12, 1);
+    expect(Number(ruleY)).toBeCloseTo(attrs[0].y + ruleDy(attrs[0].size), 1);
   });
 
   it('tightens the ink gap for a long quote but never below 85px, keeping 30px off the bottom rule', () => {
@@ -196,11 +436,11 @@ describe('generateLetterSvg', () => {
     // 每行都在 45–40 档内，且行宽不超过正文列宽
     for (const l of lines) {
       expect(l.size).toBeLessThanOrEqual(45);
-      expect(l.size).toBeGreaterThanOrEqual(40);
+      expect(l.size).toBeGreaterThanOrEqual(37);
     }
 
-    expect(baselineGapOf(svg)).toBeGreaterThanOrEqual(impliedBaselineGap(85, 40) - 0.5);
-    expect(baselineGapOf(svg)).toBeLessThanOrEqual(impliedBaselineGap(120, 45) + 0.5);
+    expect(baselineGapOf(svg)).toBeGreaterThanOrEqual(impliedBaselineGap(85, 37, ATTR_SIZE) - 0.5);
+    expect(baselineGapOf(svg)).toBeLessThanOrEqual(impliedBaselineGap(120, 45, ATTR_SIZE) + 0.5);
 
     const attrs = attrLinesOf(svg);
     expect(attrs[attrs.length - 1].y).toBeLessThanOrEqual(1413.1 - 30);
@@ -217,15 +457,18 @@ describe('generateLetterSvg', () => {
     expect(svg).not.toContain('NaN');
     expect(svg).toContain('…');
 
-    const [, baseline] = /class="letter-attr" style="font-size:35px" transform="translate\((-?[\d.]+) (-?[\d.]+)\)"/.exec(svg) ?? [];
+    const [, baseline] = /class="letter-attr" style="font-size:[\d.]+px" transform="translate\((-?[\d.]+) (-?[\d.]+)\)"/.exec(svg) ?? [];
     expect(Number(baseline)).toBeLessThan(1413.1);
   });
 
   it('escapes XML special characters in the quote', () => {
-    const svg = generateLetterSvg({ ...base, quote: '他说：“你好” & <世界>' });
+    const quote = '他说：“你好” & <世界>';
+    const svg = generateLetterSvg({ ...base, quote });
+
     expect(svg).not.toContain('<世界>');
     expect(svg).toContain('&amp;');
-    expect(svg).toContain('&lt;世界&gt;');
+    // 转义后按 tspan 拼回来，必须与原文逐字一致
+    expect(quoteLinesOf(svg).map((l) => l.text).join('')).toBe(quote);
   });
 
   it('keeps a short quote on a single line', () => {
@@ -246,23 +489,23 @@ describe('generateLetterSvg', () => {
 
     const quoteLines = quoteLinesOf(svg);
     expect(quoteLines).toHaveLength(1);
-    const quoteRight = 220 + inkRightPx(quoteLines[0].text, quoteLines[0].size);
+    const quoteRight = 220 + quoteInkRightPx(quoteLines[0]);
 
     const attrs = attrLinesOf(svg);
     // 折行后分隔符跟着作者落到次行行首，首行以书名号收尾（右缘更「实」）
     expect(attrs.map((l) => l.text)).toEqual(['《小王子》', '· Antoine de Saint-Exupéry']);
     for (const line of attrs) {
       expect(
-        line.x + inkRightPx(line.text, 35),
+        line.x + inkRightPx(line.text, line.size),
         `${line.text} 未与摘录右缘对齐`,
       ).toBeCloseTo(quoteRight, 1);
     }
 
     // 横线只挂在首行左侧，且整段不越左侧内容边界（60.2）
     const rule = /<line class="letter-attr-rule" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)"/.exec(svg)!;
-    expect(Number(rule[1])).toBeCloseTo(attrs[0].x - 70, 1);
+    expect(Number(rule[1])).toBeCloseTo(attrs[0].x - ruleLen(attrs[0].size), 1);
     expect(Number(rule[1])).toBeGreaterThanOrEqual(60.2);
-    expect(Number(rule[2])).toBeCloseTo(attrs[0].y - 12, 1);
+    expect(Number(rule[2])).toBeCloseTo(attrs[0].y + ruleDy(attrs[0].size), 1);
     // 折行后末行仍要留在底部横线之上（≥30px）
     expect(attrs[attrs.length - 1].y).toBeLessThanOrEqual(1413.1 - 30);
     expect(attrs[1].y).toBeGreaterThan(attrs[0].y);
@@ -290,13 +533,13 @@ describe('generateLetterSvg', () => {
       expect(attrs.length).toBeLessThanOrEqual(2);
 
       const quoteLines = quoteLinesOf(svg);
-      const quoteRight = Math.max(...quoteLines.map((l) => 220 + inkRightPx(l.text, l.size)));
+      const quoteRight = Math.max(...quoteLines.map((l) => 220 + quoteInkRightPx(l)));
 
       attrs.forEach((line, i) => {
         // 首行左边要留得下横线，其余行直接受内容左边界约束
-        const margin = 60.2 + (i === 0 ? 70 : 0);
+        const margin = 60.2 + (i === 0 ? ruleLen(line.size) : 0);
         expect(line.x, `${sample.bookTitle} 第 ${i + 1} 行越出左边界`).toBeGreaterThanOrEqual(margin - 0.1);
-        expect(line.x + inkRightPx(line.text, 35)).toBeLessThanOrEqual(quoteRight + 0.1);
+        expect(line.x + inkRightPx(line.text, line.size)).toBeLessThanOrEqual(quoteRight + 0.1);
       });
       expect(attrs[attrs.length - 1].y).toBeLessThanOrEqual(1413.1 - 30);
     }
