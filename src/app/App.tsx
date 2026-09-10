@@ -8,6 +8,14 @@ import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
 import { useOpenMailbox } from './mailbox/MailboxProvider';
 import ReadingTimerBar from './components/timer/ReadingTimerBar';
 import { usePrefetchOnIdle } from './hooks/usePrefetchOnIdle';
+import {
+  SHELF_COVER_STRIDE,
+  SHELF_SIDE_PADDING,
+  isInsideHorizontalScroller,
+  measureShelfSnapOffsets,
+  pickShelfScrollTarget,
+  shelfTrailingSlack,
+} from './shelfScroll';
 
 import { useApp } from './store';
 import { seedDemianBook } from './db';
@@ -34,9 +42,17 @@ function lighten(hex: string): string {
 
 const COVER_W = 94;
 const COVER_H = 145;
+// 长按激活拖拽前的容差：超过这个位移就认为用户在滑书，不进入拖拽
+const DRAG_HOLD_SLOP = 8;
+// 长按时长，以及到点后的复核窗口
+const DRAG_HOLD_MS = 300;
+const DRAG_HOLD_CONFIRM_MS = 120;
 const APP_BASE_URL = import.meta.env.BASE_URL;
 // ─── Book cover — adapted from original, uses real data ──────────────────────
 function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: Book) => void; dragActive?: boolean }) {
+  // 图片型封面加载失败（比如 blob: 地址早就失效）时，封面框会是全透明的，
+  // 书架上就只剩一个"空位"。这里退回到带书名的占位封面。
+  const [failedCoverSrc, setFailedCoverSrc] = useState<string | null>(null);
   const sharedStyle: React.CSSProperties = {
     width: COVER_W,
     height: COVER_H,
@@ -64,7 +80,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
   };
 
   // Has cover image
-  if (book.coverType && book.coverData) {
+  if (book.coverType && book.coverData && failedCoverSrc !== book.coverData) {
     return (
       <div
         onClick={handleClick}
@@ -76,6 +92,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
         <img
           src={book.coverData}
           alt={book.title}
+          onError={() => setFailedCoverSrc(book.coverData ?? null)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
       </div>
@@ -277,6 +294,8 @@ function ShelfRow({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  // 右侧补白，保证滚动末端也落在吸附位上（否则滑到底时左边会空出一截）
+  const [trailingSlack, setTrailingSlack] = useState(0);
 
   const updateScrollState = useCallback(() => {
     const el = scrollRef.current;
@@ -297,11 +316,34 @@ function ShelfRow({
     };
   }, [books.length, updateScrollState]);
 
-  const scrollBy = (direction: number) => {
-    scrollRef.current?.scrollBy({
-      left: direction * (COVER_W + 6) * 3,
-      behavior: 'smooth',
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      // 内容自然宽度：每本书一个步长，最后一本后面没有书脊
+      const naturalWidth = SHELF_COVER_STRIDE * books.length - SHELF_SIDE_PADDING;
+      setTrailingSlack(shelfTrailingSlack(naturalWidth, el.clientWidth));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [books.length]);
+
+  // 箭头翻一屏：先按可视宽度走，再吸附到最近的合法位置（封面左缘对齐内容左边距），
+  // 并夹在 [0, maxScroll] 内。固定步长会在书数不是 3 的整数倍时停在半路，
+  // 看起来就是"第一个格子空了"。
+  const scrollBy = (direction: 1 | -1) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    const target = pickShelfScrollTarget({
+      current: el.scrollLeft,
+      direction,
+      viewport: el.clientWidth,
+      snapOffsets: measureShelfSnapOffsets(el),
+      maxScroll,
     });
+    el.scrollTo({ left: target, behavior: 'smooth' });
   };
 
   // ─── Drag-and-drop state and handlers ───────────────────────────────────
@@ -314,12 +356,26 @@ function ShelfRow({
   dragStateRef.current = dragState;
 
   const holdTimerRef = useRef<number | null>(null);
-  const dragTracking = useRef<{ startX: number; index: number; book: Book } | null>(null);
+  const confirmTimerRef = useRef<number | null>(null);
+  // grabX = 手指按下的位置；startX = 拖拽真正"拿起"的位置（换位距离从它算起）
+  const dragTracking = useRef<{
+    grabX: number;
+    startX: number;
+    lastX: number;
+    index: number;
+    book: Book;
+    /** 按下时书架的滚动位置：若长按期间书架已经滚动，说明这是滑书不是拖动 */
+    scrollLeftAtGrab: number;
+  } | null>(null);
 
   const clearHold = () => {
     if (holdTimerRef.current !== null) {
       clearTimeout(holdTimerRef.current);
       holdTimerRef.current = null;
+    }
+    if (confirmTimerRef.current !== null) {
+      clearTimeout(confirmTimerRef.current);
+      confirmTimerRef.current = null;
     }
   };
 
@@ -336,7 +392,7 @@ function ShelfRow({
     const state = dragStateRef.current;
     if (!state) return;
     const delta = clientX - state.startX;
-    const threshold = COVER_W + 6;
+    const threshold = SHELF_COVER_STRIDE;
     const idxShift = Math.round(delta / threshold);
     const targetIdx = Math.max(0, Math.min(books.length - 1, state.index + idxShift));
     if (targetIdx !== state.targetIndex) {
@@ -355,12 +411,33 @@ function ShelfRow({
     clearHold();
   };
 
+  /**
+   * 手指/鼠标移动的统一入口。
+   *
+   * 长按到点之前只要横向位移超过容差，就认定用户在滑书，取消这次长按 ——
+   * 否则松手会静默换位（书架顺序被改掉，看起来就像"第一个位置空了"）。
+   */
+  const handlePointerMove = (clientX: number) => {
+    if (dragStateRef.current) {
+      processDragMove(clientX);
+      return;
+    }
+    const tracked = dragTracking.current;
+    if (!tracked) return;
+    tracked.lastX = clientX;
+    // 横向位移超过容差、或书架已经滚动 → 用户在滑书，取消这次长按
+    const scrolled = Math.abs((scrollRef.current?.scrollLeft ?? 0) - tracked.scrollLeftAtGrab) > 2;
+    if (Math.abs(clientX - tracked.grabX) > DRAG_HOLD_SLOP || scrolled) {
+      dragTracking.current = null;
+      clearHold();
+    }
+  };
+
   // Window mousemove/mouseup for desktop (mouse may leave the element during drag)
   useEffect(() => {
     const handleMove = (e: MouseEvent) => {
-      if (!dragStateRef.current) return;
-      e.preventDefault();
-      processDragMove(e.clientX);
+      if (dragStateRef.current) e.preventDefault();
+      handlePointerMove(e.clientX);
     };
     const handleUp = () => { commitDrag(); };
     window.addEventListener('mousemove', handleMove, { passive: false });
@@ -373,19 +450,30 @@ function ShelfRow({
 
   // Start drag hold (called from touch and mouse start on wrapper)
   const startDragHold = (clientX: number, book: Book, idx: number) => {
-    dragTracking.current = { startX: clientX, index: idx, book };
+    dragTracking.current = {
+      grabX: clientX,
+      startX: clientX,
+      lastX: clientX,
+      index: idx,
+      book,
+      scrollLeftAtGrab: scrollRef.current?.scrollLeft ?? 0,
+    };
+    // 长按到点后不立刻拿起，留一个确认窗口：真机上 touchmove 可能比计时器晚到，
+    // 这一小段时间足够把"其实在滑书"的手势拦下来。
     holdTimerRef.current = window.setTimeout(() => {
+      holdTimerRef.current = null;
       if (!dragTracking.current) return;
-      // 触觉反馈（移动端，静默失败）
-      if (typeof navigator.vibrate === 'function') {
-        navigator.vibrate(10);
-      }
-      setDragState({
-        index: dragTracking.current.index,
-        targetIndex: dragTracking.current.index,
-        startX: dragTracking.current.startX,
-      });
-    }, 300);
+      confirmTimerRef.current = window.setTimeout(() => {
+        confirmTimerRef.current = null;
+        const tracked = dragTracking.current;
+        if (!tracked) return;
+        setDragState({ index: tracked.index, targetIndex: tracked.index, startX: tracked.lastX });
+        // 触觉反馈（移动端，静默失败）
+        if (typeof navigator.vibrate === 'function') {
+          navigator.vibrate(10);
+        }
+      }, DRAG_HOLD_CONFIRM_MS);
+    }, DRAG_HOLD_MS);
   };
 
   return (
@@ -492,14 +580,14 @@ function ShelfRow({
           style={{
             display: 'flex',
             gap: 6,
-            paddingLeft: 18,
-            paddingRight: 18,
+            paddingLeft: SHELF_SIDE_PADDING,
+            paddingRight: SHELF_SIDE_PADDING + trailingSlack,
             overflowX: 'auto',
             overflowY: 'hidden',
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
             WebkitOverflowScrolling: 'touch',
-            scrollSnapType: 'x mandatory', scrollPaddingLeft: 18,
+            scrollSnapType: 'x mandatory', scrollPaddingLeft: SHELF_SIDE_PADDING,
             position: 'relative',
           }}
         >
@@ -510,6 +598,7 @@ function ShelfRow({
               <React.Fragment key={book.id}>
                 {/* Book cover wrapper with drag support */}
                 <div
+                  data-shelf-cover=""
                   style={{
                     scrollSnapAlign: 'start',
                     flexShrink: 0,
@@ -522,15 +611,9 @@ function ShelfRow({
                   }}
                   onTouchStart={(e) => startDragHold(e.touches[0].clientX, book, origIdx)}
                   onTouchMove={(e) => {
-                    if (dragStateRef.current) {
-                      // In drag mode: process the drag and prevent scroll
-                      e.preventDefault();
-                      processDragMove(e.touches[0].clientX);
-                    } else if (dragTracking.current &&
-                        Math.abs(e.touches[0].clientX - dragTracking.current.startX) > 20) {
-                      // Before drag activates: significant movement = scroll → cancel hold
-                      clearHold();
-                    }
+                    // In drag mode: process the drag and prevent scroll
+                    if (dragStateRef.current) e.preventDefault();
+                    handlePointerMove(e.touches[0].clientX);
                   }}
                   onTouchEnd={() => { commitDrag(); }}
                   onTouchCancel={() => { commitDrag(); }}
@@ -926,8 +1009,9 @@ export default function App() {
     const onTouchMove = (e: TouchEvent) => {
       const currentX = e.touches[0].clientX;
       const deltaX = currentX - touchStartX;
-      // Block rightward swipe (back gesture) only when touch started outside left 20px
-      if (touchStartX > 20 && deltaX > 5) {
+      // Block rightward swipe (back gesture) only when touch started outside left 20px.
+      // 横向可滚动区域（书架）例外：它本来就靠左右拖动翻书，拦住就回不去了。
+      if (touchStartX > 20 && deltaX > 5 && !isInsideHorizontalScroller(e.target)) {
         e.preventDefault();
       }
     };
