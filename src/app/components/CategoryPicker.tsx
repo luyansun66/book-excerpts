@@ -17,12 +17,34 @@ import { motion } from 'motion/react';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import type { Category } from '../types';
 
-/** 一整块浮起来的材质，磨砂给厚一点；小碎片用 14px 就够。 */
-const GLASS_FILTER = 'blur(24px) saturate(180%)';
+/**
+ * 一整块浮起来的材质，磨砂给厚一点；小碎片用 14px 就够。
+ * 半径得够大，是因为面板后面压着一整屏内容（插画、表单文字）：
+ * 糊不开的话，tint 再厚也会透出可辨认的形状，看着乱；
+ * 糊开了才只剩一片色晕，这时候把 tint 调薄反而是玻璃感的来源。
+ * brightness 让透过来的底色发亮，iOS 的材质就是这么「亮」起来的。
+ */
+const GLASS_FILTER = 'blur(40px) saturate(180%) brightness(1.08)';
 /** 临界阻尼、不 overshoot：材质到位就停，不该弹跳。 */
 const MATERIALIZE = { type: 'spring', stiffness: 420, damping: 34, mass: 0.9 } as const;
 /** iOS 的最小可点尺寸，行和行尾按钮都不低于它。 */
 const TAP_TARGET = 44;
+/**
+ * 列表行的实际高度。压在 44 的可点下限之上一点点，是为了让 14px 的字
+ * 上下各有约 15px 的呼吸位 —— 再高列表就显得松散，再矮就顶到可点下限了。
+ */
+const ROW_HEIGHT = 45;
+/** 这一层叠在「添加书籍」弹窗之上，父层再压暗一档，否则两层字会互相干扰。 */
+const STACKED_SCRIM = 'rgba(28,22,12,0.35)';
+
+/**
+ * 玻璃的出场动效只能动 transform 和 opacity —— 不能在它身上或它的任何祖先身上挂
+ * filter。带 filter 的祖先会新建一个 backdrop root，backdrop-filter 就采样不到
+ * 面板后面的东西了：磨砂静默失效，面板退化成一块半透明底色（看着就像纯色卡片）。
+ * 所以要虚化出场的话，只能虚化里面的内容层，不能虚化玻璃自己。
+ */
+const MATERIALIZE_GLASS = { opacity: 0, scale: 0.92 } as const;
+const MATERIALIZE_CONTENT = { filter: 'blur(8px)' } as const;
 
 /** getBoundingClientRect 里我们真正用到的那几个值。 */
 export interface RectLike {
@@ -112,40 +134,41 @@ export default function CategoryPicker({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
-        style={{ position: 'absolute', inset: 0, background: 'var(--color-bg-overlay)' }}
+        style={{ position: 'absolute', inset: 0, background: STACKED_SCRIM }}
       />
 
-      {/* 材质层只负责缩放/虚化出场，自己不带 backdrop-filter，
-          免得 CSS filter 和 backdrop-filter 在同一层上互相干扰 */}
       <motion.div
         ref={panelRef}
-        initial={{ opacity: 0, scale: 0.92, filter: 'blur(10px)' }}
-        animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="选择分类"
+        initial={MATERIALIZE_GLASS}
+        animate={{ opacity: 1, scale: 1 }}
         transition={MATERIALIZE}
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
           width: '100%',
           maxWidth: 320,
+          maxHeight: '60vh',
           transformOrigin: origin,
+          background: 'var(--color-glass-panel)',
+          backdropFilter: GLASS_FILTER,
+          WebkitBackdropFilter: GLASS_FILTER,
+          border: '1px solid var(--color-glass-panel-edge)',
+          borderRadius: 22,
+          boxShadow: '0 18px 48px rgba(28,22,12,0.28)',
+          overflow: 'hidden',
         }}
       >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="选择分类"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            maxHeight: '60vh',
-            background: 'var(--color-glass)',
-            backdropFilter: GLASS_FILTER,
-            WebkitBackdropFilter: GLASS_FILTER,
-            border: '1px solid var(--color-glass-edge)',
-            borderRadius: 22,
-            boxShadow: '0 18px 48px rgba(28,22,12,0.28)',
-            overflow: 'hidden',
-          }}
+        {/* 内容层：整块字从虚化里对焦出来。filter 挂在这里是安全的（见上面那段注释） */}
+        <motion.div
+          initial={MATERIALIZE_CONTENT}
+          animate={{ filter: 'blur(0px)' }}
+          transition={MATERIALIZE}
+          style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
         >
           <h3
             style={{
@@ -194,7 +217,7 @@ export default function CategoryPicker({
                     style={{
                       flex: 1,
                       minWidth: 0,
-                      minHeight: TAP_TARGET + 4,
+                      minHeight: ROW_HEIGHT,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 8,
@@ -202,9 +225,8 @@ export default function CategoryPicker({
                       border: 'none',
                       background: 'transparent',
                       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                      fontSize: 17,
+                      fontSize: 14,
                       fontWeight: selected ? 600 : 400,
-                      letterSpacing: '-0.01em',
                       color: 'var(--color-text)',
                       textAlign: 'left',
                       cursor: 'pointer',
@@ -227,7 +249,7 @@ export default function CategoryPicker({
                       alignItems: 'center',
                       justifyContent: 'center',
                       width: TAP_TARGET,
-                      minHeight: TAP_TARGET + 4,
+                      minHeight: ROW_HEIGHT,
                       alignSelf: 'stretch',
                       border: 'none',
                       background: 'transparent',
@@ -253,13 +275,12 @@ export default function CategoryPicker({
               display: 'flex',
               alignItems: 'center',
               gap: 6,
-              minHeight: TAP_TARGET + 4,
+              minHeight: ROW_HEIGHT,
               border: 'none',
               borderTop: '1px solid rgba(28,22,12,0.09)',
               background: 'transparent',
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              fontSize: 17,
-              letterSpacing: '-0.01em',
+              fontSize: 14,
               color: 'var(--color-text-secondary)',
               cursor: 'pointer',
               paddingLeft: 20,
@@ -268,7 +289,7 @@ export default function CategoryPicker({
             <Plus size={17} strokeWidth={2.5} color="var(--color-gold)" />
             新建分类
           </button>
-        </div>
+        </motion.div>
       </motion.div>
     </div>
   );

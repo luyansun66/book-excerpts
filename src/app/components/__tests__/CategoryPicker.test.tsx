@@ -7,6 +7,8 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import CategoryPicker, { scaleOriginFor } from '../CategoryPicker';
 import type { Category } from '../../types';
 
@@ -68,10 +70,10 @@ describe('分类面板：iOS 磨砂玻璃', () => {
     expect(panel.getAttribute('aria-label')).toBe('选择分类');
   });
 
-  it('面板底色是半透明玻璃令牌，而不是一块不透明的白', () => {
+  it('面板底色走「大面板」那档玻璃令牌，而不是给小碎片用的那档', () => {
     const { container } = open();
     const style = glassPanel(container).style;
-    expect(style.background).toContain('--color-glass');
+    expect(style.background).toContain('--color-glass-panel');
     expect(style.backdropFilter).toContain('blur');
     // 代码里同时写了 -webkit-backdrop-filter（iOS 18 以下的 Safari 只认前缀版），
     // 但 jsdom 不认识这个前缀属性，会直接丢掉，所以这里断言不了。
@@ -79,7 +81,23 @@ describe('分类面板：iOS 磨砂玻璃', () => {
 
   it('上缘有一道内高光边，玻璃才有厚度', () => {
     const { container } = open();
-    expect(glassPanel(container).style.border).toContain('--color-glass-edge');
+    expect(glassPanel(container).style.border).toContain('--color-glass-panel-edge');
+  });
+
+  it('磨砂半径给得够大，背后一整屏内容才糊得开', () => {
+    const { container } = open();
+    const blur = parseFloat(/blur\(([\d.]+)px\)/.exec(glassPanel(container).style.backdropFilter)![1]);
+    expect(blur).toBeGreaterThanOrEqual(28);
+  });
+
+  it('玻璃身上和它的祖先上都不能挂 filter —— 挂了 backdrop 采样会被切断，磨砂直接失效', () => {
+    const { container } = open();
+    let el: HTMLElement | null = glassPanel(container);
+    while (el && el !== container) {
+      expect(el.style.filter, `${el.tagName} 上挂着 filter，会挡掉玻璃的 backdrop 采样`).toBe('');
+      el = el.parentElement;
+    }
+    expect(el, '一路走到容器都没找到玻璃层').not.toBeNull();
   });
 
   it('行和删除按钮的可点区域都不小于 44px（iOS 最小可点尺寸）', () => {
@@ -93,6 +111,28 @@ describe('分类面板：iOS 磨砂玻璃', () => {
     }
     expect(parseFloat(del.style.width)).toBeGreaterThanOrEqual(44);
     expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it('分类名和「新建分类」都收在 15px 一档，别顶到系统大标题那个尺寸', () => {
+    const { container } = open();
+    const nameRow = container.querySelector('button[aria-label="选择分类 文学"]') as HTMLElement;
+    const createRow = container.querySelector('button[aria-label="弹窗内新建分类"]') as HTMLElement;
+
+    for (const el of [nameRow, createRow]) {
+      const size = parseFloat(el.style.fontSize);
+      expect(size, `${el.getAttribute('aria-label')} 的字号 ${size}px 偏大`).toBeLessThanOrEqual(15);
+      expect(size, `${el.getAttribute('aria-label')} 的字号 ${size}px 偏小`).toBeGreaterThanOrEqual(13);
+    }
+    // 两行必须同号，否则列表里字一大一小跳着走
+    expect(createRow.style.fontSize).toBe(nameRow.style.fontSize);
+  });
+
+  it('行高 45px：压着 44 的可点下限，但别把列表撑散', () => {
+    const { container } = open();
+    for (const label of ['选择分类 文学', '删除分类 文学', '弹窗内新建分类']) {
+      const el = container.querySelector(`button[aria-label="${label}"]`) as HTMLElement;
+      expect(parseFloat(el.style.minHeight), `${label} 的行高不是 45px`).toBe(45);
+    }
   });
 
   it('选中项用金色勾号 + 加粗，不靠加个框来区分', () => {
@@ -165,5 +205,35 @@ describe('缩放锚点', () => {
   it('尺寸拿不到时返回 null，交给调用方兜底（否则会算出 NaN，面板整个渲染不出来）', () => {
     expect(scaleOriginFor({ ...panel, width: 0 }, { left: 0, top: 0, width: 0, height: 0 })).toBeNull();
     expect(scaleOriginFor(panel, { left: 0, top: 0, width: 80, height: 0 })).toBeNull();
+  });
+});
+
+describe('面板材质的不透明度下限（别再调薄）', () => {
+  // 这条线只管「底下的东西别读成第二层字」，不是拿来定玻璃该多厚的。
+  // 真正把背景压成一片色晕的是 backdrop-filter（见上面那条半径断言），
+  // 只有磨砂失效时，tint 才会退化成唯一的那层遮挡 —— 那会儿才需要把 tint 加到 0.9 以上。
+  // 磨砂是好的，tint 就可以薄：0.75 / 0.77 是当前选的那档，下面留一点余量。
+  const css = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf-8');
+
+  function alphas(token: string): number[] {
+    const re = new RegExp(`${token}:\\s*rgba\\([^)]*?,\\s*([\\d.]+)\\s*\\)`, 'g');
+    return Array.from(css.matchAll(re), (m) => parseFloat(m[1]));
+  }
+
+  it('浅色和深色下的大面板都落在「够实但仍是玻璃」的区间里', () => {
+    const values = alphas('--color-glass-panel');
+    expect(values.length, 'tokens.css 里没找到 --color-glass-panel 的 rgba 定义').toBeGreaterThanOrEqual(2);
+    for (const a of values) {
+      // 太透：底下的插画和文字会读上来，两层字叠在一起。
+      expect(a, `alpha ${a} 太透了，背景会读上来`).toBeGreaterThanOrEqual(0.7);
+      // 太实：就成了纯色卡片，玻璃感没了。
+      expect(a, `alpha ${a} 太实了，看着就是一块纯色卡片`).toBeLessThanOrEqual(0.9);
+    }
+  });
+
+  it('大面板比给小碎片用的那档更实（材质层级：面越大越厚）', () => {
+    const panel = Math.min(...alphas('--color-glass-panel'));
+    const chip = Math.max(...alphas('--color-glass'));
+    expect(panel).toBeGreaterThan(chip);
   });
 });

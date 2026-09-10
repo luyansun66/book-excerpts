@@ -28,8 +28,14 @@
   --color-border-light:   rgba(180, 160, 130, 0.25);
 
   /* ── 毛玻璃材质（iOS 风格居中弹窗） ─────────────────────────────────────── */
+  /* 小碎片（行、按钮）用普通 glass 就够。 */
   --color-glass:          rgba(253, 251, 246, 0.72);
   --color-glass-edge:     rgba(255, 255, 255, 0.55);
+  /* 整块浮起的大面板：比小碎片实一点，让底下那层字不至于读上来。
+     注意别指望靠加厚去遮背景 —— 挡住可辨认形状的是 backdrop-filter 的磨砂半径，
+     tint 一旦加厚到接近不透明，玻璃感就没了，只剩一块纯色卡片。 */
+  --color-glass-panel:    rgba(253, 251, 246, 0.75);
+  --color-glass-panel-edge: rgba(255, 255, 255, 0.7);
 
   /* ── 按钮 ──────────────────────────────────────────────────────────────── */
   --color-btn:            #2C2216;
@@ -132,6 +138,8 @@
 
     --color-glass:          rgba(37, 32, 22, 0.72);
     --color-glass-edge:     rgba(255, 255, 255, 0.12);
+    --color-glass-panel:    rgba(30, 26, 18, 0.77);
+    --color-glass-panel-edge: rgba(255, 255, 255, 0.16);
 
     --color-btn:            #E8D8C0;
     --color-btn-text:       #1A1610;
@@ -191,6 +199,8 @@
   :root {
     --color-glass: var(--color-bg-card);
     --color-glass-edge: var(--color-border-light);
+    --color-glass-panel: var(--color-bg-card);
+    --color-glass-panel-edge: var(--color-border-light);
   }
 }
 
