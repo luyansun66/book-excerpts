@@ -190,8 +190,7 @@ export default function MailboxOverlay({
                 }}
                 style={{
                   position: 'relative',
-                  width: 280,
-                  maxWidth: '82vw',
+                  width: 'min(340px, 88vw)',
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
