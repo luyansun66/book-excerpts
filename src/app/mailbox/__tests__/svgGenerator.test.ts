@@ -129,13 +129,18 @@ describe('generateLetterSvg', () => {
     const svg = generateLetterSvg({ ...base, quote, bookTitle: '三体', bookAuthor: '刘慈欣' });
     expect(svg.match(/class="letter-attr"/g)).toHaveLength(1);
 
-    // 出处宽度 = 8 个全角字 + 1 个空格 = 8 × 35 + 35 × 0.32 = 291.2
-    // 摘录最右一行 16 个全角字，末字「只」的墨迹右边距 (1024 − 915) / 1024 em
-    //   → 摘录墨迹右缘 220 + (16 − 109/1024) × 45 = 935.21
-    // 出处「《三体》· 刘慈欣」墨迹宽 8.2949 em × 35px = 290.32 → 文字左端 644.9、横线左端 574.9
-    // 末行基线 927.5 + 理想间距 50 → 出处基线 977.5，横线 965.5
-    expect(svg).toContain('<line class="letter-attr-rule" x1="574.9" y1="965.5" x2="644.9" y2="965.5"/>');
-    expect(svg).toContain('class="letter-attr" style="font-size:35px" transform="translate(644.9 977.5)"');
+    const quoteLines = quoteLinesOf(svg);
+    const quoteRight = Math.max(...quoteLines.map((l) => 220 + inkRightPx(l.text, l.size)));
+
+    const attrs = attrLinesOf(svg);
+    expect(attrs).toHaveLength(1);
+    expect(attrs[0].x + inkRightPx('《三体》· 刘慈欣', 35)).toBeCloseTo(quoteRight, 1);
+
+    // 等长横线挂在文字左侧，长度 70px，纵向在基线上方 12px
+    const rule = /<line class="letter-attr-rule" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)"/.exec(svg)!;
+    expect(Number(rule[3]) - Number(rule[1])).toBeCloseTo(70, 1);
+    expect(Number(rule[3])).toBeCloseTo(attrs[0].x, 1);
+    expect(Number(rule[2])).toBeCloseTo(attrs[0].y - 12, 1);
     expect(svg).toContain('《三体》· 刘慈欣');
     expect(svg).not.toContain('——');
   });
@@ -162,7 +167,27 @@ describe('generateLetterSvg', () => {
     }
   });
 
-  it('shrinks the attribution gap to 40-50px and stays at least 30px off the bottom rule', () => {
+  // 间距按「墨迹」定义：摘录末行墨迹底 → 出处首行墨迹顶。实现把它换算成基线距，
+  // 换算用的两端字形墨迹取保守上界：出处首行首字「《」高 0.85em，摘录末字降部 0.22em。
+  const baselineGapOf = (svg: string) => {
+    const quoteLines = quoteLinesOf(svg);
+    const attrs = attrLinesOf(svg);
+    return attrs[0].y - Math.max(...quoteLines.map((l) => l.y));
+  };
+  const impliedBaselineGap = (inkGap: number, quoteSize: number) =>
+    0.22 * quoteSize + inkGap + 0.85 * 35;
+
+  it('uses the comfortable ink gap when the quote leaves room below', () => {
+    const svg = generateLetterSvg({ ...base, quote: '一句摘录。' });
+    const size = quoteLinesOf(svg)[0].size;
+    expect(baselineGapOf(svg)).toBeCloseTo(impliedBaselineGap(120, size), 0);
+
+    const attrs = attrLinesOf(svg);
+    const [, ruleY] = /class="letter-attr-rule" x1="[\d.]+" y1="([\d.]+)"/.exec(svg)!;
+    expect(Number(ruleY)).toBeCloseTo(attrs[0].y - 12, 1);
+  });
+
+  it('tightens the ink gap for a long quote but never below 85px, keeping 30px off the bottom rule', () => {
     const longQuote = '四季更替，草木荣枯，'.repeat(14) + '夜。';
     const svg = generateLetterSvg({ ...base, quote: longQuote });
 
@@ -174,17 +199,11 @@ describe('generateLetterSvg', () => {
       expect(l.size).toBeGreaterThanOrEqual(40);
     }
 
-    const lastQuoteBaseline = Math.max(...lines.map((l) => l.y));
-    const [, baseline] = /class="letter-attr" style="font-size:35px" transform="translate\([\d.]+ ([\d.]+)\)/.exec(svg)!;
-    const [, ruleY] = /class="letter-attr-rule" x1="[\d.]+" y1="([\d.]+)"/.exec(svg)!;
-    expect(Number(baseline)).toBeGreaterThan(lastQuoteBaseline);
-    expect(Number(ruleY)).toBeCloseTo(Number(baseline) - 12, 1);
+    expect(baselineGapOf(svg)).toBeGreaterThanOrEqual(impliedBaselineGap(85, 40) - 0.5);
+    expect(baselineGapOf(svg)).toBeLessThanOrEqual(impliedBaselineGap(120, 45) + 0.5);
 
-    // 空间紧张时间距收紧到 [40, 50]，且距底部横线始终 ≥ 30px
-    const gap = Number(baseline) - lastQuoteBaseline;
-    expect(gap).toBeGreaterThanOrEqual(40);
-    expect(gap).toBeLessThanOrEqual(50);
-    expect(Number(baseline)).toBeLessThanOrEqual(1413.1 - 30);
+    const attrs = attrLinesOf(svg);
+    expect(attrs[attrs.length - 1].y).toBeLessThanOrEqual(1413.1 - 30);
   });
 
   it('never lets the attribution cross the bottom rule', () => {

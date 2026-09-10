@@ -1,7 +1,7 @@
 // ─── 时光信箱浮层：信封 → 点击拆信 → 展示每日书签（PNG，字体已烘焙） ──────────
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Letter } from './letterLogic';
 import type { MailboxPhase } from './MailboxProvider';
 
@@ -39,15 +39,80 @@ function Envelope() {
   );
 }
 
-// 卡片右上角的圆形毛玻璃按钮（保存 / 关闭）
+// ─── 长按保存：按住卡片约 0.6s 触发保存；移出、抬起、滚动都会中止 ──────────────
+// 用 Pointer Events 覆盖鼠标与触摸；同时屏蔽系统长按菜单（-webkit-touch-callout），
+// 避免 iOS 弹出「存储图像」和自家长按保存撞在一起。
+const LONG_PRESS_MS = 600;
+
+function LongPressSave({
+  onSave,
+  saving,
+  children,
+}: {
+  onSave: () => void;
+  saving: boolean;
+  children: ReactNode;
+}) {
+  const timer = useRef<number | null>(null);
+  const touchRef = useRef(false);
+  const [pressing, setPressing] = useState(false);
+
+  const cancel = useCallback(() => {
+    if (timer.current !== null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+    setPressing(false);
+  }, []);
+
+  useEffect(() => cancel, [cancel]);
+
+  const start = useCallback(() => {
+    if (saving || timer.current !== null) return;
+    setPressing(true);
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      setPressing(false);
+      onSave();
+    }, LONG_PRESS_MS);
+  }, [onSave, saving]);
+
+  return (
+    <div
+      onPointerDown={(e) => {
+        if (e.button !== 0) return; // 只响应主键与触摸，右键留给系统菜单
+        touchRef.current = e.pointerType !== 'mouse';
+        start();
+      }}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      // 触屏端的长按菜单会和「长按保存」撞车，屏蔽掉；桌面端保留右键另存为
+      onContextMenu={(e) => {
+        if (touchRef.current) e.preventDefault();
+      }}
+      style={{
+        position: 'relative',
+        touchAction: 'manipulation',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none',
+        transition: 'transform 140ms ease',
+        transform: pressing ? 'scale(0.985)' : 'scale(1)',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+// 卡片右上角的圆形毛玻璃按钮（关闭）
 function RoundButton({
   label,
-  disabled,
   onClick,
   children,
 }: {
   label: string;
-  disabled?: boolean;
   onClick: () => void;
   children: ReactNode;
 }) {
@@ -58,7 +123,6 @@ function RoundButton({
         onClick();
       }}
       aria-label={label}
-      disabled={disabled}
       style={{
         width: 34,
         height: 34,
@@ -66,8 +130,7 @@ function RoundButton({
         border: '1px solid rgba(255,255,255,0.4)',
         background: 'rgba(44, 34, 22, 0.75)',
         color: '#F5EFE0',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
+        cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -181,25 +244,37 @@ export default function MailboxOverlay({
                 onClick={(e) => e.stopPropagation()}
                 style={{ position: 'relative' }}
               >
-                {imageUrl ? (
-                  <img
-                    className="letter-card"
-                    src={imageUrl}
-                    alt={`第 ${letter.number} 封信 · 折角书摘`}
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="letter-card" dangerouslySetInnerHTML={{ __html: letter.svg }} />
-                )}
+                <LongPressSave onSave={onSaveImage} saving={saving}>
+                  {imageUrl ? (
+                    <img
+                      className="letter-card"
+                      src={imageUrl}
+                      alt={`第 ${letter.number} 封信 · 折角书摘`}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="letter-card" dangerouslySetInnerHTML={{ __html: letter.svg }} />
+                  )}
+                </LongPressSave>
 
-                <div style={{ position: 'absolute', top: -14, right: -14, display: 'flex', gap: 8 }}>
-                  <RoundButton label="保存图片" onClick={onSaveImage} disabled={saving}>
-                    <Download size={17} />
-                  </RoundButton>
+                <div style={{ position: 'absolute', top: -14, right: -14 }}>
                   <RoundButton label="关闭" onClick={onClose}>
                     <X size={18} />
                   </RoundButton>
                 </div>
+
+                <p
+                  style={{
+                    margin: '12px 0 0',
+                    textAlign: 'center',
+                    fontSize: 12,
+                    letterSpacing: 2,
+                    color: 'rgba(245, 239, 224, 0.72)',
+                    fontFamily: '-apple-system, sans-serif',
+                  }}
+                >
+                  {saving ? '正在保存…' : '长按书签保存图片'}
+                </p>
               </motion.div>
             )}
 

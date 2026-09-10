@@ -19,11 +19,21 @@ const QUOTE_TOP = 867.5;      // 摘录首行基线
 const QUOTE_LH = 4 / 3;       // 行距比例（模板 48px → 64px）
 
 const BOTTOM_LINE_Y = 1413.1;   // 底部横线 y
-const BOTTOM_CLEARANCE = 30;    // 出处行基线距底部横线的硬下限
-const ATTR_GAP_MAX = 50;        // 摘录末行 → 出处行的理想间距
-const ATTR_GAP_MIN = 40;        // 空间紧张时允许的最小间距
-const ATTR_BOTTOM_LIMIT = BOTTOM_LINE_Y - BOTTOM_CLEARANCE; // 出处行基线最低值 1383.1
+const BOTTOM_CLEARANCE = 30;    // 出处末行基线距底部横线的硬下限
+const ATTR_BOTTOM_LIMIT = BOTTOM_LINE_Y - BOTTOM_CLEARANCE; // 出处末行基线最低值 1383.1
 const ATTR_SIZE = 35;           // 出处字号（固定）
+
+// ─── 摘录末行 → 出处的间距：按「墨迹」定义，不按基线定义 ──────────────────────
+// 要控制的是「摘录末行墨迹底 → 出处首行墨迹顶」这段空白。墨迹到各自基线还有一段
+// 距离，且随末字字形浮动，所以统一取字体轮廓的保守上界换算成基线距：
+//   · 出处首行首字恒为「《」，是整行墨迹最高点（≈0.85em）；
+//   · 摘录末字可能是句读（≈0.09em）或西文降部（≈0.21em），取 0.22em 兜住。
+// 都用上界 ⇒ 实际墨迹间距只会比目标值更大，「下限」一定成立。
+const ATTR_INK_ASCENT_EM = 0.85;
+const QUOTE_INK_DESCENT_EM = 0.22;
+
+const ATTR_INK_GAP_MIN = 85;      // 硬下限（约为旧版 16.5px 的 5 倍）
+const ATTR_INK_GAP_COMFORT = 120; // 下方宽裕时的舒适间距
 const ATTR_RULE_LEN = 70;     // 书名前的等长横线（35px 字号下「——」的宽度）
 const ATTR_RULE_DY = -12;     // 横线相对基线的纵向偏移
 const ATTR_LINE_H = 44;       // 出处折成两行时的行距（35px × 1.25）
@@ -425,12 +435,15 @@ function lhQ(q: number): number {
   return Math.round(q * QUOTE_LH);
 }
 
-// 出处首行基线：跟随摘录末行，理想间距 50px；空间紧张时收紧，但不小于 40px。
-// 折行后每一行都要落在 ATTR_BOTTOM_LIMIT 之上，所以行数越多首行越要上提。
-function attrYFor(lastBaseline: number, lineCount: number): number {
-  const limit = ATTR_BOTTOM_LIMIT - (lineCount - 1) * ATTR_LINE_H;
-  const gap = Math.min(ATTR_GAP_MAX, limit - lastBaseline);
-  return Math.min(lastBaseline + Math.max(gap, ATTR_GAP_MIN), limit);
+/** 「墨迹间距 = inkGap」时，出处首行基线相对摘录末行基线要拉开多少。 */
+function attrBaselineGap(inkGap: number, q: number): number {
+  return QUOTE_INK_DESCENT_EM * q + inkGap + ATTR_INK_ASCENT_EM * ATTR_SIZE;
+}
+
+/** 出处末行仍能留在底部横线上方（≥30px）时，墨迹间距最大能取多少。 */
+function attrInkGapRoom(lastBaseline: number, lineCount: number, q: number): number {
+  const lowestFirstBaseline = ATTR_BOTTOM_LIMIT - (lineCount - 1) * ATTR_LINE_H;
+  return lowestFirstBaseline - lastBaseline - attrBaselineGap(0, q);
 }
 
 function layoutFor(quote: string, bookTitle: string, bookAuthor: string, q: number): Layout {
@@ -444,8 +457,11 @@ function layoutFor(quote: string, bookTitle: string, bookAuthor: string, q: numb
   );
   const attrTexts = attrLinesFor(bookTitle, bookAuthor, quoteRight);
 
+  // 下方宽裕 → 用舒适间距；紧张 → 一路压到「刚好不碰底线」，但不低于硬下限。
+  // 硬下限都放不下时 fits=false，由 computeLayout 降摘录字号、最后才截断摘录。
   const lastBaseline = quoteYs[quoteYs.length - 1] ?? QUOTE_TOP;
-  const firstBaseline = attrYFor(lastBaseline, attrTexts.length);
+  const inkGap = Math.min(ATTR_INK_GAP_COMFORT, attrInkGapRoom(lastBaseline, attrTexts.length, q));
+  const firstBaseline = lastBaseline + attrBaselineGap(inkGap, q);
   // 每行都用墨迹右缘贴住摘录右缘：不是 Em 框右缘，末字的右侧边距不参与对齐
   const attrLines = attrTexts.map((text, i) => ({
     text,
@@ -455,8 +471,7 @@ function layoutFor(quote: string, bookTitle: string, bookAuthor: string, q: numb
 
   const lastAttrBaseline = attrLines[attrLines.length - 1]?.y ?? firstBaseline;
   // 横向由 attrLinesFor 的宽度契约保证（首行 x − ATTR_RULE_LEN ≥ CONTENT_LEFT）
-  const fits =
-    firstBaseline - lastBaseline >= ATTR_GAP_MIN && lastAttrBaseline <= ATTR_BOTTOM_LIMIT;
+  const fits = inkGap >= ATTR_INK_GAP_MIN && lastAttrBaseline <= ATTR_BOTTOM_LIMIT;
 
   return {
     q,

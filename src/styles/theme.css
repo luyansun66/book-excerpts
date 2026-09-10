@@ -213,7 +213,9 @@
   object-fit: cover;
   -webkit-user-select: none;
   user-select: none;
-  -webkit-touch-callout: default;
+  /* 长按保存由浮层自己处理，屏蔽系统长按菜单，避免两套菜单同时弹出 */
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
 }
 
 .mailbox-spinner {
