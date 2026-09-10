@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:c2pa="http://c2pa.org/manifest" version="1.1" viewBox="0 0 1021.9 1527.7">
+  <!-- Generator: Adobe Illustrator 29.1.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 142)  -->
+  <defs>
+    <style>
+      .st0, .st1, .st2, .st3, .st4 {
+        fill: none;
+      }
+
+      .st5 {
+        font-size: 42px;
+      }
+
+      .st5, .st6, .st7, .st8, .st9, .st10, .st11, .st12, .st13, .st14, .st15, .st16, .st17, .st18, .st19 {
+        isolation: isolate;
+      }
+
+      .st5, .st7, .st8, .st20 {
+        font-family: STSong, STSong;
+      }
+
+      .st5, .st7, .st12, .st15, .st16, .st17, .st21 {
+        fill: #6b4a2a;
+      }
+
+      .st6, .st8, .st10, .st13, .st19 {
+        fill: #6b411b;
+      }
+
+      .st6, .st11, .st15, .st16 {
+        font-family: Georgia-Italic, Georgia;
+        font-style: italic;
+      }
+
+      .st6, .st15 {
+        font-size: 26px;
+      }
+
+      .st7 {
+        font-size: 44px;
+      }
+
+      .st1 {
+        stroke-width: 2px;
+      }
+
+      .st1, .st2, .st3 {
+        stroke: #6b4a2a;
+      }
+
+      .st8, .st13 {
+        font-size: 60px;
+      }
+
+      .st2 {
+        stroke-width: 1.4px;
+      }
+
+      .st10, .st13, .st18, .st19 {
+        font-family: STSongti-SC-Light, 'Songti SC';
+        font-weight: 300;
+      }
+
+      .st10, .st16 {
+        font-size: 24px;
+      }
+
+      .st22 {
+        letter-spacing: .1em;
+      }
+
+      .st23 {
+        clip-path: url(#clippath-1);
+      }
+
+      .st11 {
+        font-size: 27px;
+      }
+
+      .st11, .st18 {
+        fill: #936537;
+      }
+
+      .st12 {
+        font-family: Georgia-Bold, Georgia;
+        font-size: 220px;
+        font-weight: 700;
+      }
+
+      .st24 {
+        fill: #ede0c4;
+      }
+
+      .st14 {
+        fill: #f4e6d0;
+        opacity: .6;
+      }
+
+      .st4 {
+        stroke: #ede0c4;
+        stroke-width: 4px;
+      }
+
+      .st20 {
+        fill: #351f0c;
+        font-size: 48px;
+      }
+
+      .st17 {
+        font-family: TrebuchetMS, 'Trebuchet MS';
+        font-size: 32px;
+      }
+
+      .st18 {
+        font-size: 34px;
+      }
+
+      .st25 {
+        clip-path: url(#clippath);
+      }
+
+      .st26 {
+        letter-spacing: 0em;
+      }
+
+      .st19 {
+        font-size: 28px;
+      }
+    </style>
+    <clipPath id="clippath">
+      <rect class="st0" width="1021.9" height="1527.7"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect class="st0" x="-1102.7" width="1021.9" height="1527.7"/>
+    </clipPath>
+    <image id="image" width="2480" height="3508" xlink:href="huaban-5706506043.jpg"/>
+    <image id="image1" width="1023" height="1528" xlink:href="1x/bg01.jpg"/>
+  </defs>
+  <use xlink:href="#image1"/>
+  <g class="st25">
+    <g id="image1">
+      <use id="image2" class="st9" transform="translate(1180.3 629.9) scale(.2)" xlink:href="#image"/>
+    </g>
+  </g>
+  <rect class="st14" width="1021.9" height="1527.7"/>
+  <g>
+    <g class="st9">
+      <g class="st9">
+        <text class="st17" transform="translate(60.2 105)"><tspan x="0" y="0">READING</tspan></text>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st17" transform="translate(310.2 105)"><tspan x="0" y="0">MEMORY</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st17" transform="translate(610.2 105)"><tspan x="0" y="0">TIME</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st17" transform="translate(845.2 105)"><tspan x="0" y="0">LETTER</tspan></text>
+        </g>
+      </g>
+    </g>
+  </g>
+  <line class="st1" x1="60.2" y1="130" x2="960.2" y2="130"/>
+  <line class="st2" x1="60.2" y1="586.8" x2="960.2" y2="586.8"/>
+  <line class="st2" x1="510.2" y1="130" x2="510.2" y2="586.8"/>
+  <line class="st2" x1="60.2" y1="403.9" x2="960.2" y2="403.9"/>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st12" transform="translate(143.8 319.8)"><tspan x="0" y="0">47</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st7" transform="translate(651.4 486)"><tspan x="0" y="0">第47封信</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st15" transform="translate(661.5 533)"><tspan x="0" y="0">Letter No. 47</tspan></text>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st5" transform="translate(62.5 669.8)"><tspan x="0" y="0">折角书摘·2026/09/09</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st16" transform="translate(62.9 712.8)"><tspan x="0" y="0">Dogear · September 9, 2026</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g>
+    <path class="st21" d="M907.2,651.4h35l15,15-15,15h-35v-30Z"/>
+    <circle class="st24" cx="917.2" cy="666.4" r="4"/>
+  </g>
+  <line class="st2" x1="60.2" y1="740.5" x2="960.2" y2="740.5"/>
+  <g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-52.5 866.5)"><tspan x="0" y="0">「</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-52.5 911.5)"><tspan x="0" y="0">摘</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-52.5 956.5)"><tspan x="0" y="0">录</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-52.5 1001.5)"><tspan x="0" y="0">」</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-45.9 1066.5)"><tspan x="0" y="0">N</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-42.8 1101.5)"><tspan x="0" y="0">o</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-39.2 1127.5)"><tspan x="0" y="0">.</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-43.2 1169.5)"><tspan x="0" y="0">4</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-42.3 1207.5)"><tspan x="0" y="0">7</tspan></text>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st19" transform="translate(378.2 1169.5)"><tspan x="0" y="0">——《小王子》· Antoine de Saint-Exupéry</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g>
+    <line class="st1" x1="60.2" y1="1413.1" x2="960.2" y2="1413.1"/>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st7" transform="translate(60.2 1468.1)"><tspan x="0" y="0">折角</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st16" transform="translate(761.6 1463.1)"><tspan x="0" y="0">revisit, remember.</tspan></text>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g>
+    <path class="st21" d="M283.5,438.4l40,95c-26.7,26.7-53.3,26.7-80,0l40-95Z"/>
+    <line class="st4" x1="283.5" y1="443.4" x2="283.5" y2="538.4"/>
+  </g>
+  <g>
+    <path class="st21" d="M738,202.3l88.4,56.1v101h-176.8v-101l88.4-56.1Z"/>
+    <circle class="st24" cx="738" cy="294.7" r="26"/>
+  </g>
+  <use transform="translate(-1102.7)" xlink:href="#image1"/>
+  <g class="st23">
+    <g id="image11" data-name="image1">
+      <use id="image21" data-name="image2" class="st9" transform="translate(77.7 629.9) scale(.2)" xlink:href="#image"/>
+    </g>
+  </g>
+  <rect class="st14" x="-1102.7" width="1021.9" height="1527.7"/>
+  <g class="st9">
+    <g class="st9">
+      <text class="st17" transform="translate(-1042.5 105)"><tspan x="0" y="0">READING</tspan></text>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st17" transform="translate(-792.5 105)"><tspan x="0" y="0">MEMORY</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st17" transform="translate(-492.5 105)"><tspan x="0" y="0">TIME</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st17" transform="translate(-257.5 105)"><tspan x="0" y="0">LETTER</tspan></text>
+      </g>
+    </g>
+  </g>
+  <line class="st1" x1="-1042.5" y1="130" x2="-142.5" y2="130"/>
+  <line class="st2" x1="-1042.5" y1="620" x2="-142.5" y2="620"/>
+  <line class="st2" x1="-592.5" y1="130" x2="-592.5" y2="620"/>
+  <line class="st2" x1="-1042.5" y1="430" x2="-142.5" y2="430"/>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st12" transform="translate(-958.9 333.8)"><tspan x="0" y="0">47</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st7" transform="translate(-450.3 520.5)"><tspan x="0" y="0">第47封信</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st15" transform="translate(-440.2 567.5)"><tspan x="0" y="0">Letter No. 47</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st5" transform="translate(-1040.2 702.4)"><tspan x="0" y="0">折角书摘·2026/09/09</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st16" transform="translate(-1039.8 745.4)"><tspan x="0" y="0">Dogear · September 9, 2026</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g>
+    <path class="st21" d="M-195.5,684h35l15,15-15,15h-35v-30Z"/>
+    <circle class="st24" cx="-185.5" cy="699" r="4"/>
+  </g>
+  <line class="st3" x1="-1042.5" y1="777.4" x2="-142.5" y2="777.4"/>
+  <g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-1044.8 863.2)"><tspan x="0" y="0">「</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-1044.8 908.2)"><tspan x="0" y="0">摘</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-1044.8 953.2)"><tspan x="0" y="0">录</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st18" transform="translate(-1044.8 998.2)"><tspan x="0" y="0">」</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-1038.2 1063.2)"><tspan x="0" y="0">N</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-1035.1 1098.2)"><tspan x="0" y="0">o</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-1031.5 1124.2)"><tspan x="0" y="0">.</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-1035.5 1166.2)"><tspan x="0" y="0">4</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st11" transform="translate(-1034.6 1204.2)"><tspan x="0" y="0">7</tspan></text>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st8" transform="translate(-862.5 891.7)"><tspan x="0" y="0">所有的大人都曾经是小孩，</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st13" transform="translate(-862.5 976.7)"><tspan x="0" y="0">虽然，只有少数的人记得。</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st6" transform="translate(-702.6 1056.7)"><tspan x="0" y="0">All grown-ups were once children,</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st6" transform="translate(-704.4 1096.7)"><tspan x="0" y="0">although few of them remember it.</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g class="st9">
+    <g class="st9">
+      <g class="st9">
+        <text class="st10" transform="translate(-592.6 1151.7)"><tspan x="0" y="0">——《小王子》· Antoine de Saint-Exupéry</tspan></text>
+      </g>
+    </g>
+  </g>
+  <g>
+    <line class="st1" x1="-1042.5" y1="1413.1" x2="-142.5" y2="1413.1"/>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st7" transform="translate(-1042.5 1468.1)"><tspan x="0" y="0">折角</tspan></text>
+        </g>
+      </g>
+    </g>
+    <g class="st9">
+      <g class="st9">
+        <g class="st9">
+          <text class="st16" transform="translate(-341.1 1463.1)"><tspan x="0" y="0">revisit, remember.</tspan></text>
+        </g>
+      </g>
+    </g>
+  </g>
+  <g>
+    <path class="st21" d="M-819.2,470.3l40,95c-26.7,26.7-53.3,26.7-80,0l40-95Z"/>
+    <line class="st4" x1="-819.2" y1="475.3" x2="-819.2" y2="570.3"/>
+  </g>
+  <g>
+    <path class="st21" d="M-363.7,204.1l100,50v90h-200v-90l100-50Z"/>
+    <circle class="st24" cx="-363.7" cy="289.1" r="26"/>
+  </g>
+  <text class="st20" transform="translate(220 867.5)"><tspan class="st22" x="0" y="0">雪崩时，没有一片雪花是无</tspan><tspan x="649.2" y="0">辜</tspan><tspan class="st26" x="0" y="64">的。在时代的洪流里，没有绝</tspan><tspan x="649.2" y="64">对</tspan><tspan class="st26" x="0" y="128">的旁观者，每一个个体的选择</tspan><tspan x="649.2" y="128">，</tspan><tspan x="0" y="192">都在共同塑造着世界的模样。</tspan></text>
+</svg>

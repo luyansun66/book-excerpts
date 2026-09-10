@@ -199,12 +199,21 @@
   max-width: 92vw;
 }
 
-.letter-card svg {
+.letter-card svg,
+.letter-card img {
   display: block;
   width: 100%;
   height: 100%;
   border-radius: 12px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* 光栅化后的每日书签（字体已烘焙进图片） */
+.letter-card img {
+  object-fit: cover;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: default;
 }
 
 .mailbox-spinner {

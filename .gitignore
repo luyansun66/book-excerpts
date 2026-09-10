@@ -7,5 +7,6 @@ dist/
 # Cloudflare Pages local dev secrets
 .dev.vars
 
-# 时光信箱字体源文件（已内嵌进 letterTemplate.svg，Songti.ttc 约67MB不入库）
+# 每日书签（时光信箱）字体源文件；子集化产物见 public/fonts/*.woff2
+# 重新生成：bash scripts/subset-letter-fonts.sh（Songti.ttc 约 67MB 不入库）
 书签字体/

@@ -1,6 +1,7 @@
-// ─── 时光信箱浮层：信封 → 点击拆信 → 展示 SVG 引言卡 ─────────────────────────
+// ─── 时光信箱浮层：信封 → 点击拆信 → 展示每日书签（PNG，字体已烘焙） ──────────
 import { motion, AnimatePresence } from 'motion/react';
-import { X } from 'lucide-react';
+import { Download, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { Letter } from './letterLogic';
 import type { MailboxPhase } from './MailboxProvider';
 
@@ -9,8 +10,12 @@ interface Props {
   phase: MailboxPhase;
   letter: Letter | null;
   error: string | null;
+  /** 光栅化完成后的 PNG 地址；就绪前回退到内联 SVG 预览。 */
+  imageUrl: string | null;
+  saving: boolean;
   onClose: () => void;
   onOpenEnvelope: () => void;
+  onSaveImage: () => void;
 }
 
 // 信封（矢量版，奶油信封 + 橙色折边）
@@ -34,7 +39,58 @@ function Envelope() {
   );
 }
 
-export default function MailboxOverlay({ open, phase, letter, error, onClose, onOpenEnvelope }: Props) {
+// 卡片右上角的圆形毛玻璃按钮（保存 / 关闭）
+function RoundButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      aria-label={label}
+      disabled={disabled}
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: '50%',
+        border: '1px solid rgba(255,255,255,0.4)',
+        background: 'rgba(44, 34, 22, 0.75)',
+        color: '#F5EFE0',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+export default function MailboxOverlay({
+  open,
+  phase,
+  letter,
+  error,
+  imageUrl,
+  saving,
+  onClose,
+  onOpenEnvelope,
+  onSaveImage,
+}: Props) {
   return (
     <AnimatePresence>
       {open && (
@@ -125,30 +181,25 @@ export default function MailboxOverlay({ open, phase, letter, error, onClose, on
                 onClick={(e) => e.stopPropagation()}
                 style={{ position: 'relative' }}
               >
-                <div className="letter-card" dangerouslySetInnerHTML={{ __html: letter.svg }} />
-                <button
-                  onClick={onClose}
-                  aria-label="关闭"
-                  style={{
-                    position: 'absolute',
-                    top: -14,
-                    right: -14,
-                    width: 34,
-                    height: 34,
-                    borderRadius: '50%',
-                    border: '1px solid rgba(255,255,255,0.4)',
-                    background: 'rgba(44, 34, 22, 0.75)',
-                    color: '#F5EFE0',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backdropFilter: 'blur(8px)',
-                    WebkitBackdropFilter: 'blur(8px)',
-                  }}
-                >
-                  <X size={18} />
-                </button>
+                {imageUrl ? (
+                  <img
+                    className="letter-card"
+                    src={imageUrl}
+                    alt={`第 ${letter.number} 封信 · 折角书摘`}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="letter-card" dangerouslySetInnerHTML={{ __html: letter.svg }} />
+                )}
+
+                <div style={{ position: 'absolute', top: -14, right: -14, display: 'flex', gap: 8 }}>
+                  <RoundButton label="保存图片" onClick={onSaveImage} disabled={saving}>
+                    <Download size={17} />
+                  </RoundButton>
+                  <RoundButton label="关闭" onClick={onClose}>
+                    <X size={18} />
+                  </RoundButton>
+                </div>
               </motion.div>
             )}
 

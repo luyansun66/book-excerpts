@@ -1,5 +1,45 @@
 import { describe, expect, it } from 'vitest';
-import { generateLetterSvg } from '../svgGenerator';
+import { bigNumberInkCenter, generateLetterSvg } from '../svgGenerator';
+import { GEO_ITALIC_UPEM, HAN_UPEM, georgiaItalicGlyph, hanGlyph } from '../letterMetrics';
+
+// 独立复算：文本「最后一个字形墨迹最右缘」到笔位起点的距离（px）= visibleBounds 右缘。
+// 中文字形走华康宋体、西文走 Georgia Italic，与出处行的分字体规则一致。
+function inkRightPx(text: string, size: number): number {
+  let pen = 0;
+  let trailingBearing = 0;
+  let han = false;
+  for (const ch of text) {
+    // 空格跟随相邻文字，与出处行的分字体规则一致
+    if (ch !== ' ' || pen === 0) {
+      han = /[\u2e80-\u2eff\u3000-\u303f\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(ch) || ch === '·';
+    }
+    const cp = ch.codePointAt(0)!;
+    const glyph = han ? hanGlyph(cp) : georgiaItalicGlyph(cp);
+    if (!glyph) continue;
+    const upem = han ? HAN_UPEM : GEO_ITALIC_UPEM;
+    pen += (glyph.adv / upem) * size;
+    trailingBearing = ((glyph.adv - glyph.xMax) / upem) * size;
+  }
+  return pen - trailingBearing;
+}
+
+/** 取出摘录各行（字号 + 基线 + 文本）。 */
+function quoteLinesOf(svg: string): Array<{ size: number; y: number; text: string }> {
+  return [...svg.matchAll(
+    /class="letter-quote" style="font-size:([\d.]+)px" transform="translate\(220 ([\d.]+)\)"><tspan x="0" y="0">([^<]+)<\/tspan>/g,
+  )].map(([, size, y, text]) => ({ size: Number(size), y: Number(y), text }));
+}
+
+/** 取出出处各行（文字左端 x + 基线 y + 文本）。 */
+function attrLinesOf(svg: string): Array<{ x: number; y: number; text: string }> {
+  return [...svg.matchAll(
+    /<text class="letter-attr" style="font-size:35px" transform="translate\(([\d.]+) ([\d.]+)\)">([\s\S]*?)<\/text>/g,
+  )].map(([, x, y, inner]) => ({
+    x: Number(x),
+    y: Number(y),
+    text: [...inner.matchAll(/>([^<]*)<\/tspan>/g)].map((m) => m[1]).join(''),
+  }));
+}
 
 const base = {
   number: 47,
@@ -37,46 +77,110 @@ describe('generateLetterSvg', () => {
   it('lays out the quote from the template anchor with 4/3 leading', () => {
     const svg = generateLetterSvg({ ...base, quote });
 
-    // 模板坐标：左起点 220、首行基线 867.5、行距 64（48px × 4/3）
-    expect(svg).toContain('class="letter-quote" style="font-size:48px" transform="translate(220 867.5)"');
-    expect(svg).toContain('class="letter-quote" style="font-size:48px" transform="translate(220 931.5)"');
+    // 模板坐标：左起点 220、首行基线 867.5；45px 档行距 = round(45 × 4/3) = 60
+    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 867.5)"');
+    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 927.5)"');
     expect(svg).toContain('所有的大人都曾经是小孩');
   });
 
-  it('keeps the big number centred on the same optical centre at every tier', () => {
-    const two = generateLetterSvg({ ...base, quote });
-    expect(two).toContain('text-anchor="middle" style="font-size:220px" transform="translate(283.5 319.8)"');
+  it('caps the quote at 45px and floors it at 40px', () => {
+    const short = generateLetterSvg({ ...base, quote: '一句摘录。' });
+    expect(short).toContain('style="font-size:45px"');
+    expect(short).not.toContain('style="font-size:48px"');
 
-    const three = generateLetterSvg({ ...base, number: 123, quote });
-    // 170px 档：视觉中心 242.8 不变 → 基线 242.8 + 170 × 0.35 = 302.3
-    expect(three).toContain('style="font-size:170px" transform="translate(283.5 302.3)"');
+    // 逐档缩到 40px 仍放不下时才截断摘录
+    const huge = generateLetterSvg({ ...base, quote: '这句话特别长，'.repeat(200) });
+    expect(huge).toContain('style="font-size:40px"');
+    expect(huge).toContain('…');
   });
 
-  it('renders the attribution as one right-aligned line with a 70px rule, 50px below the quote', () => {
+  it('keeps the big number live text (never outlined) and centred by real glyph bounds', () => {
+    const svg = generateLetterSvg({ ...base, number: 47, quote });
+
+    // 文字仍是可编辑的 <text>/<tspan>，没有被转曲
+    expect(svg).toContain('<text class="letter-bignum" text-anchor="middle"');
+    expect(svg).toContain('><tspan x="0" y="0">47</tspan></text>');
+
+    // Georgia 旧式数字：47 的轮廓并集中心相对锚点为 (0.0141602, -0.1791992) em
+    expect(svg).toContain('style="font-size:220px" transform="translate(280.4 320.3)"');
+
+    const three = generateLetterSvg({ ...base, number: 123, quote });
+    expect(three).toContain('style="font-size:170px" transform="translate(282.9 311.6)"');
+  });
+
+  it('lands the glyph outline centre on the house centre for every digit string', () => {
+    // 右格小房子 path 的包围盒 y ∈ [202.3, 359.4] → 中心 280.85；编号所在左格中心 x = 283.5
+    for (const digits of ['1', '2', '6', '8', '9', '47', '123', '2024', '99999']) {
+      const svg = generateLetterSvg({ ...base, number: Number(digits), quote });
+      const m = /text-anchor="middle" style="font-size:([\d.]+)px" transform="translate\((-?[\d.]+) (-?[\d.]+)\)"><tspan x="0" y="0">(\d+)<\/tspan>/.exec(svg);
+
+      expect(m, `missing bignum node for ${digits}`).not.toBeNull();
+      const [, size, x, y, text] = m!;
+      expect(text).toBe(digits);
+
+      // 锚点 + 轮廓中心偏移 = 真实字形中心，必须落在目标点上（round1 精度 0.1）
+      const ink = bigNumberInkCenter(digits);
+      expect(Number(x) + ink.x * Number(size)).toBeCloseTo(283.5, 0);
+      expect(Number(y) + ink.y * Number(size)).toBeCloseTo(280.85, 0);
+    }
+  });
+
+  it('right-aligns the attribution to the quote right edge with a 70px rule', () => {
     const svg = generateLetterSvg({ ...base, quote, bookTitle: '三体', bookAuthor: '刘慈欣' });
     expect(svg.match(/class="letter-attr"/g)).toHaveLength(1);
 
-    // 出处为单行，文字右边缘 = 960.2（宽度估算：8 个全角字 + 1 个空格）
-    // 摘录 2 行末行基线 931.5 + 理想间距 50 → 出处基线 981.5（距底部横线 431.6 ≥ 30）
-    expect(svg).toContain('<line class="letter-attr-rule" x1="599.0" y1="969.5" x2="669.0" y2="969.5"/>');
-    expect(svg).toContain('class="letter-attr" style="font-size:35px" transform="translate(669.0 981.5)"');
+    // 出处宽度 = 8 个全角字 + 1 个空格 = 8 × 35 + 35 × 0.32 = 291.2
+    // 摘录最右一行 16 个全角字，末字「只」的墨迹右边距 (1024 − 915) / 1024 em
+    //   → 摘录墨迹右缘 220 + (16 − 109/1024) × 45 = 935.21
+    // 出处「《三体》· 刘慈欣」墨迹宽 8.2949 em × 35px = 290.32 → 文字左端 644.9、横线左端 574.9
+    // 末行基线 927.5 + 理想间距 50 → 出处基线 977.5，横线 965.5
+    expect(svg).toContain('<line class="letter-attr-rule" x1="574.9" y1="965.5" x2="644.9" y2="965.5"/>');
+    expect(svg).toContain('class="letter-attr" style="font-size:35px" transform="translate(644.9 977.5)"');
     expect(svg).toContain('《三体》· 刘慈欣');
     expect(svg).not.toContain('——');
   });
 
+  it('shares one right edge between the attribution and the quote’s rightmost line', () => {
+    // 用字形墨迹边界（不是 Em 框）复算两边右缘：中文作者与拉丁作者都要贴合。
+    // 拉丁作者是旧版按字符估算表出错的场景（曾差 30px），必须覆盖。
+    const authors = [
+      { bookTitle: '三体', bookAuthor: '刘慈欣' },
+      { bookTitle: '小王子', bookAuthor: 'Antoine de Saint-Exupéry' },
+      { bookTitle: '百年孤独', bookAuthor: '加西亚·马尔克斯' },
+    ];
+
+    for (const { bookTitle, bookAuthor } of authors) {
+      const svg = generateLetterSvg({ ...base, quote, bookTitle, bookAuthor });
+      const lines = quoteLinesOf(svg);
+      expect(lines.length).toBeGreaterThan(1);
+
+      const quoteRight = Math.max(...lines.map((l) => 220 + inkRightPx(l.text, l.size)));
+      const [, attrX] = /class="letter-attr" style="font-size:35px" transform="translate\(([\d.]+) /.exec(svg)!;
+      const attrRight = Number(attrX) + inkRightPx(`《${bookTitle}》· ${bookAuthor}`, 35);
+
+      expect(attrRight, `${bookAuthor} 未与摘录右缘对齐`).toBeCloseTo(quoteRight, 1);
+    }
+  });
+
   it('shrinks the attribution gap to 40-50px and stays at least 30px off the bottom rule', () => {
-    // 44px 档 9 行：末行基线 867.5 + 8 × 59 = 1339.5，剩余净空 1383.1 - 1339.5 = 43.6 ∈ [40, 50]
     const longQuote = '四季更替，草木荣枯，'.repeat(14) + '夜。';
     const svg = generateLetterSvg({ ...base, quote: longQuote });
 
-    expect(svg.match(/class="letter-quote"/g)).toHaveLength(9);
+    const lines = quoteLinesOf(svg);
+    expect(lines.length).toBeGreaterThan(2);
+    // 每行都在 45–40 档内，且行宽不超过正文列宽
+    for (const l of lines) {
+      expect(l.size).toBeLessThanOrEqual(45);
+      expect(l.size).toBeGreaterThanOrEqual(40);
+    }
 
-    const [, ruleY] = /class="letter-attr-rule" x1="[\d.]+" y1="([\d.]+)"/.exec(svg) ?? [];
-    const [, baseline] = /class="letter-attr" style="font-size:35px" transform="translate\([\d.]+ ([\d.]+)\)/.exec(svg) ?? [];
-    expect(Number(baseline)).toBeCloseTo(1383.1, 1);
-    expect(Number(ruleY)).toBeCloseTo(1371.1, 1);
+    const lastQuoteBaseline = Math.max(...lines.map((l) => l.y));
+    const [, baseline] = /class="letter-attr" style="font-size:35px" transform="translate\([\d.]+ ([\d.]+)\)/.exec(svg)!;
+    const [, ruleY] = /class="letter-attr-rule" x1="[\d.]+" y1="([\d.]+)"/.exec(svg)!;
+    expect(Number(baseline)).toBeGreaterThan(lastQuoteBaseline);
+    expect(Number(ruleY)).toBeCloseTo(Number(baseline) - 12, 1);
 
-    const lastQuoteBaseline = 1339.5;
+    // 空间紧张时间距收紧到 [40, 50]，且距底部横线始终 ≥ 30px
     const gap = Number(baseline) - lastQuoteBaseline;
     expect(gap).toBeGreaterThanOrEqual(40);
     expect(gap).toBeLessThanOrEqual(50);
@@ -107,11 +211,75 @@ describe('generateLetterSvg', () => {
 
   it('keeps a short quote on a single line', () => {
     const svg = generateLetterSvg({ ...base, quote: '一句摘录。' });
+    expect(quoteLinesOf(svg)).toHaveLength(1);
     expect(svg).toContain('一句摘录。');
-    // 出处为单个文本节点（中英文分属两个 tspan，故分别断言）
-    expect(svg.match(/class="letter-attr"/g)).toHaveLength(1);
-    expect(svg).toContain('《小王子》· </tspan>');
-    expect(svg).toContain('Antoine de Saint-Exupéry');
-    expect(svg.match(/class="letter-quote"/g)).toHaveLength(1);
+  });
+
+  it('wraps the attribution when the quote is short and the title/author is long', () => {
+    // 单行摆不下时不再把整行左移到内容边界外（曾导致右缘超出摘录右缘 ~25px），
+    // 而是折成「《书名》」/「· 作者」两行，两行右缘都贴住摘录右缘。
+    const svg = generateLetterSvg({
+      ...base,
+      quote: '人是为了活着本身而活着。',
+      bookTitle: '小王子',
+      bookAuthor: 'Antoine de Saint-Exupéry',
+    });
+
+    const quoteLines = quoteLinesOf(svg);
+    expect(quoteLines).toHaveLength(1);
+    const quoteRight = 220 + inkRightPx(quoteLines[0].text, quoteLines[0].size);
+
+    const attrs = attrLinesOf(svg);
+    // 折行后分隔符跟着作者落到次行行首，首行以书名号收尾（右缘更「实」）
+    expect(attrs.map((l) => l.text)).toEqual(['《小王子》', '· Antoine de Saint-Exupéry']);
+    for (const line of attrs) {
+      expect(
+        line.x + inkRightPx(line.text, 35),
+        `${line.text} 未与摘录右缘对齐`,
+      ).toBeCloseTo(quoteRight, 1);
+    }
+
+    // 横线只挂在首行左侧，且整段不越左侧内容边界（60.2）
+    const rule = /<line class="letter-attr-rule" x1="([\d.]+)" y1="([\d.]+)" x2="([\d.]+)"/.exec(svg)!;
+    expect(Number(rule[1])).toBeCloseTo(attrs[0].x - 70, 1);
+    expect(Number(rule[1])).toBeGreaterThanOrEqual(60.2);
+    expect(Number(rule[2])).toBeCloseTo(attrs[0].y - 12, 1);
+    // 折行后末行仍要留在底部横线之上（≥30px）
+    expect(attrs[attrs.length - 1].y).toBeLessThanOrEqual(1413.1 - 30);
+    expect(attrs[1].y).toBeGreaterThan(attrs[0].y);
+  });
+
+  it('keeps every attribution line inside the left content margin', () => {
+    const samples = [
+      { quote: '一句摘录。', bookTitle: '小王子', bookAuthor: 'Antoine de Saint-Exupéry' },
+      { quote: '一句摘录。', bookTitle: '三体', bookAuthor: '刘慈欣' },
+      { quote: '人是为了活着本身而活着。', bookTitle: '长安的荔枝', bookAuthor: '马伯庸' },
+      {
+        quote: '所有的大人都曾经是小孩，虽然，只有少数的人记得。',
+        bookTitle: '一本书名极其漫长的书'.repeat(2),
+        bookAuthor: '一位名字同样非常漫长的作者'.repeat(2),
+      },
+      { quote: '活。', bookTitle: '追忆似水年华'.repeat(4), bookAuthor: '马塞尔·普鲁斯特'.repeat(4) },
+    ];
+
+    for (const sample of samples) {
+      const svg = generateLetterSvg({ ...base, ...sample });
+      expect(svg).not.toContain('NaN');
+
+      const attrs = attrLinesOf(svg);
+      expect(attrs.length).toBeGreaterThanOrEqual(1);
+      expect(attrs.length).toBeLessThanOrEqual(2);
+
+      const quoteLines = quoteLinesOf(svg);
+      const quoteRight = Math.max(...quoteLines.map((l) => 220 + inkRightPx(l.text, l.size)));
+
+      attrs.forEach((line, i) => {
+        // 首行左边要留得下横线，其余行直接受内容左边界约束
+        const margin = 60.2 + (i === 0 ? 70 : 0);
+        expect(line.x, `${sample.bookTitle} 第 ${i + 1} 行越出左边界`).toBeGreaterThanOrEqual(margin - 0.1);
+        expect(line.x + inkRightPx(line.text, 35)).toBeLessThanOrEqual(quoteRight + 0.1);
+      });
+      expect(attrs[attrs.length - 1].y).toBeLessThanOrEqual(1413.1 - 30);
+    }
   });
 });

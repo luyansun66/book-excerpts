@@ -11,11 +11,30 @@
 <svg id="_图层_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 1021.9 1527.7">
   <defs>
     <style>
+/* 字体由 scripts/subset-letter-fonts.sh 子集化 + 转 woff2；源字体见 书签字体/ */
 @font-face {
   font-family: "DFPSongW3-GB";
   font-style: normal;
   font-weight: 300;
-  src: url("/fonts/%E5%8D%8E%E5%BA%B7%E5%AE%8B%E4%BD%93W3-P.ttf") format("truetype");
+  src: url("/fonts/华康宋体W3-P.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Georgia";
+  font-style: normal;
+  font-weight: 700;
+  src: local("Georgia Bold"), local("Georgia-Bold"), url("/fonts/Georgia-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Georgia";
+  font-style: italic;
+  font-weight: 400;
+  src: local("Georgia Italic"), local("Georgia-Italic"), url("/fonts/Georgia-Italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Trebuchet MS";
+  font-style: normal;
+  font-weight: 400;
+  src: local("Trebuchet MS"), url("/fonts/TrebuchetMS.woff2") format("woff2");
 }
 .letter-rule-bold, .letter-rule-thin, .letter-rule-cream, .letter-attr-rule { fill: none; }
 .letter-rule-bold { stroke: #6b4a2a; stroke-width: 2px; }
