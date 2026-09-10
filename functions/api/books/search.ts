@@ -24,6 +24,12 @@ interface SourceResult {
 }
 
 const SOURCE_TIMEOUT_MS = 2500;
+
+// 豆瓣是慢链路：实测中位 1.7s，偶发超过 2.5s（10 次采样里 2 次卡在超时上）。
+// 它一旦被超时掐掉，中文查询就退回「一条封面都没有」的老样子——正是这次要修的
+// 问题，所以单独给豆瓣更长的预算。代价是最慢情况下整次搜索多等约 1.5s，
+// 而搜索结果本身有 5 分钟缓存，重复查询不会重复付这个成本。
+const DOUBAN_TIMEOUT_MS = 4000;
 const CACHE_TTL_SECONDS = 300;
 
 const defaultCache = (caches as unknown as { default: Cache }).default;
@@ -148,7 +154,7 @@ async function searchDouban(q: string): Promise<SourceResult> {
   const url = `https://book.douban.com/j/subject_suggest?q=${encodeURIComponent(q)}`;
 
   try {
-    const resp = await fetchWithTimeout(url, SOURCE_TIMEOUT_MS, DOUBAN_HEADERS);
+    const resp = await fetchWithTimeout(url, DOUBAN_TIMEOUT_MS, DOUBAN_HEADERS);
     if (!resp.ok) {
       return { ok: false, results: [], ms: Date.now() - started };
     }

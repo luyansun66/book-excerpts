@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // search.ts 在模块顶层读 caches.default（Cloudflare 运行时才有），
@@ -111,6 +113,17 @@ describe('书封来源', () => {
     const google = data.results.filter((r: any) => r.source === 'google');
     expect(google.some((r: any) => String(r.cover).includes(encodeURIComponent('https://books.google.com')))).toBe(true);
     expect(data.debug.withCover).toBeGreaterThan(0);
+  });
+
+  it('豆瓣的超时预算比其余源更长，否则中文查询会退回没有封面的老样子', async () => {
+    const src = readFileSync(resolve(process.cwd(), 'functions/api/books/search.ts'), 'utf8');
+    const base = Number(/const SOURCE_TIMEOUT_MS = (\d+);/.exec(src)?.[1]);
+    const douban = Number(/const DOUBAN_TIMEOUT_MS = (\d+);/.exec(src)?.[1]);
+
+    expect(base).toBeGreaterThan(0);
+    expect(douban).toBeGreaterThan(base);
+    // 豆瓣那次请求必须真的用上这个预算，而不是又退回通用值
+    expect(src).toContain('fetchWithTimeout(url, DOUBAN_TIMEOUT_MS, DOUBAN_HEADERS)');
   });
 
   it('debug 里能看到三个源各自的响应情况', async () => {
