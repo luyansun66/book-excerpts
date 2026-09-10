@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../../store';
-import type { Book } from '../../types';
+import type { Book, Category } from '../../types';
+import { pickMoveTargetOnDelete } from '../../db/categoryUtils';
+import ConfirmDialog from '../ConfirmDialog';
 
 const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
   douban: '豆瓣',
@@ -47,7 +49,7 @@ interface BookCandidate {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
-  const { categories, addBook } = useApp();
+  const { categories, addBook, addCategory, deleteCategory } = useApp();
 
   // Form state
   const [title, setTitle] = useState('');
@@ -63,12 +65,52 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
   const [coverDataUrl, setCoverDataUrl] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
+  // 在弹窗里直接新建分类，省得为了加一本书退出去「分类管理」
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // 待确认删除的分类。删分类会把书搬走，属于不可逆操作，所以先弹确认框。
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  // 一个分类都不剩的话，添加书籍没地方放（分类是必填），所以最后一个不给删。
+  const canDeleteCategory = categories.length > 1;
+
   // Smart search state
   const [searchResults, setSearchResults] = useState<BookCandidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── 在弹窗内新建分类 ────────────────────────────────────────────────────
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+
+    // 已经有同名分类就直接用它，不重复建（用户要的是「把书放进这个分类」，
+    // 不是「再建一个一模一样的分类」）
+    const existing = categories.find((c) => c.name.trim().toLowerCase() === name.toLowerCase());
+
+    try {
+      const category = existing ?? (await addCategory(name));
+      // 建完立刻选中，这样紧接着点「添加」就能存进新分类
+      setCategoryId(category.id);
+      setNewCategoryName('');
+      setAddingCategory(false);
+    } catch {
+      // 建失败就把输入留着，别把用户刚敲的名字清掉
+    }
+  };
+
+  // ── 在弹窗内删除分类 ────────────────────────────────────────────────────
+  const handleDeleteCategory = async () => {
+    if (!pendingDelete) return;
+    try {
+      await deleteCategory(pendingDelete.id);
+    } finally {
+      // 删失败也要收起确认框，不然它会盖在弹窗上挡着用户
+      setPendingDelete(null);
+    }
+  };
 
   // Reset form
   const reset = () => {
@@ -80,6 +122,9 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
     setSearchResults([]);
     setSearching(false);
     setShowResults(false);
+    setAddingCategory(false);
+    setNewCategoryName('');
+    setPendingDelete(null);
   };
 
   // ── Smart search: enter key trigger ─────────────────────────────────────
@@ -204,7 +249,13 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
     overflow: 'hidden',
   };
 
+  // 确认框里的目标分类必须和 db 里搬书的目标是同一个，否则文案会骗人
+  const deleteTargetName = pendingDelete
+    ? pickMoveTargetOnDelete(categories, pendingDelete.id)?.name ?? ''
+    : '';
+
   return (
+    <>
     <div
       style={{
         position: 'fixed',
@@ -431,30 +482,140 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                />
              </div>
               {/* Category — text centered inside the select */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px' }}>
-                <span style={{ width: 60, fontSize: 14, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>分类</span>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
+              <div style={{ padding: '12px 16px' }}>
+              <div style={{ fontSize: 14, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif', marginBottom: 10 }}>分类</div>
+              <div role="radiogroup" aria-label="选择分类" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                {categories.map((cat) => {
+                  const selected = cat.id === categoryId;
+                  return (
+                    <div
+                      key={cat.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: 28,
+                        borderRadius: 14,
+                        overflow: 'hidden',
+                        border: `1px solid ${selected ? 'var(--color-btn)' : '#d4c4a0'}`,
+                        background: selected ? 'var(--color-btn)' : '#fffcf5',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        aria-label={`选择分类 ${cat.name}`}
+                        data-category-id={cat.id}
+                        onClick={() => setCategoryId(cat.id)}
+                        style={{
+                          height: '100%',
+                          padding: '0 5px 0 11px',
+                          border: 'none',
+                          background: 'transparent',
+                          fontSize: 13,
+                          fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                          color: selected ? 'var(--color-btn-text)' : 'var(--color-text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {cat.name}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`删除分类 ${cat.name}`}
+                        title={canDeleteCategory ? `删除分类 ${cat.name}` : '至少保留一个分类'}
+                        disabled={!canDeleteCategory}
+                        onClick={() => setPendingDelete(cat)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 24,
+                          height: '100%',
+                          border: 'none',
+                          borderLeft: `1px solid ${selected ? 'rgba(245,239,224,0.32)' : '#e6dbc8'}`,
+                          background: 'transparent',
+                          color: selected ? 'var(--color-btn-text)' : 'var(--color-text-muted)',
+                          opacity: canDeleteCategory ? 1 : 0.4,
+                          cursor: canDeleteCategory ? 'pointer' : 'not-allowed',
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  aria-label="新建分类"
+                  title="新建分类"
+                  onClick={() => setAddingCategory((v) => !v)}
                   style={{
-                    flex: 1,
-                    marginLeft: 15,
-                    border: 'none',
-                    background: 'transparent',
-                    fontSize: 14,
-                    outline: 'none',
-                    fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                    color: 'var(--color-text)',
-                    textAlign: 'left',
-                    appearance: 'none',
-                    WebkitAppearance: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 28,
+                    height: 28,
+                    flexShrink: 0,
+                    borderRadius: 14,
+                    border: '1px solid #d4c4a0',
+                    background: addingCategory ? '#efe6d6' : '#fffcf5',
+                    color: 'var(--color-text-secondary)',
                     cursor: 'pointer',
                   }}
                 >
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              {addingCategory && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCategory();
+                      }
+                    }}
+                    placeholder="新分类名称"
+                    autoFocus
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: '1px solid #d4c4a0',
+                      background: '#fffcf5',
+                      fontSize: 13,
+                      outline: 'none',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                      color: 'var(--color-text)',
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCategory}
+                    disabled={!newCategoryName.trim()}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: newCategoryName.trim() ? 'var(--color-btn)' : 'var(--color-btn-disabled)',
+                      color: 'var(--color-btn-text)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                      cursor: newCategoryName.trim() ? 'pointer' : 'not-allowed',
+                      flexShrink: 0,
+                    }}
+                  >
+                    添加
+                  </button>
+                </div>
+              )}
               </div>
             </div>
           </div>
@@ -500,5 +661,16 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
         </div>
       </div>
     </div>
+
+    {/* 删分类会把书搬走，不可逆，先确认一次 */}
+    <ConfirmDialog
+      open={pendingDelete !== null}
+      title="删除分类"
+      message={pendingDelete ? `「${pendingDelete.name}」里的书会移到「${deleteTargetName}」，摘录跟着书一起走，不会丢。` : ''}
+      confirmLabel="删除分类"
+      onConfirm={handleDeleteCategory}
+      onCancel={() => setPendingDelete(null)}
+    />
+    </>
   );
 }

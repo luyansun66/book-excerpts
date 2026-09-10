@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { Book, Category, LetterBox, Quote, ReadingTime } from '../types';
 import { prepareImportData } from './prepare';
+import { pickMoveTargetOnDelete } from './categoryUtils';
 import type { ExportData, ImportResult } from './prepare';
 
 export type { ExportData, ImportResult } from './prepare';
@@ -104,18 +105,19 @@ export async function renameCategory(id: string, name: string): Promise<void> {
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  // Move books in this category to first available category
-  const firstCat = await db.categories.orderBy('order').first();
-  const targetId = firstCat && firstCat.id !== id ? firstCat.id : null;
-  if (targetId) {
-    // 获取目标分类当前最大 sortOrder，依次为移入的书分配递增序号
-    const existing = await db.books.where('categoryId').equals(targetId).toArray();
-    let nextOrder = existing.reduce((max, b) => Math.max(max, b.sortOrder ?? 0), 0) + 1;
-    const movedBooks = await db.books.where('categoryId').equals(id).toArray();
-    for (const b of movedBooks) {
-      await db.books.update(b.id, { categoryId: targetId, sortOrder: nextOrder, updatedAt: new Date().toISOString() });
-      nextOrder++;
-    }
+  // 删分类不动书：先把书搬到「剩下的第一个分类」，再删分类本身。
+  const ordered = await db.categories.orderBy('order').toArray();
+  const target = pickMoveTargetOnDelete(ordered, id);
+  // 这是最后一个分类，删了就一个不剩（添加书籍必须选分类，没分类就没法用），拒绝删。
+  if (!target) return;
+
+  // 获取目标分类当前最大 sortOrder，依次为移入的书分配递增序号
+  const existing = await db.books.where('categoryId').equals(target.id).toArray();
+  let nextOrder = existing.reduce((max, b) => Math.max(max, b.sortOrder ?? 0), 0) + 1;
+  const movedBooks = await db.books.where('categoryId').equals(id).toArray();
+  for (const b of movedBooks) {
+    await db.books.update(b.id, { categoryId: target.id, sortOrder: nextOrder, updatedAt: new Date().toISOString() });
+    nextOrder++;
   }
   await db.categories.delete(id);
 }
