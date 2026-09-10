@@ -1,10 +1,11 @@
 /**
  * @vitest-environment jsdom
- * 「添加书籍」弹窗里的分类行：能直接新建分类，也能直接删分类。
+ * 「添加书籍」弹窗里的分类行：点开是分类列表弹窗，列表里能选、能新建、能删。
  *
  * 关键契约：
+ * - 分类行本身保持一行（分类 ｜ 当前分类 ｜ ＋），分类摊在表单里太乱。
  * - 建完立刻选中新分类（否则这个功能就白加了），同名不重复建。
- * - 每个分类后面都有删除按钮，且点它不会顺带改变当前选中的分类。
+ * - 列表每行末尾都有删除按钮，且点它不会顺带改变当前选中的分类。
  * - 删除必须先过确认框，确认后调 store 的 deleteCategory。
  * - 只剩一个分类时删除按钮禁用（删光了新书就没地方放）。
  *
@@ -54,19 +55,36 @@ function open() {
   return { container, plus };
 }
 
-function chip(container: HTMLElement, name: string) {
-  return container.querySelector(`button[aria-label="选择分类 ${name}"]`) as HTMLButtonElement;
-}
-
-function chipDelete(container: HTMLElement, name: string) {
-  return container.querySelector(`button[aria-label="删除分类 ${name}"]`) as HTMLButtonElement;
-}
-
-/** 当前选中的分类 id（选中态的分类按钮带 data-category-id）。 */
+/** 当前选中的分类 id：分类行上直接标着，不用点开列表就知道。 */
 function selectedCategoryId(container: HTMLElement) {
-  const active = container.querySelector('[role="radio"][aria-checked="true"]') as HTMLElement | null;
-  expect(active, '没有任何分类处于选中态').not.toBeNull();
-  return active!.getAttribute('data-category-id');
+  const row = container.querySelector('button[aria-label="选择分类"]') as HTMLElement | null;
+  expect(row, '分类行本身不见了').not.toBeNull();
+  return row!.getAttribute('data-category-id');
+}
+
+/** 分类列表弹窗的根节点。 */
+function picker(container: HTMLElement) {
+  const heading = Array.from(container.querySelectorAll('h3')).find((h) => h.textContent === '选择分类');
+  expect(heading, '没有弹出分类列表').toBeTruthy();
+  const root = heading!.closest('div[style*="z-index: 150"]') as HTMLElement | null;
+  expect(root, '分类列表弹窗的根节点结构变了').not.toBeNull();
+  return root!;
+}
+
+/** 点分类行，把列表弹出来。 */
+function openPicker(container: HTMLElement) {
+  const row = container.querySelector('button[aria-label="选择分类"]') as HTMLButtonElement;
+  expect(row, '分类行不是可点的（应该有 aria-label="选择分类"）').not.toBeNull();
+  fireEvent.click(row);
+  return picker(container);
+}
+
+function pickerRow(container: HTMLElement, name: string) {
+  return picker(container).querySelector(`button[aria-label="选择分类 ${name}"]`) as HTMLButtonElement;
+}
+
+function pickerDelete(container: HTMLElement, name: string) {
+  return picker(container).querySelector(`button[aria-label="删除分类 ${name}"]`) as HTMLButtonElement;
 }
 
 /** 展开输入框，并返回它和它旁边那个「添加」按钮（不是弹窗头部那个）。 */
@@ -79,9 +97,14 @@ function openCreator(container: HTMLElement, plus: HTMLElement) {
   return { input, submit };
 }
 
+/** 删除确认框的标题节点（用来判断确认框在不在）。 */
+function confirmHeading(container: HTMLElement) {
+  return Array.from(container.querySelectorAll('h3')).find((h) => h.textContent === '删除分类');
+}
+
 /** 删除确认框的根节点。弹窗自己也有一级标题，所以按标题文字认出确认框再往上找。 */
 function confirmDialog(container: HTMLElement) {
-  const heading = Array.from(container.querySelectorAll('h3')).find((h) => h.textContent === '删除分类');
+  const heading = confirmHeading(container);
   expect(heading, '没有弹出删除确认框').toBeTruthy();
   const root = heading!.closest('div[style*="z-index: 200"]') as HTMLElement | null;
   expect(root, '确认框根节点结构变了').not.toBeNull();
@@ -163,23 +186,34 @@ describe('添加书籍弹窗里新建分类', () => {
   });
 });
 
-describe('添加书籍弹窗里删除分类', () => {
-  it('每个分类后面都有一个删除按钮', () => {
+describe('添加书籍弹窗里的分类列表', () => {
+  it('默认不弹出，点分类行才出现', () => {
     const { container } = open();
-    expect(chipDelete(container, '文学')).not.toBeNull();
-    expect(chipDelete(container, '哲学')).not.toBeNull();
+    expect(container.querySelectorAll('h3').length).toBe(1); // 只有弹窗自己的标题
+    openPicker(container);
   });
 
-  it('点分类名是选中当前分类，不会误删', () => {
+  it('列表里一行一个分类，每行末尾都有删除按钮', () => {
     const { container } = open();
-    fireEvent.click(chip(container, '哲学'));
+    openPicker(container);
+    expect(pickerDelete(container, '文学')).not.toBeNull();
+    expect(pickerDelete(container, '哲学')).not.toBeNull();
+  });
+
+  it('点分类名就选中它并收起列表', () => {
+    const { container } = open();
+    openPicker(container);
+    fireEvent.click(pickerRow(container, '哲学'));
+
     expect(selectedCategoryId(container)).toBe('cat-phi');
     expect(deleteCategory).not.toHaveBeenCalled();
+    expect(container.querySelectorAll('h3').length).toBe(1);
   });
 
   it('点删除按钮先弹确认框，此时还没删', () => {
     const { container } = open();
-    fireEvent.click(chipDelete(container, '哲学'));
+    openPicker(container);
+    fireEvent.click(pickerDelete(container, '哲学'));
 
     expect(deleteCategory).not.toHaveBeenCalled();
     expect(confirmDialog(container).textContent).toContain('哲学');
@@ -187,7 +221,8 @@ describe('添加书籍弹窗里删除分类', () => {
 
   it('确认框里说清楚书会搬到哪儿，而不是「也被删掉」', () => {
     const { container } = open();
-    fireEvent.click(chipDelete(container, '哲学'));
+    openPicker(container);
+    fireEvent.click(pickerDelete(container, '哲学'));
 
     expect(confirmDialog(container).textContent).toContain('文学');
     expect(confirmDialog(container).textContent).toContain('摘录');
@@ -195,7 +230,8 @@ describe('添加书籍弹窗里删除分类', () => {
 
   it('删的是第一个分类时，文案说的接盘分类不是它自己', () => {
     const { container } = open();
-    fireEvent.click(chipDelete(container, '文学'));
+    openPicker(container);
+    fireEvent.click(pickerDelete(container, '文学'));
 
     const text = confirmDialog(container).textContent ?? '';
     expect(text).toContain('哲学');
@@ -203,37 +239,42 @@ describe('添加书籍弹窗里删除分类', () => {
 
   it('确认后才真的删，删的是这个分类', async () => {
     const { container } = open();
-    fireEvent.click(chipDelete(container, '哲学'));
+    openPicker(container);
+    fireEvent.click(pickerDelete(container, '哲学'));
     fireEvent.click(dialogButton(container, '删除分类'));
 
     await waitFor(() => expect(deleteCategory).toHaveBeenCalledTimes(1));
     expect(deleteCategory).toHaveBeenCalledWith('cat-phi');
   });
 
-  it('取消就什么也不删，确认框收起来', () => {
+  it('取消就什么也不删，确认框也收起来', () => {
     const { container } = open();
-    fireEvent.click(chipDelete(container, '哲学'));
+    openPicker(container);
+    fireEvent.click(pickerDelete(container, '哲学'));
     fireEvent.click(dialogButton(container, '取消'));
 
     expect(deleteCategory).not.toHaveBeenCalled();
-    expect(container.querySelectorAll('h3').length).toBe(1); // 只剩弹窗自己的标题
+    expect(confirmHeading(container)).toBeUndefined();
   });
 
   it('点删除按钮不会顺带改掉当前选中的分类', () => {
     const { container } = open();
     expect(selectedCategoryId(container)).toBe('cat-lit');
 
-    fireEvent.click(chipDelete(container, '哲学'));
+    openPicker(container);
+    fireEvent.click(pickerDelete(container, '哲学'));
 
     expect(selectedCategoryId(container)).toBe('cat-lit');
   });
 
   it('删掉的正是当前选中的分类时，选中态回落到剩下的第一个', async () => {
     const { container } = open();
-    fireEvent.click(chip(container, '哲学'));
+    openPicker(container);
+    fireEvent.click(pickerRow(container, '哲学'));
     expect(selectedCategoryId(container)).toBe('cat-phi');
 
-    fireEvent.click(chipDelete(container, '哲学'));
+    openPicker(container);
+    fireEvent.click(pickerDelete(container, '哲学'));
     fireEvent.click(dialogButton(container, '删除分类'));
 
     await waitFor(() => expect(selectedCategoryId(container)).toBe('cat-lit'));
@@ -242,8 +283,9 @@ describe('添加书籍弹窗里删除分类', () => {
   it('只剩一个分类时删除按钮禁用，点不动', () => {
     categories = [{ id: 'cat-lit', name: '文学', isPreset: true, order: 0, createdAt: '' }];
     const { container } = open();
+    openPicker(container);
 
-    const del = chipDelete(container, '文学');
+    const del = pickerDelete(container, '文学');
     expect(del.disabled).toBe(true);
     fireEvent.click(del);
     expect(deleteCategory).not.toHaveBeenCalled();
