@@ -13,9 +13,15 @@ import {
   type ReactNode,
 } from 'react';
 import MailboxOverlay from './MailboxOverlay';
-import { obtainLetter, type Letter } from './letterLogic';
+import type { Letter } from './letterLogic';
 import { beijingDateKey } from './dates';
-import { downloadBlob, letterImageFilename, rasterizeLetter } from './letterImage';
+import { downloadBlob, letterImageFilename, rasterizeLetter, warmLetterAssets } from './letterImage';
+import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
+
+// 信件排版模块（含字形表和 770KB 的模板 SVG 解析）只有拆信时才用得到。
+// 平时空闲预取：既不进首屏主包，用户点开时也不用等。
+const loadLetterLogic = () => import('./letterLogic');
+const prefetchLetter = () => Promise.all([loadLetterLogic(), warmLetterAssets()]);
 
 export type MailboxPhase = 'envelope' | 'loading' | 'card' | 'error';
 
@@ -32,6 +38,10 @@ export function MailboxProvider({ children }: { children: ReactNode }) {
 
   const imageBlobRef = useRef<Blob | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+
+  // 首屏之后空闲时预取信件模块 + 字体底图（约 1.4MB）。首访时用户一点开就要用，
+  // 等点击才开始下载就得对着没上底图的空卡片干等。
+  usePrefetchOnIdle(prefetchLetter);
 
   const clearImage = useCallback(() => {
     if (objectUrlRef.current) {
@@ -62,7 +72,8 @@ export function MailboxProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     clearImage();
 
-    obtainLetter()
+    loadLetterLogic()
+      .then(({ obtainLetter }) => obtainLetter())
       .then((result) => {
         if ('error' in result) {
           setError(result.error);

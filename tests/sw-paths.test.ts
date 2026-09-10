@@ -21,6 +21,13 @@ describe('Service Worker for Cloudflare root deployment', () => {
   })
 
   it('uses a fresh cache version to invalidate old caches', () => {
-    expect(sw).toMatch(/const CACHE_NAME = 'zhai-lu-v10';/)
+    expect(sw).toMatch(/const CACHE_NAME = 'zhai-lu-v11';/)
+  })
+
+  it('不预缓存底图：装 SW 时下载会和点开信时的真实请求撞成两份并发下载', () => {
+    const block = sw.slice(sw.indexOf('const PRECACHE_URLS'), sw.indexOf('self.addEventListener'))
+    expect(block).not.toContain('/assets/')
+    expect(block).not.toContain('.jpg')
+    expect(block).not.toContain('.webp')
   })
 })

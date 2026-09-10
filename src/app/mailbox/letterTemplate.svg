@@ -59,7 +59,7 @@
     </clipPath>
   </defs>
   <g class="letter-bg">
-    <image width="1021.9" height="1527.7" preserveAspectRatio="xMidYMid slice" xlink:href="/assets/bg01.jpg"/>
+    <image width="1021.9" height="1527.7" preserveAspectRatio="xMidYMid slice" xlink:href="/assets/bg01.webp"/>
   </g>
   <rect class="letter-tint" width="1021.9" height="1527.7"/>
   <text class="letter-kicker" transform="translate(60.2 105)"><tspan x="0" y="0">READING</tspan></text>

@@ -1,13 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { ArrowLeft, Edit3, Trash2, Share2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useApp } from '../store';
 import { getQuotesByBook, addQuote as dbAddQuote, updateQuote as dbUpdateQuote, deleteQuote as dbDeleteQuote } from '../db';
 import { getBookReadingMinutes } from '../db/readingTime';
 import { formatMinutesHuman } from './timer/format';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
-import ShareSheet from './sheets/ShareSheet';
 import ConfirmDialog from './ConfirmDialog';
+import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
 import type { Book, Quote } from '../types';
+
+// 分享sheet 里带着 770KB 的贴纸 SVG 数据，静态引入会让每个打开书详情的人都先下载它。
+// 改成就地按需加载：平时空闲预取，点「分享」时已经就绪。
+const loadShareSheet = () => import('./sheets/ShareSheet');
+const ShareSheet = lazy(loadShareSheet);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function lighten(hex: string): string {
@@ -344,6 +349,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [editQuote, setEditQuote] = useState<Quote | null>(null);
   const [shareQuote, setShareQuote] = useState<Quote | null>(null);
+  usePrefetchOnIdle(loadShareSheet);
   const [showEditBook, setShowEditBook] = useState(false);
   const [deleteQuoteId, setDeleteQuoteId] = useState<string | null>(null);
   const swipeStartX = useRef(0);
@@ -737,7 +743,9 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
       <AddQuoteSheet open={editQuote !== null} onClose={() => setEditQuote(null)} onSave={handleEditQuote} editQuote={editQuote} />
 
       {shareQuote && (
-        <ShareSheet open={shareQuote !== null} onClose={() => setShareQuote(null)} quote={shareQuote} bookTitle={book.title} bookAuthor={book.author} />
+        <Suspense fallback={null}>
+          <ShareSheet open={shareQuote !== null} onClose={() => setShareQuote(null)} quote={shareQuote} bookTitle={book.title} bookAuthor={book.author} />
+        </Suspense>
       )}
 
       <EditBookSheet open={showEditBook} onClose={() => setShowEditBook(false)} book={book} />

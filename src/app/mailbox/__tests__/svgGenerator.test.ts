@@ -125,7 +125,7 @@ describe('generateLetterSvg', () => {
     expect(svg).toContain('Letter No. 47');
     expect(svg).toContain('折角书摘·2026/09/09');
     expect(svg).toContain('Dogear · September 9, 2026');
-    expect(svg).toContain('/assets/bg01.jpg');
+    expect(svg).toContain('/assets/bg01.webp');
     expect(svg.endsWith('</svg>')).toBe(true);
   });
 

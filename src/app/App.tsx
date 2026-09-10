@@ -1,20 +1,28 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookDetailPage } from './components/BookDetailPage';
 import SearchBar from './components/SearchBar';
 import SearchResults from './components/SearchResults';
 import AddBookSheet from './components/sheets/AddBookSheet';
-import SettingsPage from './components/SettingsPage';
 import LibraryBuilding from './components/LibraryBuilding';
 import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
 import { useOpenMailbox } from './mailbox/MailboxProvider';
 import ReadingTimerBar from './components/timer/ReadingTimerBar';
+import { usePrefetchOnIdle } from './hooks/usePrefetchOnIdle';
 
 import { useApp } from './store';
 import { seedDemianBook } from './db';
 import type { Book } from './types';
 import type { SearchResult } from './db';
 import { Settings2, ChevronLeft, ChevronRight } from 'lucide-react';
+
+// 书详情页和设置页都只有用户点了才看得到，静态引入会让首页白背它们的代码。
+// 改成按需加载，首页空闲时再预取（见 ShelfView 里的 usePrefetchOnIdle）。
+const loadBookDetail = () =>
+  import('./components/BookDetailPage').then((m) => ({ default: m.BookDetailPage }));
+const loadSettings = () => import('./components/SettingsPage');
+const BookDetailPage = lazy(loadBookDetail);
+const SettingsPage = lazy(loadSettings);
+const prefetchPages = () => Promise.all([loadBookDetail(), loadSettings()]);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function lighten(hex: string): string {
@@ -609,6 +617,8 @@ function ShelfView() {
   const [showSettings, setShowSettings] = useState(false);
   const [seedMsg, setSeedMsg] = useState('');
 
+  usePrefetchOnIdle(prefetchPages);
+
   // ─── Category drag-and-drop ────────────────────────────────────────────
   const [catDragState, setCatDragState] = useState<{
     index: number;
@@ -891,7 +901,9 @@ function ShelfView() {
             transition={{ type: 'spring', stiffness: 320, damping: 34 }}
             style={{ position: 'absolute', inset: 0, zIndex: 50, background: 'var(--color-bg)' }}
           >
-            <SettingsPage onBack={() => setShowSettings(false)} />
+            <Suspense fallback={null}>
+              <SettingsPage onBack={() => setShowSettings(false)} />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>
@@ -951,7 +963,9 @@ export default function App() {
             transition={{ type: 'spring', stiffness: 320, damping: 34 }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <BookDetailPage key={selectedBook.id} book={selectedBook} onBack={() => selectBook(null)} />
+            <Suspense fallback={null}>
+              <BookDetailPage key={selectedBook.id} book={selectedBook} onBack={() => selectBook(null)} />
+            </Suspense>
           </motion.div>
         ) : (
           <motion.div

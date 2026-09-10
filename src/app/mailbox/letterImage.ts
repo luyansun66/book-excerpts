@@ -1,6 +1,6 @@
 // ─── 引言卡 → 图片 ─────────────────────────────────────────────────────────────
 // 把 generateLetterSvg 产出的 SVG 直接光栅化成 PNG：
-//   1. 把 SVG 里引用的外链资源（@font-face 的 woff2、底图 bg01.jpg）内联成 data URI
+//   1. 把 SVG 里引用的外链资源（@font-face 的 woff2、底图 bg01.webp）内联成 data URI
 //      —— SVG 作为 <img> 加载时不会请求外链，必须内联，否则丢字/丢底图
 //   2. <img> → <canvas> → toBlob('image/png')
 // 字体被烘焙进图片，保存/分享到任何设备都能保持设计稿的样子。
@@ -8,13 +8,15 @@
 export const LETTER_WIDTH = 1021.9;
 export const LETTER_HEIGHT = 1527.7;
 
-/** 卡片用到的外链资源，用于提前预热；实际内联以 SVG 中出现的引用为准。 */
+/** 卡片用到的外链资源，用于提前预热；实际内联以 SVG 中出现的引用为准。
+ *  底图用 WebP：纸纹这种高频噪点图 JPEG 压不动（1.9MB → WebP 只有 262KB），
+ *  而 WebP 的支持门槛（Safari 14）比本项目构建产物的门槛还低，不需要回退。 */
 export const LETTER_ASSET_URLS = [
   '/fonts/华康宋体W3-P.woff2',
   '/fonts/Georgia-Bold.woff2',
   '/fonts/Georgia-Italic.woff2',
   '/fonts/TrebuchetMS.woff2',
-  '/assets/bg01.jpg',
+  '/assets/bg01.webp',
 ] as const;
 
 /** 站内资源引用：/fonts/… 与 /assets/… */
@@ -28,6 +30,7 @@ const MIME_BY_EXT: Record<string, string> = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   png: 'image/png',
+  webp: 'image/webp',
 };
 
 function mimeFromUrl(url: string): string {
@@ -50,12 +53,12 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 const assetCache = new Map<string, Promise<string>>();
 
-/** 带缓存的默认解析器：按 MIME + base64 包装成 data URI。 */
-export const fetchAssetAsDataUri: AssetResolver = (url) => {
+/** 带缓存的底层加载：同一个 URL 只发一次请求，重复调用共享同一个 promise。 */
+function loadAsset(url: string, init?: RequestInit): Promise<string> {
   const cached = assetCache.get(url);
   if (cached) return cached;
   const task = (async () => {
-    const res = await fetch(url);
+    const res = await fetch(url, init);
     if (!res.ok) throw new Error(`资源加载失败：${url} (${res.status})`);
     const blob = await res.blob();
     const mime = blob.type || mimeFromUrl(url);
@@ -64,7 +67,27 @@ export const fetchAssetAsDataUri: AssetResolver = (url) => {
   assetCache.set(url, task);
   task.catch(() => assetCache.delete(url)); // 失败不缓存，允许重试
   return task;
-};
+}
+
+/** 带缓存的默认解析器：按 MIME + base64 包装成 data URI。 */
+export const fetchAssetAsDataUri: AssetResolver = (url) => loadAsset(url);
+
+/**
+ * 预热拆信要用的字体和底图。
+ * 这些资源只在点开信时才用，但慢网下让用户对着还没上底图的卡片等下载很难受，
+ * 所以首屏之后先把它们拉下来。走的是和真正内联时同一条 fetchAssetAsDataUri
+ * 通道 —— 命中同一份 in-flight promise，用户中途点开也不会把同一个文件下载两遍。
+ */
+export function warmLetterAssets(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  return Promise.all(
+    LETTER_ASSET_URLS.map((url) =>
+      // priority: 'low' —— 预热是「迟早要用」，不该抢应用自身（路由 chunk、用户操作）的带宽；
+      // 不支持的浏览器会忽略这个字段。预热失败静默，真正的加载路径会报错。
+      loadAsset(url, { priority: 'low' }).catch(() => undefined),
+    ),
+  ).then(() => undefined);
+}
 
 /** 列出 SVG 中引用的全部站内资源地址（去重）。 */
 export function collectAssetUrls(svg: string): string[] {
