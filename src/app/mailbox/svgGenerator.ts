@@ -1,41 +1,38 @@
 // ─── 引言卡 SVG 动态生成 ───────────────────────────────────────────────────────
-// 基于 letterTemplate.svg（模板一）做字段替换 + 自动断行 + 字号自适应 + 截断。
-// 模板 viewBox = 0 0 1021.9 1527.7，底部横线 y=1413.1 为内容硬边界。
+// 基于 letterTemplate.svg 做字段替换 + 自动断行 + 字号自适应 + 截断。
+// 模板 viewBox = 0 0 1021.9 1527.7；底部横线 y=1413.1 为内容硬边界。
 
 import template from './letterTemplate.svg?raw';
 
-// ─── 布局常量（取自模板一） ────────────────────────────────────────────────────
-const RIGHT = 960.2;         // 内容右边界
-const QUOTE_X = 225.2;       // 中文摘录 x
-const TRANS_X = 385;         // 英文译文 x
-const ATTR_X = 510.1;        // 书名行 x（出处块左起点）
-const QUOTE_TOP = 891.7;     // 摘录首行基线 y
+// ─── 布局常量（取自 letterTemplate.svg） ───────────────────────────────────────
+const CONTENT_LEFT = 60.2;    // 内容左边界（横线左端）
+const RIGHT = 960.2;          // 内容右边界（横线右端 / 出处右对齐基准）
+const QUOTE_X = 220;          // 摘录正文左起点
+const QUOTE_TOP = 867.5;      // 摘录首行基线
+const QUOTE_LH = 4 / 3;       // 行距比例（模板 48px → 64px）
 
-// 出处拆成两行并固定在底部横线上方：
-//   书名行基线 → 作者行基线相隔 ATTR_LINE_STEP，作者行距底部横线 40px（落在 35~45px）。
-const BOTTOM_LINE_Y = 1413.1;        // 底部横线 y
-const AUTHOR_LINE_GAP = 40;          // 作者行基线距底部横线 40px
-const ATTR_VISUAL_GAP = 20;          // 书名行底部到作者行顶部留约 20px 空白
-const ATTR_TITLE_DESCENT = 5;        // 40px 书名行（中文/破折号）基线下方约 5px
-const ATTR_AUTHOR_ASCENT = 30;       // 40px 作者行（拉丁大写/上伸）顶部约 30px
-const ATTR_LINE_STEP = ATTR_VISUAL_GAP + ATTR_TITLE_DESCENT + ATTR_AUTHOR_ASCENT; // 55px
-const AUTHOR_Y = BOTTOM_LINE_Y - AUTHOR_LINE_GAP; // 作者行基线 1373.1
-const TITLE_Y = AUTHOR_Y - ATTR_LINE_STEP;         // 书名行基线 1318.1
+const BOTTOM_LINE_Y = 1413.1;   // 底部横线 y
+const BOTTOM_CLEARANCE = 30;    // 出处行基线距底部横线的硬下限
+const ATTR_GAP_MAX = 50;        // 摘录末行 → 出处行的理想间距
+const ATTR_GAP_MIN = 40;        // 空间紧张时允许的最小间距
+const ATTR_BOTTOM_LIMIT = BOTTOM_LINE_Y - BOTTOM_CLEARANCE; // 出处行基线最低值 1383.1
+const ATTR_SIZE = 35;           // 出处字号（固定）
+const ATTR_RULE_LEN = 70;     // 书名前的等长横线（35px 字号下「——」的宽度）
+const ATTR_RULE_DY = -12;     // 横线相对基线的纵向偏移
 
-// 字号分档（按字数/高度自适应，逐档缩小）
-const TIERS = [
-  { q: 48, t: 24, a: 40 },
-  { q: 46, t: 22, a: 40 },
-  { q: 44, t: 20, a: 40 },
-  { q: 42, t: 18, a: 40 },
-];
+// 大编号：模板 220px 字号时基线 319.8，其视觉中心 242.8 与右侧小房子中心对齐。
+const BIGNUM_CENTER_X = 283.5;
+const BIGNUM_CENTER_Y = 242.8;
+const BIGNUM_ASCENT = 0.35;   // 数字视觉中心到基线的距离 / 字号
+
+// 摘录字号分档（上限 48px、下限 42px，逐档缩小至放得下为止）
+const QUOTE_FONT_TIERS = [48, 46, 44, 42];
 
 interface LetterFields {
   number: number;
   dateCN: string;
   dateEN: string;
   quote: string;
-  translation: string;
   bookTitle: string;
   bookAuthor: string;
 }
@@ -49,8 +46,8 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 }
-// ─── 标点规范化：中英文内容严格分离 ───────────────────────────────────────────
-/** 将文本中的英文标点统一替换为中文标点（用于中文摘录） */
+
+// ─── 标点规范化：中文内容统一使用中文标点（禁止中英混用） ──────────────────────
 function normalizeChinesePunctuation(text: string): string {
   return text
     .replace(/,/g, '，')
@@ -62,21 +59,6 @@ function normalizeChinesePunctuation(text: string): string {
     .replace(/\(/g, '（')
     .replace(/\)/g, '）');
 }
-
-/** 将文本中的中文标点统一替换为英文标点（用于英文译文） */
-function normalizeEnglishPunctuation(text: string): string {
-  return text
-    .replace(/，/g, ',')
-    .replace(/。/g, '.')
-    .replace(/！/g, '!')
-    .replace(/？/g, '?')
-    .replace(/；/g, ';')
-    .replace(/：/g, ':')
-    .replace(/（/g, '(')
-    .replace(/）/g, ')');
-}
-
-
 
 // ─── 字符宽度估算 ─────────────────────────────────────────────────────────────
 function isCjk(ch: string): boolean {
@@ -90,10 +72,10 @@ function isCjk(ch: string): boolean {
   );
 }
 
-// ─── 字体运行分类：中文（宋体简）vs 英文（Georgia Italic） ────────────────────
-// 破折号「—/–」视为中文标点，避免出处里的「——」被分到英文斜体。
+// ─── 字体运行分类：中文（华康宋体）vs 英文（Georgia Italic） ───────────────────
+// 「·」作为书名与作者的分隔符按中文字形渲染（模板即以中文字体呈现）。
 function isChineseGlyph(ch: string): boolean {
-  return isCjk(ch) || ch === '—' || ch === '–';
+  return isCjk(ch) || ch === '·';
 }
 
 function charWidth(ch: string, fontSize: number): number {
@@ -102,7 +84,7 @@ function charWidth(ch: string, fontSize: number): number {
   if (/[A-Z]/.test(ch)) return fontSize * 0.72;
   if (/[a-z]/.test(ch)) return fontSize * 0.52;
   if (/[0-9]/.test(ch)) return fontSize * 0.62;
-  if (ch === '·' || ch === '…') return fontSize * 0.5;
+  if (ch === '…') return fontSize * 0.5;
   return fontSize * 0.45; // 其余半角标点/符号
 }
 
@@ -212,138 +194,108 @@ function wrapText(text: string, fontSize: number, maxWidth: number): string[] {
   return lines.filter((l) => l.length > 0);
 }
 
-// ─── 布局计算 ──────────────────────────────────────────────────────────────────
-// 出处拆为两行：书名行固定于底部横线上方（距作者行约 20px 视觉空距），作者行为最后一行。
-interface Layout {
-  q: number;
-  t: number;
-  a: number;
-  quoteLines: string[];
-  transLines: string[];
-  titleLine: string;
-  authorLine: string;
-  quoteYs: number[];
-  transYs: number[];
-  titleX: number;
-  authorX: number;
-  titleY: number;
-  authorY: number;
-  fits: boolean;
-}
-
-function lhQ(q: number): number { return Math.round(q * 1.42); }
-function lhT(t: number): number { return Math.round(t * 1.54); }
-function gapQT(q: number): number { return Math.round(q * 1.333); }
-function gapTA(): number { return 55; }
-
-// 单行截断：超出宽度时从尾部删字并加"…"
+// ─── 单行截断：超出宽度时从尾部删字并加「…」 ─────────────────────────────────
 function truncateToWidth(text: string, fontSize: number, maxWidth: number): string {
   if (measureWidth(text, fontSize) <= maxWidth) return text;
   let truncated = text;
   while (truncated.length > 1) {
     truncated = truncated.slice(0, -1);
-    if (measureWidth(truncated + '…', fontSize) <= maxWidth) {
-      break;
-    }
+    if (measureWidth(truncated + '…', fontSize) <= maxWidth) break;
   }
   return truncated + '…';
 }
 
-// 书名行：保留「——《书名》」结构，书名超宽时截断中间并保留右书名号。
-function titleLineFor(bookTitle: string, fontSize: number): string {
-  const open = '——《';
+// ─── 出处：单行「《书名》· 作者」，右侧与摘录对齐（右边缘 = RIGHT） ───────────
+function attrTextFor(bookTitle: string, bookAuthor: string): string {
+  const maxW = RIGHT - CONTENT_LEFT - ATTR_RULE_LEN;
+  const open = '《';
+  const mid = '》· ';
   const close = '》';
-  const maxW = RIGHT - ATTR_X;
-  const available = maxW - measureWidth(open + close, fontSize);
-  const title = measureWidth(bookTitle, fontSize) <= available
+  const reserveForAuthor = measureWidth('…', ATTR_SIZE) * 2;
+
+  const titleBudget = Math.max(maxW - reserveForAuthor, ATTR_SIZE * 3);
+  const title = measureWidth(bookTitle, ATTR_SIZE) <= titleBudget
     ? bookTitle
-    : truncateToWidth(bookTitle, fontSize, available);
-  return open + title + close;
+    : truncateToWidth(bookTitle, ATTR_SIZE, titleBudget);
+
+  const headW = measureWidth(`${open}${title}${mid}`, ATTR_SIZE);
+  const authorBudget = Math.max(maxW - headW, 0);
+  const author = measureWidth(bookAuthor, ATTR_SIZE) <= authorBudget
+    ? bookAuthor
+    : truncateToWidth(bookAuthor, ATTR_SIZE, authorBudget);
+
+  // 书名若已被截断，结尾补一个右书名号（截断函数已加「…」时不再重复）
+  const titlePart = `${open}${title}${title.endsWith('…') ? close : mid}`;
+  return `${titlePart}${author}`;
 }
 
-function layoutFor(
-  quote: string,
-  translation: string,
-  bookTitle: string,
-  bookAuthor: string,
-  tier: { q: number; t: number; a: number },
-): Layout {
-  const quoteLines = wrapText(quote, tier.q, RIGHT - QUOTE_X);
-  const transLines = translation.trim() ? wrapText(translation, tier.t, RIGHT - TRANS_X) : [];
-
-  const titleLine = titleLineFor(bookTitle, tier.a);
-  const titleX = ATTR_X;
-  // 作者首字/首字母左边缘与「《」左边缘对齐；「——」为两个全角破折号。
-  const authorX = titleX + 2 * tier.a;
-  const authorLine = truncateToWidth(bookAuthor, tier.a, RIGHT - authorX);
-
-  const quoteYs = quoteLines.map((_, i) => QUOTE_TOP + i * lhQ(tier.q));
-  const quoteBottom = QUOTE_TOP + quoteLines.length * lhQ(tier.q);
-  const transYs: number[] = [];
-  let contentBottom: number;
-  let clearance: number;
-
-  if (transLines.length === 0) {
-    contentBottom = QUOTE_TOP + (quoteLines.length - 1) * lhQ(tier.q);
-    clearance = gapQT(tier.q);
-  } else {
-    const transTop = quoteBottom + gapQT(tier.q);
-    transYs.push(...transLines.map((_, j) => transTop + j * lhT(tier.t)));
-    contentBottom = transTop + (transLines.length - 1) * lhT(tier.t);
-    clearance = gapTA();
-  }
-
-  const fits = contentBottom + clearance <= TITLE_Y;
-
-  return {
-    q: tier.q, t: tier.t, a: tier.a,
-    quoteLines, transLines, titleLine, authorLine,
-    quoteYs, transYs,
-    titleX, authorX,
-    titleY: TITLE_Y, authorY: AUTHOR_Y,
-    fits,
-  };
+// ─── 布局计算 ──────────────────────────────────────────────────────────────────
+interface Layout {
+  q: number;
+  quoteLines: string[];
+  quoteYs: number[];
+  attrText: string;
+  attrX: number;   // 出处文字 x（= 横线右端）
+  attrY: number;   // 出处行基线（跟随摘录末行，见 attrYFor）
+  fits: boolean;
 }
 
-function computeLayout(quote: string, translation: string, bookTitle: string, bookAuthor: string): Layout {
-  for (const tier of TIERS) {
-    const layout = layoutFor(quote, translation, bookTitle, bookAuthor, tier);
+function lhQ(q: number): number {
+  return Math.round(q * QUOTE_LH);
+}
+
+// 出处行基线：跟随摘录末行，理想间距 50px；空间紧张时收紧，但不小于 40px。
+// 同时被 ATTR_BOTTOM_LIMIT 兜底，保证距底部横线始终 ≥ 30px。
+function attrYFor(lastBaseline: number): number {
+  const gap = Math.min(ATTR_GAP_MAX, ATTR_BOTTOM_LIMIT - lastBaseline);
+  return Math.min(lastBaseline + Math.max(gap, ATTR_GAP_MIN), ATTR_BOTTOM_LIMIT);
+}
+
+function layoutFor(quote: string, bookTitle: string, bookAuthor: string, q: number): Layout {
+  const quoteLines = wrapText(quote, q, RIGHT - QUOTE_X);
+  const quoteYs = quoteLines.map((_, i) => QUOTE_TOP + i * lhQ(q));
+
+  const attrText = attrTextFor(bookTitle, bookAuthor);
+  const attrWidth = measureWidth(attrText, ATTR_SIZE);
+  const attrX = RIGHT - attrWidth;
+
+  const lastBaseline = quoteYs[quoteYs.length - 1] ?? QUOTE_TOP;
+  const attrY = attrYFor(lastBaseline);
+  const fits =
+    attrY - lastBaseline >= ATTR_GAP_MIN &&
+    attrY <= ATTR_BOTTOM_LIMIT &&
+    attrX - ATTR_RULE_LEN >= CONTENT_LEFT;
+
+  return { q, quoteLines, quoteYs, attrText, attrX, attrY, fits };
+}
+
+function computeLayout(quote: string, bookTitle: string, bookAuthor: string): Layout {
+  for (const q of QUOTE_FONT_TIERS) {
+    const layout = layoutFor(quote, bookTitle, bookAuthor, q);
     if (layout.fits) return layout;
   }
 
-  // 最小档仍放不下 → 优先截断摘录，其次截断译文，末尾加 …
-  const min = TIERS[TIERS.length - 1];
+  // 最小档仍放不下 → 截断摘录，末尾加「…」
+  const min = QUOTE_FONT_TIERS[QUOTE_FONT_TIERS.length - 1];
   let q = quote;
-  let tr = translation;
-  let layout = layoutFor(q, tr, bookTitle, bookAuthor, min);
+  let layout = layoutFor(q, bookTitle, bookAuthor, min);
   let guard = 0;
-  while (!layout.fits && guard < 500) {
-    if (q.length > 1) {
-      q = q.length <= 3 ? '…' : `${q.slice(0, q.length - 3).trimEnd()}…`;
-    } else if (tr.length > 1) {
-      tr = tr.length <= 3 ? '…' : `${tr.slice(0, tr.length - 3).trimEnd()}…`;
-    } else {
-      break;
-    }
-    layout = layoutFor(q, tr, bookTitle, bookAuthor, min);
+  while (!layout.fits && q.length > 1 && guard < 500) {
+    q = q.length <= 3 ? '…' : `${q.slice(0, q.length - 3).trimEnd()}…`;
+    layout = layoutFor(q, bookTitle, bookAuthor, min);
     guard++;
   }
   return layout;
 }
 
 // ─── 文本节点生成 ─────────────────────────────────────────────────────────────
+// 字体族与填充色由模板 class 提供，此处只覆盖字号。
 function textNode(cls: string, x: number, y: number | string, content: string, fontSize: number): string {
-  let extraStyle = '';
-  if (cls === 'letter-st12') {
-    extraStyle = 'font-family:&quot;DFPSongW3-GB&quot;,serif;font-weight:300;';
-  } else if (cls === 'letter-st6') {
-    extraStyle = 'font-family:Georgia,&quot;Times New Roman&quot;,serif;font-style:italic;';
-  }
-  return `<text class="${cls}" style="font-size:${fontSize}px;${extraStyle}" transform="translate(${x} ${y})"><tspan x="0" y="0">${esc(content)}</tspan></text>`;
+  return `<text class="${cls}" style="font-size:${fontSize}px" transform="translate(${x} ${y})"><tspan x="0" y="0">${esc(content)}</tspan></text>`;
 }
 
-// ─── 混合中英文的行：出处「——《书名》· 作者」按字符切换字体，英文作者用斜体 ──
-function mixedTextNode(cls: string, x: number, y: number | string, content: string, fontSize: number): string {
+// ─── 混合中英文的行：中文用华康宋体，英文作者用 Georgia 斜体 ──────────────────
+function mixedTextNode(cls: string, x: number | string, y: number | string, content: string, fontSize: number): string {
   const runs: Array<{ text: string; zh: boolean }> = [];
   let buf = '';
   let bufZh = false;
@@ -354,6 +306,12 @@ function mixedTextNode(cls: string, x: number, y: number | string, content: stri
     }
   };
   for (const ch of content) {
+    // 空格跟随相邻文字，避免把「· 作者」切成独立的一段
+    if (ch === ' ') {
+      if (!buf) bufZh = false;
+      buf += ch;
+      continue;
+    }
     const zh = isChineseGlyph(ch);
     if (buf && bufZh !== zh) flush();
     buf += ch;
@@ -374,36 +332,33 @@ function mixedTextNode(cls: string, x: number, y: number | string, content: stri
   return `<text class="${cls}" style="font-size:${fontSize}px" transform="translate(${x} ${y})">${tspans}</text>`;
 }
 
+// ─── 出处：等长横线 + 单行文字（整体右对齐到 RIGHT） ─────────────────────────
+function attributionNode(layout: Layout): string {
+  const y = round1(layout.attrY + ATTR_RULE_DY);
+  const x2 = round1(layout.attrX);
+  const x1 = round1(layout.attrX - ATTR_RULE_LEN);
+  const rule = `<line class="letter-attr-rule" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"/>`;
+  const text = mixedTextNode('letter-attr', round1(layout.attrX), round1(layout.attrY), layout.attrText, ATTR_SIZE);
+  return `${rule}\n${text}`;
+}
+
+// ─── 大编号：位数越多字号越小，垂直中心保持不变 ──────────────────────────────
 function bigNumberNode(number: number): string {
   const digits = String(number);
   const len = digits.length;
   const size = len <= 2 ? 220 : len === 3 ? 170 : len === 4 ? 130 : 105;
-  return `<text class="letter-st10" text-anchor="middle" style="font-size:${size}px" transform="translate(283.5 364)"><tspan x="0" y="0">${digits}</tspan></text>`;
-}
-
-function verticalDigitsNode(number: number): string {
-  const digits = String(number).split('');
-  return digits
-    .map((d, i) => `<text class="letter-st9" transform="translate(67.6 ${(1166.2 + i * 38).toFixed(1)})"><tspan x="0" y="0">${d}</tspan></text>`)
-    .join('\n');
+  const baseline = BIGNUM_CENTER_Y + size * BIGNUM_ASCENT;
+  return `<text class="letter-bignum" text-anchor="middle" style="font-size:${size}px" transform="translate(${BIGNUM_CENTER_X} ${round1(baseline)})"><tspan x="0" y="0">${digits}</tspan></text>`;
 }
 
 // ─── 主入口 ────────────────────────────────────────────────────────────────────
 export function generateLetterSvg(fields: LetterFields): string {
   const quoteText = normalizeChinesePunctuation(fields.quote);
-  const transText = normalizeEnglishPunctuation(fields.translation);
-  const layout = computeLayout(quoteText, transText, fields.bookTitle, fields.bookAuthor);
+  const layout = computeLayout(quoteText, fields.bookTitle, fields.bookAuthor);
 
   const quoteSvg = layout.quoteLines
-    .map((line, i) => textNode('letter-st12', QUOTE_X, round1(layout.quoteYs[i]), line, layout.q))
+    .map((line, i) => textNode('letter-quote', QUOTE_X, round1(layout.quoteYs[i]), line, layout.q))
     .join('\n');
-  const transSvg = layout.transLines
-    .map((line, j) => textNode('letter-st6', TRANS_X, round1(layout.transYs[j]), line, layout.t))
-    .join('\n');
-  const attrSvg = [
-    mixedTextNode('letter-st8', layout.titleX, round1(layout.titleY), layout.titleLine, layout.a),
-    mixedTextNode('letter-st8', layout.authorX, round1(layout.authorY), layout.authorLine, layout.a),
-  ].join('\n');
 
   return template
     .replace('{{BIG_NUMBER}}', bigNumberNode(fields.number))
@@ -412,9 +367,7 @@ export function generateLetterSvg(fields: LetterFields): string {
     .replace('{{DATE_CN}}', esc(`折角书摘·${fields.dateCN}`))
     .replace('{{DATE_EN}}', esc(`Dogear · ${fields.dateEN}`))
     .replace('{{QUOTE_LINES}}', quoteSvg)
-    .replace('{{TRANS_LINES}}', transSvg)
-    .replace('{{ATTR_LINE}}', attrSvg)
-    .replace('{{VERTICAL_DIGITS}}', verticalDigitsNode(fields.number))
+    .replace('{{ATTR_LINE}}', attributionNode(layout))
     .trimEnd();
 }
 
