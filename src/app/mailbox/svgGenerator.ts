@@ -16,7 +16,12 @@ const CONTENT_LEFT = 60.2;    // 内容左边界（横线左端）
 const RIGHT = 960.2;          // 内容右边界（横线右端 / 出处右对齐基准）
 const QUOTE_X = 220;          // 摘录正文左起点
 const QUOTE_TOP = 867.5;      // 摘录首行基线
-const QUOTE_LH = 4 / 3;       // 行距比例（模板 48px → 64px）
+// 行距比例 7/5 = 1.4（模板原本是 48px 配 64px，即 4/3 ≈ 1.333，排版偏紧）。
+// 放宽到 1.4 后 45px 档行距 60px → 63px。这个值是可放的最大档位：再松到 1.45
+// 时首信那段（7 行 × 45px）的底部间距只剩 87px，逼近 85px 硬下限，字号会被迫掉档。
+// 行距一松，「摘录末行 → 出处首行」的墨迹间距同步变小，所以改这里必须复核
+// ATTR_INK_GAP_MIN 是否仍能满足（见下方 attrInkGapRoom）。
+const QUOTE_LH = 7 / 5;
 
 const BOTTOM_LINE_Y = 1413.1;   // 底部横线 y
 const BOTTOM_CLEARANCE = 30;    // 出处末行基线距底部横线的硬下限

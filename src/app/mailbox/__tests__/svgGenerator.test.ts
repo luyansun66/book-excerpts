@@ -137,13 +137,44 @@ describe('generateLetterSvg', () => {
     expect(svg).not.toContain('No. 47</tspan>'.replace('No. 47', 'No.'));
   });
 
-  it('lays out the quote from the template anchor with 4/3 leading', () => {
+  it('lays out the quote from the template anchor with 7/5 leading', () => {
     const svg = generateLetterSvg({ ...base, quote });
 
-    // 模板坐标：左起点 220、首行基线 867.5；45px 档行距 = round(45 × 4/3) = 60
+    // 模板坐标：左起点 220、首行基线 867.5；45px 档行距 = round(45 × 7/5) = 63
     expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 867.5)"');
-    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 927.5)"');
+    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 930.5)"');
     expect(svg).toContain('所有的大人都曾经是小孩');
+  });
+
+  it('keeps the leading at 1.4 across every tier, looser than the template’s 4/3', () => {
+    // 行距放宽后，「摘录末行墨迹底 → 出处首行墨迹顶」的余量同步变小，
+    // 所以这里同时锁住「行距比值」和「仍放得下 45px 档」两件事。
+    const quotes = ['所有的大人都曾经是小孩，'.repeat(3), '四季更替，草木荣枯，'.repeat(6)];
+    for (const quote of quotes) {
+      const lines = quoteLinesOf(generateLetterSvg({ ...base, quote }));
+      expect(lines.length).toBeGreaterThan(1);
+      const size = lines[0].size;
+      const leading = lines[1].y - lines[0].y;
+      expect(leading).toBe(Math.round(size * 1.4));
+      expect(leading / size).toBeGreaterThan(4 / 3);
+    }
+
+    // 首信那段正文是「7 行 × 45px」的最紧实例：行距放宽后它仍要停在 45px 不掉档，
+    // 且底部墨迹间距不得跌破 85px 硬下限——1.45 就会顶到 87px，所以 1.4 是上限附近的取值。
+    const svg = generateLetterSvg({
+      ...base,
+      quote:
+        '人生一世，最后会发现名利财富都是空，人能够拥有的只有生命本身。' +
+        '但生命的流逝使得它难以实现超越时段的自我确认，唯有文字能够担当此任，宣告生命曾经在场。' +
+        '经由它们，我们得以端详生命的纹理，探寻生命的本质与深意。',
+      bookTitle: '咀嚼人生',
+      bookAuthor: '曾文寂',
+    });
+    const lines = quoteLinesOf(svg);
+    expect(lines).toHaveLength(7);
+    expect(lines[0].size).toBe(45);
+    expect(lines[lines.length - 1].y - lines[0].y).toBe(6 * 63);
+    expect(baselineGapOf(svg)).toBeGreaterThanOrEqual(impliedBaselineGap(85, 45, ATTR_SIZE) - 0.5);
   });
 
   it('caps the quote at 45px and floors it at 37px', () => {
