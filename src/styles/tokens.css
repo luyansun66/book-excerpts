@@ -193,3 +193,42 @@
     --color-glass-edge: var(--color-border-light);
   }
 }
+
+/* ─── iOS 磨砂分类选择器 ───────────────────────────────────────────────────── */
+/* 按压反馈都发生在 pointer-down（:active），不等抬手；行尾按钮回缩一点，
+   颜色转向危险色，提示这一下会走到删除确认。 */
+.glass-row {
+  transition: background 0.18s ease;
+}
+
+.glass-row:active {
+  background: rgba(28, 22, 12, 0.06);
+}
+
+.glass-icon-btn {
+  transition:
+    transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+    color 0.15s ease;
+}
+
+.glass-icon-btn:active {
+  transform: scale(0.9);
+  color: var(--color-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-row,
+  .glass-icon-btn {
+    transition: none;
+  }
+  .glass-icon-btn:active {
+    transform: none;
+  }
+}
+
+/* iOS 的 scroll edge effect：内容滑到标题底下时让它淡出，而不是拉一条硬分隔线。
+   用 mask 让内容自己淡出，所以底下是玻璃、深色还是实心都不影响。 */
+.glass-scroll-fade[data-scrolled='true'] {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 16px);
+}

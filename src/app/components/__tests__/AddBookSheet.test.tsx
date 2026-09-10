@@ -66,8 +66,8 @@ function selectedCategoryId(container: HTMLElement) {
 function picker(container: HTMLElement) {
   const heading = Array.from(container.querySelectorAll('h3')).find((h) => h.textContent === '选择分类');
   expect(heading, '没有弹出分类列表').toBeTruthy();
-  const root = heading!.closest('div[style*="z-index: 150"]') as HTMLElement | null;
-  expect(root, '分类列表弹窗的根节点结构变了').not.toBeNull();
+  const root = heading!.closest('[role="dialog"]') as HTMLElement | null;
+  expect(root, '分类列表弹窗丢了 role="dialog"').not.toBeNull();
   return root!;
 }
 

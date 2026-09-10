@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, Plus, Trash2, ChevronDown, Check } from 'lucide-react';
+import { Upload, Plus, ChevronDown } from 'lucide-react';
 import { useApp } from '../../store';
 import type { Book, Category } from '../../types';
 import { pickMoveTargetOnDelete } from '../../db/categoryUtils';
 import ConfirmDialog from '../ConfirmDialog';
+import CategoryPicker from '../CategoryPicker';
 
 const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
   douban: '豆瓣',
@@ -82,6 +83,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
   const [showResults, setShowResults] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // 分类行：点它弹出分类面板，同时给面板提供缩放锚点
+  const categoryRowRef = useRef<HTMLButtonElement>(null);
 
   // ── 在弹窗内新建分类 ────────────────────────────────────────────────────
   const handleAddCategory = async () => {
@@ -490,6 +493,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span style={{ width: 60, fontSize: 14, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>分类</span>
                 <button
+                  ref={categoryRowRef}
                   type="button"
                   aria-label="选择分类"
                   aria-haspopup="dialog"
@@ -635,141 +639,17 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
       </div>
     </div>
 
-    {/* 分类列表弹窗：一行一个分类，行尾就是删除按钮 */}
-    {pickerOpen && (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 150,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: 20,
-        }}
-        onClick={() => setPickerOpen(false)}
-      >
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: 300,
-            maxHeight: '60vh',
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'var(--color-bg-card-alt)',
-            borderRadius: 16,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            overflow: 'hidden',
-          }}
-        >
-          <h3
-            style={{
-              margin: 0,
-              padding: '18px 18px 12px',
-              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              fontSize: 14,
-              fontWeight: 700,
-              color: 'var(--color-text)',
-            }}
-          >
-            选择分类
-          </h3>
-
-          <div style={{ overflowY: 'auto' }}>
-            {categories.map((cat) => {
-              const selected = cat.id === categoryId;
-              return (
-                <div
-                  key={cat.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderTop: '1px solid rgba(0,0,0,0.05)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    aria-label={`选择分类 ${cat.name}`}
-                    data-category-id={cat.id}
-                    aria-pressed={selected}
-                    onClick={() => { setCategoryId(cat.id); setPickerOpen(false); }}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '13px 4px 13px 18px',
-                      border: 'none',
-                      background: 'transparent',
-                      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                      fontSize: 14,
-                      fontWeight: selected ? 600 : 400,
-                      color: 'var(--color-text)',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cat.name}
-                    </span>
-                    {selected && <Check size={15} color="#8a7a60" style={{ flexShrink: 0 }} />}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`删除分类 ${cat.name}`}
-                    title={canDeleteCategory ? `删除分类 ${cat.name}` : '至少保留一个分类'}
-                    disabled={!canDeleteCategory}
-                    onClick={() => setPendingDelete(cat)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: 44,
-                      alignSelf: 'stretch',
-                      border: 'none',
-                      background: 'transparent',
-                      color: 'var(--color-text-muted)',
-                      opacity: canDeleteCategory ? 1 : 0.35,
-                      cursor: canDeleteCategory ? 'pointer' : 'not-allowed',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-
-          <button
-            type="button"
-            aria-label="弹窗内新建分类"
-            onClick={() => { setPickerOpen(false); setAddingCategory(true); }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 4,
-              padding: '13px 0',
-              border: 'none',
-              borderTop: '1px solid rgba(0,0,0,0.05)',
-              background: 'transparent',
-              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              fontSize: 13,
-              color: 'var(--color-text-secondary)',
-              cursor: 'pointer',
-            }}
-          >
-            <Plus size={14} />
-            新建分类
-          </button>
-        </div>
-      </div>
-    )}
+    <CategoryPicker
+      open={pickerOpen}
+      categories={categories}
+      selectedId={categoryId}
+      canDelete={canDeleteCategory}
+      anchorEl={categoryRowRef.current}
+      onSelect={(id) => { setCategoryId(id); setPickerOpen(false); }}
+      onDelete={setPendingDelete}
+      onCreate={() => { setPickerOpen(false); setAddingCategory(true); }}
+      onClose={() => setPickerOpen(false)}
+    />
 
     {/* 删分类会把书搬走，不可逆，先确认一次 */}
     <ConfirmDialog
