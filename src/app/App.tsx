@@ -1,5 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { motion, AnimatePresence, useReducedMotion, type Transition } from 'motion/react';
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useCallback,
+  useMemo,
+  lazy,
+  Suspense,
+} from 'react';
+import {
+  motion,
+  AnimatePresence,
+  animate,
+  useMotionValue,
+  useTransform,
+  useReducedMotion,
+  type Transition,
+} from 'motion/react';
 import SearchBar from './components/SearchBar';
 import SearchResults from './components/SearchResults';
 import AddBookSheet from './components/sheets/AddBookSheet';
@@ -9,6 +26,13 @@ import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
 import { useOpenMailbox } from './mailbox/MailboxProvider';
 import ReadingTimerBar from './components/timer/ReadingTimerBar';
 import { usePrefetchOnIdle } from './hooks/usePrefetchOnIdle';
+import {
+  resistedSwipeOffset,
+  shouldDismissOnSwipe,
+  swipeProgress,
+  swipeVelocity,
+  type SwipePoint,
+} from './pageSwipeBack';
 import {
   SHELF_COVER_HEIGHT,
   SHELF_COVER_STRIDE,
@@ -928,15 +952,30 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
 // 现在用弹簧直接调：ζ≈0.92（几乎临界阻尼，只压住不回弹），ω≈14.1。位移剖面大致是
 // 16ms 2%、50ms 14%、100ms 41%、200ms 77%、300ms 93%、400ms 98%——
 // 起步就有位移、中段不窜、后段拖着长尾巴收，全程没有一个"急停"的拐点。
-const PAGE_SPRING: Transition = { type: 'spring', stiffness: 200, damping: 26, mass: 1 };
+const PAGE_SPRING_SHAPE = { type: 'spring', stiffness: 200, damping: 26, mass: 1 } as const;
+const PAGE_SPRING: Transition = PAGE_SPRING_SHAPE;
 const PAGE_FADE: Transition = { duration: 0.2, ease: 'easeOut' };
 // 被压在下面的那层往左退多少、压多深的暗色。Stacked 页面逐层后退+压暗，
 // 层级关系才立得住，也不会出现"上面那层从一片空背景上滑进来"的割裂感。
-const PAGE_PUSH_BACK = '-24%';
+const PAGE_PUSH_BACK_PCT = 24;
 const PAGE_SCRIM = 'rgba(28, 22, 12, 0.18)';
 // 推入页左缘的投影。页在位上时完全被自己盖住（看不见），只有滑动过程中才露出来，
 // 用来把"新页面压在上层"这件事画实。
 const PAGE_EDGE_SHADOW = '-12px 0 30px rgba(28, 22, 12, 0.22)';
+// 右滑返回：认方向之前允许的抖动。小于这个位移先不动，免得把点击和小抖动读成滑动
+const SWIPE_ARM_SLOP = 6;
+
+type SwipeGesture = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  width: number;
+  axis: 'unknown' | 'x' | 'y';
+  points: SwipePoint[];
+};
+
+/** 页面的横向位置用百分比表达，这里把它夹回 0..100 */
+const clampPercent = (value: number) => (value < 0 ? 0 : value > 100 ? 100 : value);
 
 export default function App() {
   const { selectedBook, selectBook } = useApp();
@@ -944,6 +983,13 @@ export default function App() {
   const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
   // 关掉动效的用户只做淡入淡出，不做整屏滑动
   const reduceMotion = useReducedMotion() ?? false;
+
+  // 分类页开着的时候，右滑是这一页自己的返回手势，从哪儿起手都归我们，
+  // 所以要连"左边缘 20px 内起手"的那种也拦住系统手势，不然会被系统抢走。
+  const categoryOpenRef = useRef(false);
+  useEffect(() => {
+    categoryOpenRef.current = openCategoryId !== null;
+  }, [openCategoryId]);
 
   // Prevent accidental iOS swipe-back: only allow from left 20px edge
   useEffect(() => {
@@ -958,7 +1004,8 @@ export default function App() {
       const deltaX = currentX - touchStartX;
       // Block rightward swipe (back gesture) only when touch started outside left 20px.
       // 横向可滚动区域（书架）例外：它本来就靠左右拖动翻书，拦住就回不去了。
-      if (touchStartX > 20 && deltaX > 5 && !isInsideHorizontalScroller(e.target)) {
+      const blocking = touchStartX > 20 || categoryOpenRef.current;
+      if (blocking && deltaX > 5 && !isInsideHorizontalScroller(e.target)) {
         e.preventDefault();
       }
     };
@@ -976,13 +1023,152 @@ export default function App() {
   const categoryOpen = openCategoryId !== null;
   const detailOpen = selectedBook !== null;
 
+  // ── 分类网格页的横向位置 ────────────────────────────────────────────────
+  // 整页的位置只由一个值表达：categoryX，单位是自身宽度的百分比。
+  //   100 = 完全停在右侧屏外；0 = 在位上；负数 = 被详情页压到后面。
+  // 推入、退出、手指跟手、松手之后的去向，走的都是这一个值；书架那层的后退幅度
+  // 和压暗程度由它推出来。好处是手指一按住就能从"当前屏幕上的位置"接着走——
+  // 不存在"等动画播完才接得上手势"的断层（Apple《Designing Fluid Interfaces》
+  // 里说的 interruptibility：永远从 presentation value 起手，不从目标值起手）。
+  const categoryX = useMotionValue(100);
+  const categoryAnim = useRef<{ stop: () => void } | null>(null);
+  const categoryGen = useRef(0);
+  // 退场动画在跑：这时候页面已经不受控，别再让它接到点击
+  const [categoryExiting, setCategoryExiting] = useState(false);
+
+  const runCategoryX = (target: number, velocity = 0, onComplete?: () => void) => {
+    const gen = (categoryGen.current += 1);
+    categoryAnim.current?.stop();
+    const done = () => {
+      // 中途被手势抢走的话，这次动画的收尾就不再算数
+      if (categoryGen.current === gen) onComplete?.();
+    };
+    categoryAnim.current = reduceMotion
+      ? animate(categoryX, target, { duration: 0.2, ease: 'easeOut', onComplete: done })
+      : animate(categoryX, target, { ...PAGE_SPRING_SHAPE, velocity, onComplete: done });
+  };
+
+  const dismissCategory = () => {
+    setCategoryExiting(true);
+    runCategoryX(100, 0, () => setOpenCategoryId(null));
+  };
+
+  // 手一按住就先停掉在跑的动画，页面停在当前值上等着跟手
+  const holdCategory = () => {
+    categoryAnim.current?.stop();
+  };
+
+  const swipeRef = useRef<SwipeGesture | null>(null);
+  // 手指拖动过之后紧接着的那次 click 不算点击，否则一松手就把书打开了
+  const suppressTapRef = useRef(false);
+
+  const onSwipePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    suppressTapRef.current = false;
+    if (reduceMotion || detailOpen || categoryExiting) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // 搜索框里的横向拖动是选字，别抢
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('input, textarea, [contenteditable="true"]')) return;
+    swipeRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      width: e.currentTarget.getBoundingClientRect().width || window.innerWidth,
+      axis: 'unknown',
+      points: [{ x: e.clientX, t: performance.now() }],
+    };
+  };
+
+  const onSwipePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const gesture = swipeRef.current;
+    if (!gesture || gesture.pointerId !== e.pointerId) return;
+    const dx = e.clientX - gesture.startX;
+    const dy = e.clientY - gesture.startY;
+
+    if (gesture.axis === 'unknown') {
+      if (Math.abs(dx) < SWIPE_ARM_SLOP && Math.abs(dy) < SWIPE_ARM_SLOP) return;
+      // 先认方向：往右的横向滑动归我们，纵向交还给列表自己滚
+      if (dx > 0 && Math.abs(dx) > Math.abs(dy)) {
+        gesture.axis = 'x';
+        suppressTapRef.current = true;
+        holdCategory();
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // 少数浏览器不给指针捕获，退化成普通事件也能用
+        }
+      } else {
+        gesture.axis = 'y';
+        return;
+      }
+    }
+    if (gesture.axis !== 'x') return;
+
+    gesture.points.push({ x: e.clientX, t: performance.now() });
+    if (gesture.points.length > 8) gesture.points.shift();
+    categoryX.set((resistedSwipeOffset(dx, gesture.width) / gesture.width) * 100);
+  };
+
+  const endSwipe = (e: React.PointerEvent<HTMLDivElement>, cancelled: boolean) => {
+    const gesture = swipeRef.current;
+    if (!gesture || gesture.pointerId !== e.pointerId) return;
+    swipeRef.current = null;
+    if (gesture.axis !== 'x') return;
+    if (cancelled) {
+      runCategoryX(0);
+      return;
+    }
+    const width = gesture.width;
+    const offset = resistedSwipeOffset(e.clientX - gesture.startX, width);
+    const progress = swipeProgress(offset, width);
+    // 速度换算成"每秒几屏"，跟进度同一个量纲，投影公式才成立
+    const velocity = swipeVelocity(gesture.points) / width;
+    if (shouldDismissOnSwipe(progress, velocity)) {
+      setCategoryExiting(true);
+      runCategoryX(100, velocity * 100, () => setOpenCategoryId(null));
+    } else {
+      runCategoryX(0, velocity * 100);
+    }
+  };
+
+  // 被盖住的那层：往左退一截。没被盖住就回到原位。
+  // 书架的位移和压暗都从"分类页盖住了多少"推出来，所以手指推着分类页往右走的时候，
+  // 下面的书架是同步回位的，而不是等页面走完再补一段动画（那样会断成两拍）。
+  const shelfCover = useTransform(categoryX, (value) => 1 - clampPercent(value) / 100);
+  const shelfShift = useTransform(shelfCover, (cover) =>
+    reduceMotion ? '0%' : `${-PAGE_PUSH_BACK_PCT * cover}%`,
+  );
+  const shelfOpacity = useTransform(shelfCover, (cover) => (reduceMotion ? 1 - 0.45 * cover : 1));
+  const categoryShift = useTransform(categoryX, (value) => (reduceMotion ? '0%' : `${value}%`));
+  const categoryLayerOpacity = useTransform(shelfCover, (cover) => (reduceMotion ? cover : 1));
+
+  // 入场：先把值摆到屏外再交给动画。用 layout effect 免得第一帧在 0 位置闪一下。
+  const enteredCategoryRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (openCategoryId === null) {
+      enteredCategoryRef.current = null;
+      return;
+    }
+    if (enteredCategoryRef.current === openCategoryId) return;
+    enteredCategoryRef.current = openCategoryId;
+    setCategoryExiting(false);
+    categoryX.set(100);
+    runCategoryX(0);
+  }, [openCategoryId]);
+
+  // 详情页压上来 / 让开：分类页整体往后缩一格再挪回来
+  const detailWasOpenRef = useRef(detailOpen);
+  useEffect(() => {
+    if (detailWasOpenRef.current === detailOpen) return;
+    detailWasOpenRef.current = detailOpen;
+    if (!openCategoryId) return;
+    runCategoryX(detailOpen ? -PAGE_PUSH_BACK_PCT : 0);
+  }, [detailOpen, openCategoryId]);
+
   // 推入：从右边进来；退出：原路返回右边（进出同一条路径）。
   const enter = reduceMotion ? { opacity: 0 } : { x: '100%' };
   const settled = reduceMotion ? { opacity: 1 } : { x: 0 };
   const leave = reduceMotion ? { opacity: 0 } : { x: '100%' };
-  // 被盖住的那层：往左退一截。没被盖住就回到原位。
-  const pushBack = (covered: boolean) =>
-    reduceMotion ? { opacity: covered ? 0.55 : 1 } : { x: covered ? PAGE_PUSH_BACK : 0 };
   const transition = reduceMotion ? PAGE_FADE : PAGE_SPRING;
 
   /** 压在被盖住那层上的暗色，让"退到后面"读得出来 */
@@ -1018,44 +1204,64 @@ export default function App() {
           再让新页面从空背景上滑进来那种断成两拍的观感。 */}
       <motion.div
         data-page-layer="shelf"
-        animate={pushBack(categoryOpen)}
-        transition={transition}
         style={{
           position: 'absolute',
           inset: 0,
           pointerEvents: categoryOpen ? 'none' : 'auto',
+          x: shelfShift,
+          opacity: shelfOpacity,
         }}
         aria-hidden={categoryOpen || undefined}
       >
         <ShelfView onOpenCategory={setOpenCategoryId} />
-        {scrim(categoryOpen)}
+        <motion.div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 1,
+            background: PAGE_SCRIM,
+            pointerEvents: 'none',
+            opacity: shelfCover,
+          }}
+        />
       </motion.div>
 
-      <AnimatePresence>
-        {openCategoryId && (
-          <motion.div
-            key={`category-${openCategoryId}`}
-            data-page-layer="category"
-            initial={enter}
-            animate={pushBack(detailOpen)}
-            exit={leave}
-            transition={transition}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'var(--color-bg)',
-              boxShadow: PAGE_EDGE_SHADOW,
-              pointerEvents: detailOpen ? 'none' : 'auto',
-            }}
-            aria-hidden={detailOpen || undefined}
-          >
-            <Suspense fallback={null}>
-              <CategoryBooksPage categoryId={openCategoryId} onBack={() => setOpenCategoryId(null)} />
-            </Suspense>
-            {scrim(detailOpen)}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* 分类页不进 AnimatePresence：它自己带着一个可跟手、可中途夺回的退出动画，
+          播完才把状态清掉，所以这里直接按状态挂载就行。 */}
+      {openCategoryId && (
+        <motion.div
+          key={openCategoryId}
+          data-page-layer="category"
+          onPointerDown={onSwipePointerDown}
+          onPointerMove={onSwipePointerMove}
+          onPointerUp={(e) => endSwipe(e, false)}
+          onPointerCancel={(e) => endSwipe(e, true)}
+          onClickCapture={(e) => {
+            if (!suppressTapRef.current) return;
+            suppressTapRef.current = false;
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'var(--color-bg)',
+            boxShadow: PAGE_EDGE_SHADOW,
+            pointerEvents: detailOpen || categoryExiting ? 'none' : 'auto',
+            // 横向留给"右滑返回"，纵向照旧交给里面的列表滚动
+            touchAction: 'pan-y',
+            x: categoryShift,
+            opacity: categoryLayerOpacity,
+          }}
+          aria-hidden={detailOpen || undefined}
+        >
+          <Suspense fallback={null}>
+            <CategoryBooksPage categoryId={openCategoryId} onBack={dismissCategory} />
+          </Suspense>
+          {scrim(detailOpen)}
+        </motion.div>
+      )}
 
       <AnimatePresence>
         {selectedBook && (

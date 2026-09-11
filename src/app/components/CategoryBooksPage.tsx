@@ -14,7 +14,9 @@ import BookCoverSurface from './BookCoverSurface';
  */
 
 const GRID_PADDING = 18;
-const GRID_GAP = 14;
+// 列间距给得比行间距宽：封面在三列里本来就够大，留点竖缝，一行三本才不至于
+// 挤成一整块，也顺便把单本封面的宽度收窄一档。
+const GRID_GAP = 32;
 
 interface CategoryBooksPageProps {
   categoryId: string;
@@ -195,7 +197,7 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
               style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${CATEGORY_GRID_COLUMNS}, 1fr)`,
-                gap: `24px ${GRID_GAP}px`,
+                gap: `22px ${GRID_GAP}px`,
                 padding: `2px ${GRID_PADDING}px 0`,
               }}
             >
