@@ -1,28 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Background circle -->
-  <rect width="512" height="512" rx="96" fill="#2c2416"/>
-  <!-- Open book shape -->
-  <g transform="translate(60, 80)">
-    <!-- Left page -->
-    <path d="M196 40 C196 18 178 0 156 0 L30 0 C13 0 0 13 0 30 L0 310 C0 327 13 340 30 340 L156 340 C178 340 196 322 196 300 Z"
-          fill="#FFFDF3"/>
-    <!-- Right page -->
-    <path d="M196 40 C196 18 214 0 236 0 L362 0 C379 0 392 13 392 30 L392 310 C392 327 379 340 362 340 L236 340 C214 340 196 322 196 300 Z"
-          fill="#FFFDF3"/>
-    <!-- Spine -->
-    <line x1="196" y1="40" x2="196" y2="310" stroke="#d4a830" stroke-width="4" stroke-linecap="round"/>
-    <!-- Text lines on left page -->
-    <line x1="40" y1="80" x2="170" y2="80" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <line x1="40" y1="110" x2="160" y2="110" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <line x1="40" y1="140" x2="170" y2="140" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <line x1="40" y1="170" x2="140" y2="170" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <!-- Text lines on right page -->
-    <line x1="222" y1="80" x2="352" y2="80" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <line x1="222" y1="110" x2="342" y2="110" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <line x1="222" y1="140" x2="352" y2="140" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <line x1="222" y1="170" x2="322" y2="170" stroke="#2c2416" stroke-width="6" stroke-linecap="round" opacity="0.12"/>
-    <!-- Bookmark ribbon -->
-    <path d="M196 40 L196 10 L180 22 L196 34"
-          fill="#d4a830" opacity="0.8"/>
-  </g>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 512 512">
+  <!-- Generator: Adobe Illustrator 29.1.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 142)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: none;
+      }
+
+      .st1 {
+        fill: url(#_未命名的渐变_3);
+      }
+
+      .st2 {
+        fill: #2e2822;
+      }
+
+      .st3 {
+        fill: url(#_未命名的渐变);
+        stroke: url(#_未命名的渐变_2);
+        stroke-miterlimit: 10;
+        stroke-width: 1.2px;
+      }
+
+      .st4 {
+        fill: #ddd6ce;
+      }
+    </style>
+    <linearGradient id="_未命名的渐变" data-name="未命名的渐变" x1="332.6" y1="149.8" x2="153.8" y2="190.5" gradientTransform="translate(0 514) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e7e2d6"/>
+      <stop offset=".2" stop-color="#d8d2c4"/>
+      <stop offset=".6" stop-color="#afa593"/>
+      <stop offset=".7" stop-color="#a09480"/>
+    </linearGradient>
+    <linearGradient id="_未命名的渐变_2" data-name="未命名的渐变 2" x1="192.9" y1="159.2" x2="385.9" y2="159.2" gradientTransform="translate(0 514) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#dbd4c8"/>
+      <stop offset=".3" stop-color="#b6b0a2"/>
+      <stop offset=".6" stop-color="#858071"/>
+      <stop offset=".7" stop-color="#726e5e"/>
+    </linearGradient>
+    <linearGradient id="_未命名的渐变_3" data-name="未命名的渐变 3" x1="341" y1="236.7" x2="341" y2="236.7" gradientTransform="translate(0 514) scale(1 -1)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e3d9c8"/>
+      <stop offset="0" stop-color="#d2c8b6"/>
+      <stop offset=".4" stop-color="#b7ab98"/>
+      <stop offset=".6" stop-color="#a69a86"/>
+      <stop offset=".7" stop-color="#a09480"/>
+    </linearGradient>
+  </defs>
+  <rect class="st4" width="512" height="512" rx="94.2" ry="94.2"/>
+  <rect class="st0" width="512" height="512"/>
+  <polygon class="st2" points="193.5 74.9 193.5 435.1 225.4 406.3 350.2 261.3 385.8 261.3 193.5 74.9"/>
+  <path class="st3" d="M385.1,261.7c-.3,1.4-1.7,2.7-3,2.7h-3.6c-7.2,0-12,.8-17.5,6.5-16.2,17-32.4,33.9-48.6,50.9-15.9,16.8-31.9,33.5-47.8,50.3-14.5,15.2-29,30.5-43.4,45.7-8.5,8.9-17,17.9-25.5,26.9-.7.8-1.5,1.5-2.2,2.3v-167.3c0-9.2,9.6-17.2,20.2-17.9,8.6,0,13.7-.2,22.2-.2h149.2Z"/>
+  <path class="st1" d="M341,277.3"/>
 </svg>
