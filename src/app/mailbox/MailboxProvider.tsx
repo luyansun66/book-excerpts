@@ -17,6 +17,7 @@ import type { Letter } from './letterLogic';
 import { beijingDateKey } from './dates';
 import { downloadBlob, letterImageFilename, rasterizeLetter, warmLetterAssets } from './letterImage';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
+import { getLetterBox } from '../db';
 
 // 信件排版模块（含字形表和 770KB 的模板 SVG 解析）只有拆信时才用得到。
 // 平时空闲预取：既不进首屏主包，用户点开时也不用等。
@@ -25,7 +26,13 @@ const prefetchLetter = () => Promise.all([loadLetterLogic(), warmLetterAssets()]
 
 export type MailboxPhase = 'envelope' | 'loading' | 'card' | 'error';
 
-const MailboxCommandsContext = createContext<{ openMailbox: () => void } | null>(null);
+interface MailboxCommands {
+  openMailbox: () => void;
+  /** 今天的信还没拆 → 邮筒右上角亮一个未读气泡。 */
+  hasUnreadLetter: boolean;
+}
+
+const MailboxCommandsContext = createContext<MailboxCommands | null>(null);
 
 export function MailboxProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -35,6 +42,7 @@ export function MailboxProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [hasUnreadLetter, setHasUnreadLetter] = useState(false);
 
   const imageBlobRef = useRef<Blob | null>(null);
   const objectUrlRef = useRef<string | null>(null);
@@ -42,6 +50,28 @@ export function MailboxProvider({ children }: { children: ReactNode }) {
   // 首屏之后空闲时预取信件模块 + 字体底图（约 1.4MB）。首访时用户一点开就要用，
   // 等点击才开始下载就得对着没上底图的空卡片干等。
   usePrefetchOnIdle(prefetchLetter);
+
+  // 未读 = 今天这封还没拆。收信时 obtainLetter() 才写入 lastReceiveDate，
+  // 所以只读这一个字段就够，不需要额外的「已读」状态。
+  const refreshUnread = useCallback(() => {
+    getLetterBox()
+      .then((box) => setHasUnreadLetter(box?.lastReceiveDate !== beijingDateKey()))
+      .catch(() => setHasUnreadLetter(false));
+  }, []);
+
+  // 挂载时读一次；回到前台再读一次，跨天后气泡会自己重新亮起。
+  useEffect(() => {
+    refreshUnread();
+    const onForeground = () => {
+      if (document.visibilityState === 'visible') refreshUnread();
+    };
+    document.addEventListener('visibilitychange', onForeground);
+    window.addEventListener('focus', onForeground);
+    return () => {
+      document.removeEventListener('visibilitychange', onForeground);
+      window.removeEventListener('focus', onForeground);
+    };
+  }, [refreshUnread]);
 
   const clearImage = useCallback(() => {
     if (objectUrlRef.current) {
@@ -87,8 +117,11 @@ export function MailboxProvider({ children }: { children: ReactNode }) {
         console.error('[Mailbox] 获取信件失败:', e);
         setError('信件生成失败，请稍后再试');
       })
-      .finally(() => setLoading(false));
-  }, [clearImage, renderImage]);
+      .finally(() => {
+        setLoading(false);
+        refreshUnread();
+      });
+  }, [clearImage, renderImage, refreshUnread]);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -124,7 +157,10 @@ export function MailboxProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const commands = useMemo(() => ({ openMailbox }), [openMailbox]);
+  const commands = useMemo(
+    () => ({ openMailbox, hasUnreadLetter }),
+    [openMailbox, hasUnreadLetter],
+  );
 
   return (
     <MailboxCommandsContext.Provider value={commands}>
@@ -149,4 +185,11 @@ export function useOpenMailbox(): () => void {
   const ctx = useContext(MailboxCommandsContext);
   if (!ctx) throw new Error('useOpenMailbox must be used within MailboxProvider');
   return ctx.openMailbox;
+}
+
+/** 今天是否还有没拆的信（邮筒上的未读气泡）。 */
+export function useUnreadLetter(): boolean {
+  const ctx = useContext(MailboxCommandsContext);
+  if (!ctx) throw new Error('useUnreadLetter must be used within MailboxProvider');
+  return ctx.hasUnreadLetter;
 }

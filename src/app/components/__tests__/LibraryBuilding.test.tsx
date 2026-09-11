@@ -14,11 +14,11 @@ import LibraryBuilding from '../LibraryBuilding';
 // jsdom 对 `#id 后代选择器` 会走 id 快查路径命中上一份残留，querySelector 直接返回 null。
 afterEach(cleanup);
 
-function renderBuilding() {
+function renderBuilding(props: { hasUnreadLetter?: boolean } = {}) {
   const onMailboxClick = vi.fn();
   const onClockClick = vi.fn();
   const { container } = render(
-    <LibraryBuilding onMailboxClick={onMailboxClick} onClockClick={onClockClick} />
+    <LibraryBuilding onMailboxClick={onMailboxClick} onClockClick={onClockClick} {...props} />
   );
   return { container, onMailboxClick, onClockClick };
 }
@@ -100,5 +100,35 @@ describe('LibraryBuilding 点击命中范围', () => {
     fireEvent.click(container.querySelector('svg')!);
     expect(onMailboxClick).not.toHaveBeenCalled();
     expect(onClockClick).not.toHaveBeenCalled();
+  });
+});
+
+// 未读气泡：今天还没拆信时挂在邮筒右上角。
+// 位置全部用百分比，跟着插画缩放；圆心落在邮筒右上方外侧，与小黄旗不重叠。
+describe('LibraryBuilding 未读气泡', () => {
+  it('没有未读时不渲染气泡', () => {
+    const { container } = renderBuilding();
+    expect(container.querySelector('[data-unread-badge]')).toBeNull();
+  });
+
+  it('有未读时渲染气泡，且落在邮筒右上角', () => {
+    const { container } = renderBuilding({ hasUnreadLetter: true });
+    const badge = container.querySelector<HTMLElement>('[data-unread-badge]');
+
+    expect(badge).not.toBeNull();
+    // 邮筒墨迹在 viewBox 里占 x 82%~90%、y 74%~92%；气泡要落在它的右上方外侧
+    expect(parseFloat(badge!.style.left)).toBeGreaterThan(90);
+    expect(parseFloat(badge!.style.top)).toBeLessThan(74);
+    // 直径 13px @ 320px 宽的插画
+    expect(parseFloat(badge!.style.width)).toBeCloseTo(13 / 320 * 100, 3);
+  });
+
+  it('气泡不吃指针事件，邮筒照常能点开', () => {
+    const { container, onMailboxClick } = renderBuilding({ hasUnreadLetter: true });
+    const badge = container.querySelector<HTMLElement>('[data-unread-badge]')!;
+
+    expect(badge.style.pointerEvents).toBe('none');
+    fireEvent.click(hitArea(container, '#time-mailbox'));
+    expect(onMailboxClick).toHaveBeenCalledTimes(1);
   });
 });

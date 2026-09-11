@@ -6,11 +6,72 @@
 // SVG viewBox: 0 0 882.2 781 → aspect ratio ≈ 781/882.2 ≈ 88.5%
 
 import { useEffect, useRef } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import svgContent from '../../assets/library-decoration.svg?raw';
 
 interface LibraryBuildingProps {
   onClockClick?: () => void;
   onMailboxClick?: () => void;
+  /** 今天的信还没拆 → 在邮筒右上角亮一个未读气泡。 */
+  hasUnreadLetter?: boolean;
+}
+
+// 未读气泡的定位：圆心落在邮筒右上角外侧，与小黄旗零重叠。
+// 都用百分比，插画缩放时气泡自动跟随，不需要监听 resize。
+// 数值由插画 viewBox(882.2 × 781) 换算：圆心 (803, 557)、直径 13px @320 宽。
+const UNREAD_BADGE = {
+  left: '91.02%',
+  top: '71.32%',
+  size: '4.0625%',   // 13 / 320
+} as const;
+
+/**
+ * 邮筒右上角的未读信封气泡。纯装饰，不接收指针事件，以免挡住邮筒的点击。
+ *
+ * 外层只负责定位（含 translate 居中），内层才做 scale —— motion 会接管内层的
+ * transform，两者放同一个元素上，居中位移会被动效覆盖掉。
+ */
+function UnreadBadge() {
+  const reduceMotion = useReducedMotion();
+  return (
+    <span
+      aria-hidden="true"
+      data-unread-badge=""
+      style={{
+        position: 'absolute',
+        left: UNREAD_BADGE.left,
+        top: UNREAD_BADGE.top,
+        width: UNREAD_BADGE.size,
+        height: 0,
+        paddingBottom: UNREAD_BADGE.size,
+        transform: 'translate(-50%, -50%)',
+        pointerEvents: 'none',
+      }}
+    >
+      <motion.span
+        initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 520, damping: 24, mass: 0.6 }}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '50%',
+          background: '#C0392B',
+          // 米色描边圈把气泡从邮筒上「抬」起来，不然红压红会糊成一团
+          boxShadow: '0 0 0 1.5px var(--color-bg), 0 1px 3px rgba(60, 40, 20, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="60%" height="60%" fill="none" stroke="#fff"
+             strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2.6" y="5.2" width="18.8" height="13.6" rx="2.6" />
+          <path d="M3.6 6.6 12 12.9l8.4-6.3" />
+        </svg>
+      </motion.span>
+    </span>
+  );
 }
 
 // 插画里两处可点的东西墨迹都很小：邮筒整块才约 25×51 CSS px（而且「屋顶 + 身子 +
@@ -77,7 +138,7 @@ function unitsPerPxOf(svg: SVGSVGElement) {
   return viewWidth / (renderedWidth || viewWidth);
 }
 
-export default function LibraryBuilding({ onClockClick, onMailboxClick }: LibraryBuildingProps) {
+export default function LibraryBuilding({ onClockClick, onMailboxClick, hasUnreadLetter }: LibraryBuildingProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -142,6 +203,7 @@ export default function LibraryBuilding({ onClockClick, onMailboxClick }: Librar
             lineHeight: 0,
           }}
         />
+        {hasUnreadLetter && <UnreadBadge />}
       </div>
     </div>
   );

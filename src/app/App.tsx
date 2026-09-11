@@ -23,7 +23,7 @@ import AddBookSheet from './components/sheets/AddBookSheet';
 import LibraryBuilding from './components/LibraryBuilding';
 import BookCoverSurface from './components/BookCoverSurface';
 import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
-import { useOpenMailbox } from './mailbox/MailboxProvider';
+import { useOpenMailbox, useUnreadLetter } from './mailbox/MailboxProvider';
 import ReadingTimerBar from './components/timer/ReadingTimerBar';
 import { usePrefetchOnIdle } from './hooks/usePrefetchOnIdle';
 import {
@@ -119,6 +119,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
 function PatternHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
   const openTimer = useOpenTimerSheet();
   const openMailbox = useOpenMailbox();
+  const hasUnreadLetter = useUnreadLetter();
 
   return (
     <div style={{ padding: '0 20px', position: 'relative' }}>
@@ -159,7 +160,11 @@ function PatternHeader({ onOpenSettings }: { onOpenSettings: () => void }) {
         }}
       >
         {/* Library building illustration */}
-        <LibraryBuilding onClockClick={openTimer} onMailboxClick={openMailbox} />
+        <LibraryBuilding
+          onClockClick={openTimer}
+          onMailboxClick={openMailbox}
+          hasUnreadLetter={hasUnreadLetter}
+        />
 
         {/* Tagline */}
         <p
