@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion, type Transition } from 'motion/react';
 import SearchBar from './components/SearchBar';
 import SearchResults from './components/SearchResults';
 import AddBookSheet from './components/sheets/AddBookSheet';
 import LibraryBuilding from './components/LibraryBuilding';
+import BookCoverSurface from './components/BookCoverSurface';
 import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
 import { useOpenMailbox } from './mailbox/MailboxProvider';
 import ReadingTimerBar from './components/timer/ReadingTimerBar';
 import { usePrefetchOnIdle } from './hooks/usePrefetchOnIdle';
 import {
+  SHELF_COVER_HEIGHT,
   SHELF_COVER_STRIDE,
+  SHELF_COVER_WIDTH,
   SHELF_SIDE_PADDING,
   isInsideHorizontalScroller,
   measureShelfSnapOffsets,
@@ -28,20 +31,20 @@ import { Settings2, ChevronLeft, ChevronRight } from 'lucide-react';
 const loadBookDetail = () =>
   import('./components/BookDetailPage').then((m) => ({ default: m.BookDetailPage }));
 const loadSettings = () => import('./components/SettingsPage');
+const loadCategoryBooks = () =>
+  import('./components/CategoryBooksPage').then((m) => ({ default: m.CategoryBooksPage }));
 const BookDetailPage = lazy(loadBookDetail);
 const SettingsPage = lazy(loadSettings);
-const prefetchPages = () => Promise.all([loadBookDetail(), loadSettings()]);
+const CategoryBooksPage = lazy(loadCategoryBooks);
+const prefetchPages = () => Promise.all([loadBookDetail(), loadSettings(), loadCategoryBooks()]);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function lighten(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgb(${Math.min(r + 28, 255)},${Math.min(g + 28, 255)},${Math.min(b + 28, 255)})`;
-}
-
-const COVER_W = 94;
-const COVER_H = 145;
+const COVER_W = SHELF_COVER_WIDTH;
+const COVER_H = SHELF_COVER_HEIGHT;
+// 分类头那个计数胶囊的触点尺寸（视觉只有 9px 字，靠它撑出可点范围）。
+// 用 minWidth/minHeight 写死，而不是靠 padding 凑：以后改文案或字号，
+// 命中区域不会跟着缩水。
+const PILL_HIT_WIDTH = 88;
+const PILL_HIT_HEIGHT = 33;
 // 长按激活拖拽前的容差：超过这个位移就认为用户在滑书，不进入拖拽
 const DRAG_HOLD_SLOP = 8;
 // 长按时长，以及到点后的复核窗口
@@ -50,9 +53,6 @@ const DRAG_HOLD_CONFIRM_MS = 120;
 const APP_BASE_URL = import.meta.env.BASE_URL;
 // ─── Book cover — adapted from original, uses real data ──────────────────────
 function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: Book) => void; dragActive?: boolean }) {
-  // 图片型封面加载失败（比如 blob: 地址早就失效）时，封面框会是全透明的，
-  // 书架上就只剩一个"空位"。这里退回到带书名的占位封面。
-  const [failedCoverSrc, setFailedCoverSrc] = useState<string | null>(null);
   const sharedStyle: React.CSSProperties = {
     width: COVER_W,
     height: COVER_H,
@@ -79,129 +79,15 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
     (e.currentTarget as HTMLElement).style.boxShadow = sharedStyle.boxShadow as string;
   };
 
-  // Has cover image
-  if (book.coverType && book.coverData && failedCoverSrc !== book.coverData) {
-    return (
-      <div
-        onClick={handleClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeaveCancel}
-        onContextMenu={(e) => e.preventDefault()}
-        style={{ ...sharedStyle, overflow: 'hidden' }}
-      >
-        <img
-          src={book.coverData}
-          alt={book.title}
-          onError={() => setFailedCoverSrc(book.coverData ?? null)}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-      </div>
-    );
-  }
-
-  // No cover: generate styled placeholder with book title
-  const bgColors = [
-    '#3D2E1E', '#2A3528', '#342A3D', '#243040',
-    '#3A2A20', '#2E3A34', '#3A2C3D', '#2A3A34',
-    '#3D2828', '#28343D',
-  ];
-  const colorIdx = book.title.length % bgColors.length;
-  const bg = bgColors[colorIdx];
-
   return (
-    <div
+    <BookCoverSurface
+      book={book}
+      style={sharedStyle}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeaveCancel}
       onContextMenu={(e) => e.preventDefault()}
-      style={{
-        ...sharedStyle,
-        background: `linear-gradient(170deg, ${lighten(bg)} 0%, ${bg} 70%)`,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '8px 5px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Paper texture overlay */}
-      <div
-        style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.06,
-          backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.8) 2px, rgba(0,0,0,0.8) 2.5px), repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.4) 2px, rgba(0,0,0,0.4) 2.5px)',
-        }}
-      />
-      {/* Subtle grain noise */}
-      <div
-        style={{
-          position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.04,
-          background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(0,0,0,0.1) 0%, transparent 50%)',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 4,
-          border: '1px solid var(--color-gold-light)',
-          borderRadius: 1,
-          pointerEvents: 'none',
-        }}
-      />
-      {['0,0', '0,auto', 'auto,0', 'auto,auto'].map((pos, i) => {
-        const [top, bottom] = pos.split(',');
-        return (
-          <div
-            key={i}
-            style={{
-              position: 'absolute',
-              top: top === '0' ? 6 : undefined,
-              bottom: bottom === '0' ? 6 : undefined,
-              left: i < 2 ? 6 : undefined,
-              right: i >= 2 ? 6 : undefined,
-              width: 6, height: 6,
-              borderTop: top === '0' ? '1.5px solid var(--color-gold-light)' : undefined,
-              borderBottom: bottom === '0' ? '1.5px solid var(--color-gold-light)' : undefined,
-              borderLeft: i < 2 ? '1.5px solid var(--color-gold-light)' : undefined,
-              borderRight: i >= 2 ? '1.5px solid var(--color-gold-light)' : undefined,
-            }}
-          />
-        );
-      })}
-      <p
-        style={{
-          color: '#d4a840',
-          fontSize: 10,
-          fontFamily: 'Georgia, "Times New Roman", serif',
-          textAlign: 'center',
-          lineHeight: 1.35,
-          margin: 0,
-          fontWeight: 'bold',
-          letterSpacing: 0.3,
-          whiteSpace: 'pre-line',
-          zIndex: 1,
-        }}
-      >
-        {book.title.length > 14 ? book.title.slice(0, 12) + '…' : book.title}
-      </p>
-      <div
-        style={{ width: 22, height: 1, background: 'rgba(200,151,42,0.45)', margin: '4px 0', zIndex: 1 }}
-      />
-      <p
-        style={{
-          color: 'rgba(200,151,42,0.6)',
-          fontSize: 9,
-          fontFamily: 'Georgia, "Times New Roman", serif',
-          textAlign: 'center',
-          margin: 0,
-          zIndex: 1,
-          letterSpacing: 0.2,
-        }}
-      >
-        {book.author.length > 10 ? book.author.slice(0, 9) + '…' : book.author}
-      </p>
-    </div>
+    />
   );
 }
 
@@ -277,6 +163,7 @@ function ShelfRow({
   books,
   bookCount,
   onSelect,
+  onOpenCategory,
   onMoveBook,
   onCatDragPointerDown,
   isCatDragged,
@@ -285,6 +172,7 @@ function ShelfRow({
   books: Book[];
   bookCount: number;
   onSelect: (b: Book) => void;
+  onOpenCategory?: () => void;
   onMoveBook: (bookId: string, targetIndex: number) => void;
   onCatDragPointerDown?: (e: React.PointerEvent) => void;
   isCatDragged?: boolean;
@@ -488,21 +376,55 @@ function ShelfRow({
             fontFamily: 'var(--font-sans)',
             textTransform: 'uppercase',
             fontWeight: 600,
+            // 计数入口现在占得更宽，分类名过长时要能收缩，不能把它挤出去
+            minWidth: 0,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            paddingRight: 10,
           }}
         >
           {name}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span
+          {/* 书名计数器同时是入口：点开就是这一类的全部书籍网格页。
+              字号/字距跟左边分类名一致，只靠颜色区分主次；负外边距把触点撑到
+              30px 高，但视觉位置不动，也不会压到底下的封面。 */}
+          <button
+            onClick={onOpenCategory}
+            disabled={!onOpenCategory}
+            aria-label={`查看「${name}」的全部 ${bookCount} 本书`}
             style={{
-              fontSize: 10,
-              color: 'var(--color-text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 2,
+              fontSize: 9,
+              // 9px 的字配上 2px 字距太空，收到 1px（字之间还留着约 1.8px 空隙，
+              // 不会挨到一起）
+              letterSpacing: 1,
+              minWidth: PILL_HIT_WIDTH,
+              minHeight: PILL_HIT_HEIGHT,
+              fontWeight: 600,
+              textTransform: 'uppercase',
               fontFamily: 'var(--font-sans)',
-              letterSpacing: 0.3,
+              color: 'var(--color-text-muted)',
+              background: 'none',
+              border: 'none',
+              cursor: onOpenCategory ? 'pointer' : 'default',
+              // 右对齐 + minWidth：盒子被右边的 ⠿ 顶住，多出来的宽度全往左长，
+              // 文字位置一点不动
+              padding: '8px 6px',
+              margin: '-8px 0',
+              transition: 'color 0.15s',
+              WebkitTapHighlightColor: 'transparent',
             }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-accent)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; }}
           >
             {bookCount} books
-          </span>
+            <ChevronRight size={10} strokeWidth={2.4} style={{ marginTop: 1 }} />
+          </button>
           {onCatDragPointerDown && (
             <span
               onPointerDown={onCatDragPointerDown}
@@ -694,7 +616,7 @@ function ShelfRow({
 // ─── Long-press context menu ──────────────────────────────────────────────────
 
 // ─── Shelf view (bookshelf page) ──────────────────────────────────────────────
-function ShelfView() {
+function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) => void }) {
   const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, moveBookTo, moveCategoryTo, setTargetQuoteId } = useApp();
   const [showAddBook, setShowAddBook] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -886,6 +808,7 @@ function ShelfView() {
                     books={catBooks}
                     bookCount={catBooks.length}
                     onSelect={selectBook}
+                    onOpenCategory={() => onOpenCategory(cat.id)}
                     onMoveBook={moveBookTo}
                     onCatDragPointerDown={(e) => handleCatDragStart(e, origIdx)}
                     isCatDragged={isCatDragged}
@@ -995,8 +918,32 @@ function ShelfView() {
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
+// 页面推入/推出的动效参数。
+//
+// 试过两版都不对：
+// - 默认弹簧从静止起步，位移曲线是二次的，前 50ms 只走 3%，像"点了没反应"；
+// - 换成缓动曲线 cubic-bezier(0.32, 0.72, 0, 1) 又反过来，它起步斜率 2.25 倍速，
+//   前 100ms 就冲掉 74%，后 260ms 在那磨最后一点距离 —— 窜进来再爬，很生硬。
+//
+// 现在用弹簧直接调：ζ≈0.92（几乎临界阻尼，只压住不回弹），ω≈14.1。位移剖面大致是
+// 16ms 2%、50ms 14%、100ms 41%、200ms 77%、300ms 93%、400ms 98%——
+// 起步就有位移、中段不窜、后段拖着长尾巴收，全程没有一个"急停"的拐点。
+const PAGE_SPRING: Transition = { type: 'spring', stiffness: 200, damping: 26, mass: 1 };
+const PAGE_FADE: Transition = { duration: 0.2, ease: 'easeOut' };
+// 被压在下面的那层往左退多少、压多深的暗色。Stacked 页面逐层后退+压暗，
+// 层级关系才立得住，也不会出现"上面那层从一片空背景上滑进来"的割裂感。
+const PAGE_PUSH_BACK = '-24%';
+const PAGE_SCRIM = 'rgba(28, 22, 12, 0.18)';
+// 推入页左缘的投影。页在位上时完全被自己盖住（看不见），只有滑动过程中才露出来，
+// 用来把"新页面压在上层"这件事画实。
+const PAGE_EDGE_SHADOW = '-12px 0 30px rgba(28, 22, 12, 0.22)';
+
 export default function App() {
   const { selectedBook, selectBook } = useApp();
+  // 打开的是「分类全部书籍」页；存 id 而不是名字，分类改名后标题跟着变
+  const [openCategoryId, setOpenCategoryId] = useState<string | null>(null);
+  // 关掉动效的用户只做淡入淡出，不做整屏滑动
+  const reduceMotion = useReducedMotion() ?? false;
 
   // Prevent accidental iOS swipe-back: only allow from left 20px edge
   useEffect(() => {
@@ -1026,6 +973,35 @@ export default function App() {
   }, []);
 
 
+  const categoryOpen = openCategoryId !== null;
+  const detailOpen = selectedBook !== null;
+
+  // 推入：从右边进来；退出：原路返回右边（进出同一条路径）。
+  const enter = reduceMotion ? { opacity: 0 } : { x: '100%' };
+  const settled = reduceMotion ? { opacity: 1 } : { x: 0 };
+  const leave = reduceMotion ? { opacity: 0 } : { x: '100%' };
+  // 被盖住的那层：往左退一截。没被盖住就回到原位。
+  const pushBack = (covered: boolean) =>
+    reduceMotion ? { opacity: covered ? 0.55 : 1 } : { x: covered ? PAGE_PUSH_BACK : 0 };
+  const transition = reduceMotion ? PAGE_FADE : PAGE_SPRING;
+
+  /** 压在被盖住那层上的暗色，让"退到后面"读得出来 */
+  const scrim = (covered: boolean) => (
+    <motion.div
+      aria-hidden
+      initial={false}
+      animate={{ opacity: covered ? 1 : 0 }}
+      transition={transition}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        zIndex: 1,
+        background: PAGE_SCRIM,
+        pointerEvents: 'none',
+      }}
+    />
+  );
+
   return (
     <div
       style={{
@@ -1037,30 +1013,64 @@ export default function App() {
         margin: '0 auto',
       }}
     >
-      <AnimatePresence mode="wait" initial={false}>
-        {selectedBook ? (
+      {/* 书架常驻不卸载：它只"退到后面"而不消失。这样从分类页/详情页返回时
+          滚动位置还在，而且推入过程中下面那层是有内容的——不再是先退干净、
+          再让新页面从空背景上滑进来那种断成两拍的观感。 */}
+      <motion.div
+        data-page-layer="shelf"
+        animate={pushBack(categoryOpen)}
+        transition={transition}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: categoryOpen ? 'none' : 'auto',
+        }}
+        aria-hidden={categoryOpen || undefined}
+      >
+        <ShelfView onOpenCategory={setOpenCategoryId} />
+        {scrim(categoryOpen)}
+      </motion.div>
+
+      <AnimatePresence>
+        {openCategoryId && (
           <motion.div
-            key="detail"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-            style={{ position: 'absolute', inset: 0 }}
+            key={`category-${openCategoryId}`}
+            data-page-layer="category"
+            initial={enter}
+            animate={pushBack(detailOpen)}
+            exit={leave}
+            transition={transition}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'var(--color-bg)',
+              boxShadow: PAGE_EDGE_SHADOW,
+              pointerEvents: detailOpen ? 'none' : 'auto',
+            }}
+            aria-hidden={detailOpen || undefined}
+          >
+            <Suspense fallback={null}>
+              <CategoryBooksPage categoryId={openCategoryId} onBack={() => setOpenCategoryId(null)} />
+            </Suspense>
+            {scrim(detailOpen)}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedBook && (
+          <motion.div
+            key={`detail-${selectedBook.id}`}
+            data-page-layer="detail"
+            initial={enter}
+            animate={settled}
+            exit={leave}
+            transition={transition}
+            style={{ position: 'absolute', inset: 0, background: 'var(--color-bg)', boxShadow: PAGE_EDGE_SHADOW }}
           >
             <Suspense fallback={null}>
               <BookDetailPage key={selectedBook.id} book={selectedBook} onBack={() => selectBook(null)} />
             </Suspense>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="shelf"
-            initial={{ x: '-30%', opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '-30%', opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-            style={{ position: 'absolute', inset: 0 }}
-          >
-            <ShelfView />
           </motion.div>
         )}
       </AnimatePresence>

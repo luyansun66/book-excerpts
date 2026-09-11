@@ -10,6 +10,10 @@
 /** 内容区左右内边距，与 ShelfRow 的 paddingLeft / paddingRight 保持一致 */
 export const SHELF_SIDE_PADDING = 18;
 
+/** 封面尺寸，与书架 BookCover 一致；分类网格页按它换算封面内部字号 */
+export const SHELF_COVER_WIDTH = 94;
+export const SHELF_COVER_HEIGHT = 145;
+
 /** 相邻两本书封面左缘之间的距离：94 封面 + 6 间距 + 42 书脊 + 6 间距 */
 export const SHELF_COVER_STRIDE = 148;
 
