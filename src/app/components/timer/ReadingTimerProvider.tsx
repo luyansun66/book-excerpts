@@ -1,12 +1,21 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Book } from '../../types';
 import { useApp } from '../../store';
 import { addReadingTime } from '../../db';
 import { computeReadingStats } from '../../db/readingTime';
 import { localDateKey } from '../../db/readingTimeUtils';
 import ReadingTimerSheet from './ReadingTimerSheet';
+import { formatMinutesHuman } from './format';
+import {
+  AWAY_TOLERANCE_MS,
+  restoreTimerSession,
+  safeLocalStorage,
+  writeTimerSnapshot,
+  type TimerSession,
+  type TimerStatus,
+} from './timerSession';
 
-export type TimerStatus = 'idle' | 'running' | 'paused';
+export type { TimerStatus } from './timerSession';
 
 export interface TimerSummary {
   minutes: number;
@@ -18,6 +27,8 @@ interface ReadingTimerState {
   bookId: string | null;
   sheetOpen: boolean;
   notice: string | null;
+  /** 离开太久被剔除、可以一键补回的毫秒数；0 表示没有可补回的部分。 */
+  recoverableAwayMs: number;
   summary: TimerSummary | null;
   elapsedMs: number;
   books: Book[];
@@ -26,6 +37,7 @@ interface ReadingTimerState {
   startTimer: (bookId: string) => void;
   pauseTimer: () => void;
   resumeTimer: () => void;
+  recoverAway: () => void;
   endTimer: () => Promise<void>;
   dismissSummary: () => void;
   dismissNotice: () => void;
@@ -38,16 +50,82 @@ const AUTO_PAUSE_MS = 3 * 60 * 60 * 1000;
 
 export function ReadingTimerProvider({ children }: { children: ReactNode }) {
   const { books } = useApp();
-  const [status, setStatus] = useState<TimerStatus>('idle');
-  const [bookId, setBookId] = useState<string | null>(null);
-  const [accumulatedMs, setAccumulatedMs] = useState(0);
-  const [segmentStartAt, setSegmentStartAt] = useState<number | null>(null);
-  const [segmentCount, setSegmentCount] = useState(0);
-  const [lastActivityAt, setLastActivityAt] = useState<number | null>(null);
+  const [restored] = useState(() => restoreTimerSession(safeLocalStorage()));
+  const [status, setStatus] = useState<TimerStatus>(restored.status);
+  const [bookId, setBookId] = useState<string | null>(restored.bookId);
+  const [accumulatedMs, setAccumulatedMs] = useState(restored.accumulatedMs);
+  const [segmentStartAt, setSegmentStartAt] = useState<number | null>(restored.segmentStartAt);
+  const [segmentCount, setSegmentCount] = useState(restored.segmentCount);
+  const [lastActivityAt, setLastActivityAt] = useState<number | null>(restored.lastActivityAt);
+  const [recoverableAwayMs, setRecoverableAwayMs] = useState(restored.recoverableAwayMs);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(restored.notice);
   const [summary, setSummary] = useState<TimerSummary | null>(null);
   const [now, setNow] = useState(() => Date.now());
+
+  // 事件回调里需要读到最新会话，用 ref 兜住，避免把监听器绑在当前渲染闭包上。
+  const sessionRef = useRef<TimerSession>({
+    status,
+    bookId,
+    accumulatedMs,
+    segmentStartAt,
+    segmentCount,
+    lastActivityAt,
+  });
+  sessionRef.current = { status, bookId, accumulatedMs, segmentStartAt, segmentCount, lastActivityAt };
+  const hiddenAtRef = useRef<number | null>(null);
+
+  // 会话一变就落一次快照，页面被回收时不至于整段丢失。
+  useEffect(() => {
+    writeTimerSnapshot(safeLocalStorage(), { status, bookId, accumulatedMs, segmentStartAt, segmentCount, lastActivityAt });
+  }, [status, bookId, accumulatedMs, segmentStartAt, segmentCount, lastActivityAt]);
+
+  // 切后台／锁屏照常计时：只在离开超过容差时，把空档停在离开那一刻，并留出补回的入口。
+  useEffect(() => {
+    if (status === 'idle') return;
+
+    const persist = () => {
+      const session = sessionRef.current;
+      if (session.status === 'idle') return;
+      writeTimerSnapshot(safeLocalStorage(), session);
+    };
+
+    const settleAway = (hiddenAt: number) => {
+      const session = sessionRef.current;
+      if (session.status !== 'running' || session.segmentStartAt == null) return;
+
+      const awayMs = Date.now() - hiddenAt;
+      if (awayMs <= AWAY_TOLERANCE_MS) return;
+
+      setAccumulatedMs(session.accumulatedMs + Math.max(0, hiddenAt - session.segmentStartAt));
+      setSegmentCount(session.segmentCount + 1);
+      setSegmentStartAt(null);
+      setLastActivityAt(hiddenAt);
+      setStatus('paused');
+      setRecoverableAwayMs(awayMs);
+      setNotice(`离开 ${formatMinutesHuman(awayMs / 60000)}，这段时间没有计入`);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        persist();
+        return;
+      }
+      const hiddenAt = hiddenAtRef.current;
+      hiddenAtRef.current = null;
+      if (hiddenAt != null) settleAway(hiddenAt);
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', persist);
+    const id = window.setInterval(persist, 15000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('pagehide', persist);
+      window.clearInterval(id);
+    };
+  }, [status]);
 
   // Live ticking while running.
   useEffect(() => {
@@ -68,7 +146,10 @@ export function ReadingTimerProvider({ children }: { children: ReactNode }) {
     setSummary(null);
     setSheetOpen(false);
   }, []);
-  const dismissNotice = useCallback(() => setNotice(null), []);
+  const dismissNotice = useCallback(() => {
+    setNotice(null);
+    setRecoverableAwayMs(0);
+  }, []);
 
   const resetToIdle = useCallback(() => {
     setStatus('idle');
@@ -77,6 +158,7 @@ export function ReadingTimerProvider({ children }: { children: ReactNode }) {
     setSegmentStartAt(null);
     setSegmentCount(0);
     setLastActivityAt(null);
+    setRecoverableAwayMs(0);
     setNotice(null);
   }, []);
 
@@ -90,6 +172,7 @@ export function ReadingTimerProvider({ children }: { children: ReactNode }) {
     setLastActivityAt(t);
     setSheetOpen(true);
     setNotice(null);
+    setRecoverableAwayMs(0);
     setSummary(null);
   };
 
@@ -108,6 +191,19 @@ export function ReadingTimerProvider({ children }: { children: ReactNode }) {
     const t = Date.now();
     setSegmentStartAt(t);
     setLastActivityAt(t);
+    setNotice(null);
+    setStatus('running');
+  };
+
+  /** 把离开太久被剔除的空档补回来，并接着计时。 */
+  const recoverAway = () => {
+    if (recoverableAwayMs <= 0 || status === 'idle') return;
+    const t = Date.now();
+    setAccumulatedMs((prev) => prev + recoverableAwayMs);
+    setSegmentStartAt(t);
+    setSegmentCount((c) => c + 1);
+    setLastActivityAt(t);
+    setRecoverableAwayMs(0);
     setNotice(null);
     setStatus('running');
   };
@@ -171,6 +267,7 @@ export function ReadingTimerProvider({ children }: { children: ReactNode }) {
     bookId,
     sheetOpen,
     notice,
+    recoverableAwayMs,
     summary,
     elapsedMs,
     books,
@@ -179,6 +276,7 @@ export function ReadingTimerProvider({ children }: { children: ReactNode }) {
     startTimer,
     pauseTimer,
     resumeTimer,
+    recoverAway,
     endTimer,
     dismissSummary,
     dismissNotice,

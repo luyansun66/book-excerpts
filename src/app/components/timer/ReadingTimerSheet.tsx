@@ -62,11 +62,13 @@ export default function ReadingTimerSheet() {
     sheetOpen,
     summary,
     notice,
+    recoverableAwayMs,
     books,
     elapsedMs,
     startTimer,
     pauseTimer,
     resumeTimer,
+    recoverAway,
     endTimer,
     closeSheet,
     dismissSummary,
@@ -332,7 +334,26 @@ export default function ReadingTimerSheet() {
                   textAlign: 'center',
                 }}
               >
-                {notice}
+                <div>{notice}</div>
+                {recoverableAwayMs > 0 && (
+                  <button
+                    onClick={recoverAway}
+                    style={{
+                      marginTop: 8,
+                      padding: '7px 14px',
+                      borderRadius: 10,
+                      border: '1px solid rgba(200, 154, 42, 0.55)',
+                      background: 'rgba(200, 154, 42, 0.16)',
+                      color: '#7a6a30',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      fontFamily: '-apple-system, sans-serif',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    计入这段时间并继续
+                  </button>
+                )}
               </div>
             )}
 
