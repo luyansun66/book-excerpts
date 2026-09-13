@@ -1,4 +1,4 @@
-import type { ReadingTime } from '../types';
+import type { Book, ReadingTime } from '../types';
 
 export interface ReadingStatsData {
   todayMinutes: number;
@@ -70,4 +70,39 @@ export function computeReadingStatsFromRecords(
     monthMinutes: round1(monthMinutes),
     last7Days,
   };
+}
+
+export interface WeekBookReading {
+  bookId: string;
+  title: string;
+  minutes: number;
+}
+
+/**
+ * 本周（周一 → 今天）各本书的阅读分钟数，按用时降序。
+ * 与 ReadingStatsData.weekMinutes 使用同一套日期判定，两者可对账。
+ */
+export function computeWeekBookMinutes(
+  records: Pick<ReadingTime, 'date' | 'minutes' | 'bookId'>[],
+  books: Pick<Book, 'id' | 'title'>[],
+  now: Date = new Date(),
+): WeekBookReading[] {
+  const todayKey = localDateKey(now);
+  const weekStartKey = localDateKey(startOfWeek(now));
+  const titles = new Map(books.map((book) => [book.id, book.title]));
+
+  const byBook = new Map<string, number>();
+  for (const record of records) {
+    const day = record.date.slice(0, 10);
+    if (day < weekStartKey || day > todayKey) continue;
+    byBook.set(record.bookId, (byBook.get(record.bookId) || 0) + record.minutes);
+  }
+
+  return Array.from(byBook.entries())
+    .map(([bookId, minutes]) => ({
+      bookId,
+      title: titles.get(bookId) || '未知书籍',
+      minutes: round1(minutes),
+    }))
+    .sort((a, b) => b.minutes - a.minutes || a.title.localeCompare(b.title, 'zh-Hans-CN'));
 }

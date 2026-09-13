@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { computeStats } from '../../db/stats';
 import type { StatsData } from '../../db/stats';
-import { computeReadingStats } from '../../db/readingTime';
-import type { ReadingStatsData } from '../../db/readingTime';
+import { computeReadingStats, computeWeekBookReading } from '../../db/readingTime';
+import type { ReadingStatsData, WeekBookReading } from '../../db/readingTime';
 import { formatMinutesHuman } from '../timer/format';
 import ReadingHeatmap from '../ReadingHeatmap';
+import WeekBookList from './WeekBookList';
 
 export default function StatsSection() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [readingStats, setReadingStats] = useState<ReadingStatsData | null>(null);
+  const [weekBooks, setWeekBooks] = useState<WeekBookReading[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -19,10 +21,15 @@ export default function StatsSection() {
     setLoading(true);
     setError('');
     try {
-      const [data, reading] = await Promise.all([computeStats(), computeReadingStats()]);
+      const [data, reading, weekly] = await Promise.all([
+        computeStats(),
+        computeReadingStats(),
+        computeWeekBookReading(),
+      ]);
       if (isMounted.current) {
         setStats(data);
         setReadingStats(reading);
+        setWeekBooks(weekly);
         if (data.yearRange.max > 0) {
           setSelectedYear((prev) => Math.max(prev, data.yearRange.max));
         }
@@ -160,6 +167,8 @@ export default function StatsSection() {
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif' }}>{formatMinutesHuman(readingStats.monthMinutes)}</div>
             </div>
           </div>
+
+          <WeekBookList books={weekBooks} />
         </div>
       )}
 
