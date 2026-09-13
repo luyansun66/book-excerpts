@@ -1,16 +1,22 @@
-import { useState } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
-import type { WeekBookReading } from '../../db/readingTime';
+import type { Period, PeriodBookReading } from '../../db/readingTime';
+import { PERIOD_LABELS } from '../../db/readingTimeUtils';
 import { formatMinutesHuman } from '../timer/format';
 
-interface WeekBookListProps {
-  books: WeekBookReading[];
+interface PeriodBookListProps {
+  books: PeriodBookReading[];
+  period: Period;
 }
 
-/** 本周阅读明细：按书拆分用时，默认收起，点击标题行展开。 */
-export default function WeekBookList({ books }: WeekBookListProps) {
+/** 周期阅读明细：按书拆分用时，默认收起，点击标题行展开；切换周期时自动收起。 */
+export default function PeriodBookList({ books, period }: PeriodBookListProps) {
   const [expanded, setExpanded] = useState(false);
   const reduceMotion = useReducedMotion();
+
+  useLayoutEffect(() => {
+    setExpanded(false);
+  }, [period]);
 
   if (books.length === 0) {
     return (
@@ -25,7 +31,7 @@ export default function WeekBookList({ books }: WeekBookListProps) {
           textAlign: 'center',
         }}
       >
-        本周还没有阅读记录
+        {PERIOD_LABELS[period].empty}
       </div>
     );
   }
@@ -100,7 +106,7 @@ export default function WeekBookList({ books }: WeekBookListProps) {
         }}
       >
         <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)', letterSpacing: 0.4 }}>
-          本周阅读 · {books.length} 本书
+          {PERIOD_LABELS[period].bookList} · {books.length} 本书
         </span>
         <svg
           width="11"
@@ -124,7 +130,7 @@ export default function WeekBookList({ books }: WeekBookListProps) {
         <AnimatePresence initial={false}>
           {expanded && (
             <motion.div
-              key="week-books"
+              key="period-books"
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}

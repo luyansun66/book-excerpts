@@ -1,7 +1,14 @@
 import { db, getAllBooks } from './index';
-import { computeReadingStatsFromRecords, computeWeekBookMinutes, type ReadingStatsData, type WeekBookReading } from './readingTimeUtils';
+import { computeReadingStatsFromRecords, type ReadingStatsData } from './readingTimeUtils';
+import type { Book, ReadingTime } from '../types';
 
-export type { ReadingStatsData, WeekBookReading } from './readingTimeUtils';
+export type {
+  ReadingStatsData,
+  Period,
+  PeriodBucket,
+  PeriodBookReading,
+  ReadingOverview,
+} from './readingTimeUtils';
 
 export async function computeReadingStats(): Promise<ReadingStatsData> {
   const records = await db.readingTime.toArray();
@@ -15,7 +22,13 @@ export async function getBookReadingMinutes(bookId: string): Promise<number> {
   return Math.round(total * 10) / 10;
 }
 
-export async function computeWeekBookReading(): Promise<WeekBookReading[]> {
+export interface ReadingSnapshot {
+  records: ReadingTime[];
+  books: Pick<Book, 'id' | 'title'>[];
+}
+
+/** 一次拉取阅读记录与书目，统计页在内存里切换周期，避免每次切换都读库。 */
+export async function loadReadingSnapshot(): Promise<ReadingSnapshot> {
   const [records, books] = await Promise.all([db.readingTime.toArray(), getAllBooks()]);
-  return computeWeekBookMinutes(records, books, new Date());
+  return { records, books: books.map(({ id, title }) => ({ id, title })) };
 }

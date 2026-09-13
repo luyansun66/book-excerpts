@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { computeStats } from '../../db/stats';
 import type { StatsData } from '../../db/stats';
-import { computeReadingStats, computeWeekBookReading } from '../../db/readingTime';
-import type { ReadingStatsData, WeekBookReading } from '../../db/readingTime';
+import { loadReadingSnapshot } from '../../db/readingTime';
+import type { Period, ReadingSnapshot } from '../../db/readingTime';
+import { computeReadingOverview } from '../../db/readingTimeUtils';
 import { formatMinutesHuman } from '../timer/format';
 import ReadingHeatmap from '../ReadingHeatmap';
-import WeekBookList from './WeekBookList';
+import PeriodBookList from './PeriodBookList';
+import PeriodSwitch from './PeriodSwitch';
 
 export default function StatsSection() {
   const [stats, setStats] = useState<StatsData | null>(null);
-  const [readingStats, setReadingStats] = useState<ReadingStatsData | null>(null);
-  const [weekBooks, setWeekBooks] = useState<WeekBookReading[]>([]);
+  const [snapshot, setSnapshot] = useState<ReadingSnapshot | null>(null);
+  const [period, setPeriod] = useState<Period>('week');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -21,15 +23,10 @@ export default function StatsSection() {
     setLoading(true);
     setError('');
     try {
-      const [data, reading, weekly] = await Promise.all([
-        computeStats(),
-        computeReadingStats(),
-        computeWeekBookReading(),
-      ]);
+      const [data, reading] = await Promise.all([computeStats(), loadReadingSnapshot()]);
       if (isMounted.current) {
         setStats(data);
-        setReadingStats(reading);
-        setWeekBooks(weekly);
+        setSnapshot(reading);
         if (data.yearRange.max > 0) {
           setSelectedYear((prev) => Math.max(prev, data.yearRange.max));
         }
@@ -48,6 +45,11 @@ export default function StatsSection() {
     loadStats();
     return () => { isMounted.current = false; };
   }, []);
+
+  const overview = useMemo(
+    () => (snapshot ? computeReadingOverview(snapshot.records, snapshot.books, period) : null),
+    [snapshot, period],
+  );
 
   const monthlyCounts = useMemo(() => {
     const counts = new Array(12).fill(0);
@@ -70,8 +72,13 @@ export default function StatsSection() {
   }, [stats]);
 
   const maxMonthlyCount = Math.max(...monthlyCounts, 1);
-  const todayTotalMinutes = readingStats ? Math.round(readingStats.todayMinutes) : 0;
-  const max7DayMinutes = readingStats ? Math.max(...readingStats.last7Days.map((d) => d.minutes), 1) : 1;
+  const maxBucketMinutes = overview ? Math.max(...overview.buckets.map((b) => b.minutes), 1) : 1;
+  const compactBars = (overview?.buckets.length ?? 0) > 10;
+  const totalRounded = overview ? Math.round(overview.totalMinutes) : 0;
+  const totalHours = Math.floor(totalRounded / 60);
+  const totalMins = totalRounded % 60;
+  const todayLabel =
+    !overview || overview.todayMinutes < 1 ? '今日还没有阅读' : `今日 ${formatMinutesHuman(overview.todayMinutes)}`;
 
   if (loading) {
     return (
@@ -95,7 +102,7 @@ export default function StatsSection() {
   return (
     <>
       {/* Reading time summary */}
-      {readingStats && (
+      {overview && (
         <div
           style={{
             background: 'var(--color-bg-card)',
@@ -110,47 +117,63 @@ export default function StatsSection() {
         >
           <div style={{ position: 'absolute', inset: 0, opacity: 0.035, backgroundImage: 'radial-gradient(circle at 20% 20%, var(--color-gold) 1px, transparent 1px), radial-gradient(circle at 80% 80%, var(--color-gold) 1px, transparent 1px)', backgroundSize: '26px 26px', pointerEvents: 'none' }} />
 
-          <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontFamily: 'var(--font-sans)', letterSpacing: 0.8, textAlign: 'center', marginBottom: 2 }}>
-            今日阅读时长
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14, position: 'relative' }}>
+            <PeriodSwitch value={period} onChange={setPeriod} />
           </div>
-          <div style={{ textAlign: 'center', lineHeight: 1.1, marginBottom: 12 }}>
-            {todayTotalMinutes >= 60 ? (
+
+          <div style={{ textAlign: 'center', lineHeight: 1.1, marginBottom: 8 }}>
+            {totalRounded >= 60 ? (
               <>
                 <span style={{ fontSize: 44, fontWeight: 'bold', fontFamily: 'var(--font-serif)', color: 'var(--color-text)', fontVariantNumeric: 'tabular-nums' }}>
-                  {Math.floor(todayTotalMinutes / 60)}
+                  {totalHours}
                 </span>
                 <span style={{ fontSize: 16, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', margin: '0 6px' }}>小时</span>
                 <span style={{ fontSize: 44, fontWeight: 'bold', fontFamily: 'var(--font-serif)', color: 'var(--color-text)', fontVariantNumeric: 'tabular-nums' }}>
-                  {todayTotalMinutes % 60}
+                  {totalMins}
                 </span>
                 <span style={{ fontSize: 16, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', marginLeft: 6 }}>分</span>
               </>
             ) : (
               <>
                 <span style={{ fontSize: 44, fontWeight: 'bold', fontFamily: 'var(--font-serif)', color: 'var(--color-text)', fontVariantNumeric: 'tabular-nums' }}>
-                  {todayTotalMinutes}
+                  {totalRounded}
                 </span>
                 <span style={{ fontSize: 16, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', marginLeft: 6 }}>分钟</span>
               </>
             )}
           </div>
+          <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', letterSpacing: 0.4, marginBottom: 14 }}>
+            {todayLabel}
+          </div>
 
-          {/* 7-day trend bars */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 14 }}>
-            {readingStats.last7Days.map((day) => {
-              const barHeight = day.minutes > 0 ? Math.max(6, Math.round((day.minutes / max7DayMinutes) * 48)) : 3;
+          {/* Period trend bars */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: compactBars ? 2 : 6, marginBottom: 14 }}>
+            {overview.buckets.map((bucket) => {
+              const barHeight = bucket.minutes > 0 ? Math.max(6, Math.round((bucket.minutes / maxBucketMinutes) * 48)) : 3;
               return (
-                <div key={day.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+                <div key={bucket.key} style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
                   <div
                     style={{
                       width: '100%',
                       height: barHeight,
-                      borderRadius: 3,
-                      background: day.minutes > 0 ? 'linear-gradient(180deg, var(--color-gold), var(--color-gold-soft))' : 'var(--color-bg-skeleton)',
+                      borderRadius: compactBars ? 2 : 3,
+                      background: bucket.minutes > 0 ? 'linear-gradient(180deg, var(--color-gold), var(--color-gold-soft))' : 'var(--color-bg-skeleton)',
                       transition: 'height var(--transition-normal)',
                     }}
                   />
-                  <span style={{ fontSize: 9, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)' }}>{day.label}</span>
+                  <span
+                    style={{
+                      display: 'block',
+                      height: 11,
+                      lineHeight: '11px',
+                      fontSize: compactBars ? 8 : 9,
+                      color: 'var(--color-text-muted)',
+                      fontFamily: 'var(--font-sans)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {bucket.label}
+                  </span>
                 </div>
               );
             })}
@@ -158,17 +181,17 @@ export default function StatsSection() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--color-border-light)', paddingTop: 12 }}>
             <div style={{ textAlign: 'center', flex: 1 }}>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', letterSpacing: 0.6, marginBottom: 3 }}>本周累计</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif' }}>{formatMinutesHuman(readingStats.weekMinutes)}</div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', letterSpacing: 0.6, marginBottom: 3 }}>本周期累计</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif' }}>{formatMinutesHuman(overview.totalMinutes)}</div>
             </div>
             <div style={{ width: 1, background: 'var(--color-border-light)' }} />
             <div style={{ textAlign: 'center', flex: 1 }}>
-              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', letterSpacing: 0.6, marginBottom: 3 }}>本月累计</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif' }}>{formatMinutesHuman(readingStats.monthMinutes)}</div>
+              <div style={{ fontSize: 10, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', letterSpacing: 0.6, marginBottom: 3 }}>日均</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif' }}>{formatMinutesHuman(overview.dailyAverageMinutes)}</div>
             </div>
           </div>
 
-          <WeekBookList books={weekBooks} />
+          <PeriodBookList books={overview.books} period={period} />
         </div>
       )}
 
