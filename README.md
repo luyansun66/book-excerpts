@@ -43,6 +43,10 @@
   同 `public/fonts/labels/` 的模式）。`dist/hb-subset.wasm` 由 `npm run build` 从
   `node_modules/harfbuzzjs` 拷入 dist，不入库。端点不可用 / 超时 / 超 CPU 预算时，
   前端自动退回整套字体：慢，但一定出图。
+- **分享面板按需加载 + 空闲预取**：`ShareSheet`（内含 770KB 贴纸 SVG）和导出用的
+  `html2canvas`（202KB）都是动态 import，入口统一在 `shareSheetLoader.ts`；书详情页挂载后
+  用 `usePrefetchOnIdle` 一次把两块都取回来 —— 点「分享」不用等 chunk，点「保存图片」也
+  不必先在「准备中…」上停一下。静态引入这两块等于让每个打开书详情的人都先下载 ≈1MB。
 - **字形真实轮廓度量**：排版要按「字形真实可视边界」（≈ Illustrator 的 `visibleBounds`）对齐，
   不能用 Em 文本框（`geometricBounds`）—— Em 框左右带边距、上下带行距留白，视觉不准。执行
   ```bash

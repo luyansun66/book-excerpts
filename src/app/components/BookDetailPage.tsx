@@ -7,11 +7,12 @@ import { formatMinutesHuman } from './timer/format';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
 import ConfirmDialog from './ConfirmDialog';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
+import { loadShareSheet, prefetchShareSheet } from './sheets/shareSheetLoader';
 import type { Book, Quote } from '../types';
 
-// 分享sheet 里带着 770KB 的贴纸 SVG 数据，静态引入会让每个打开书详情的人都先下载它。
-// 改成就地按需加载：平时空闲预取，点「分享」时已经就绪。
-const loadShareSheet = () => import('./sheets/ShareSheet');
+// 分享面板里带着 770KB 的贴纸 SVG，导出图片还要 197KB 的 html2canvas：静态引入会让
+// 每个打开书详情的人都先下载它们。入口在 sheets/shareSheetLoader，平时空闲预取（下面
+// 的 usePrefetchOnIdle），点「分享」时两块都已经就绪。
 const ShareSheet = lazy(loadShareSheet);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -349,7 +350,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [editQuote, setEditQuote] = useState<Quote | null>(null);
   const [shareQuote, setShareQuote] = useState<Quote | null>(null);
-  usePrefetchOnIdle(loadShareSheet);
+  usePrefetchOnIdle(prefetchShareSheet);
   const [showEditBook, setShowEditBook] = useState(false);
   const [deleteQuoteId, setDeleteQuoteId] = useState<string | null>(null);
   const swipeStartX = useRef(0);
