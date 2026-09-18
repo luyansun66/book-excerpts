@@ -89,3 +89,65 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* ─── 分享卡片：字体选择器的「字体名」预览 ──────────────────────────────────
+   选择器按钮用该字体自己的字形写出字体名，但整套中文字体是 MB 级的
+   （七款合计约 22MB）。按钮若指向整套字体，打开面板就会静默下载全部字体，
+   慢网下要等几分钟。这里单独引一份只含该字体名的子集（见
+   scripts/subset-label-fonts.sh），卡片正文仍然用上面整套字体。 */
+
+@font-face {
+  font-family: 'SourceHanSerifCNLabel';
+  src: url('/fonts/labels/SourceHanSerifCNLabel.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZLanTingXiHeiLabel';
+  src: url('/fonts/labels/FZLanTingXiHeiLabel.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZBeiWeiKaiShuLabel';
+  src: url('/fonts/labels/FZBeiWeiKaiShuLabel.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZSongHeiLabel';
+  src: url('/fonts/labels/FZSongHeiLabel.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZXiaoZhuanLabel';
+  src: url('/fonts/labels/FZXiaoZhuanLabel.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'FZZhengXianHeiLabel';
+  src: url('/fonts/labels/FZZhengXianHeiLabel.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'HuiWenMingChaoLabel';
+  src: url('/fonts/labels/HuiWenMingChaoLabel.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}

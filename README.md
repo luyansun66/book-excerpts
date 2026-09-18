@@ -31,6 +31,18 @@
   ```
   产出 `public/fonts/` 下的 `华康宋体W3-P.woff2`（中文，保留全部 CJK 以覆盖任意摘录）、
   `Georgia-Bold.woff2`、`Georgia-Italic.woff2`、`TrebuchetMS.woff2`（仅西文与常用标点）。
+- **分享卡片字体（两种粒度）**：分享面板选择器上的「字体名」用 `public/fonts/labels/*.woff2`
+  （每个约 1KB，`bash scripts/subset-label-fonts.sh` 生成）；卡片正文不再下载整套字体，
+  而是请求 `/api/fonts/subset`（Pages Function：`functions/api/fonts/subset.ts`）按**这段摘录
+  用到的字**现场子集化，返回十几~几十 KB（原先首访要下整套，最大的一款 7.4MB）。
+  服务端做子集化用的是原始 sfnt —— harfbuzz 的 subset wasm 读不了 woff2：
+  ```bash
+  python3 scripts/build-sfnt-fonts.py   # 需 pip install fonttools brotli；产物入库
+  ```
+  产出 `public/fonts/sfnt/<face>.ttf|otf` + `index.json`（合计约 48.6MB，字体不变就不用重跑，
+  同 `public/fonts/labels/` 的模式）。`dist/hb-subset.wasm` 由 `npm run build` 从
+  `node_modules/harfbuzzjs` 拷入 dist，不入库。端点不可用 / 超时 / 超 CPU 预算时，
+  前端自动退回整套字体：慢，但一定出图。
 - **字形真实轮廓度量**：排版要按「字形真实可视边界」（≈ Illustrator 的 `visibleBounds`）对齐，
   不能用 Em 文本框（`geometricBounds`）—— Em 框左右带边距、上下带行距留白，视觉不准。执行
   ```bash

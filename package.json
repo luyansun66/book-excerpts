@@ -11,6 +11,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
     "dexie": "^4.4.3",
+    "harfbuzzjs": "^1.6.1",
     "html2canvas": "^1.4.1",
     "lucide-react": "0.487.0",
     "motion": "12.23.24",
