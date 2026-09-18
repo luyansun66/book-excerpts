@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Download } from 'lucide-react';
 import type { Quote } from '../../types';
-import { STICKERS } from './stickerData';
+import { STICKERS, eagerStickerSvg, loadStickerSvg } from './stickers';
 import {
   FONTS,
   applyCardFont,
+  applyCardSticker,
   applySubsetFont,
   buildIgnoreElements,
   clearSubsetFont,
@@ -96,6 +97,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [subsetReadyFace, setSubsetReadyFace] = useState<string | null>(null);
   /** 子集没拿到、已退回整套字体的 face。 */
   const [subsetFailedFace, setSubsetFailedFace] = useState<string | null>(null);
+  /** 当前贴纸的 SVG 源码。选择器用 PNG 蒙版，只有卡片和导出需要真 SVG。 */
+  const [stickerSvg, setStickerSvg] = useState<string | null>(null);
 
   const color = useCustomColor && customColor
     ? {
@@ -190,6 +193,24 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     setSubsetFailedFace(null);
   }, [open]);
 
+  // 卡片上的贴纸要真 SVG（矢量、跟随主题色），选择器里只要 PNG 蒙版。
+  // 默认贴纸是静态引入的，剩下 19 张按需拉 —— 每张一个独立 chunk。
+  useEffect(() => {
+    if (!open || !sticker) { setStickerSvg(null); return; }
+    const eager = eagerStickerSvg(sticker.id);
+    if (eager) { setStickerSvg(eager); return; }
+    let cancelled = false;
+    setStickerSvg(null);
+    loadStickerSvg(sticker.id)
+      .then((svg) => { if (!cancelled) setStickerSvg(svg); })
+      .catch((e) => {
+        if (cancelled) return;
+        console.warn('[ShareSheet] 贴纸加载失败：', sticker.id, e);
+        setStickerSvg(null);
+      });
+    return () => { cancelled = true; };
+  }, [open, sticker]);
+
   // Adaptive font size based on text length
   const quoteLen = quote.text.length;
   const quoteFontSize =
@@ -233,6 +254,22 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     return font.family;
   };
 
+  /**
+   * 导出要用的贴纸 SVG。永远不抛：贴纸 chunk 拉不到就当作「没选贴纸」，
+   * 让图照常出，而不是把整次导出拖失败。
+   */
+  const resolveStickerSvg = async (): Promise<string | null> => {
+    if (!sticker) return null;
+    const eager = eagerStickerSvg(sticker.id);
+    if (eager) return eager;
+    try {
+      return await loadStickerSvg(sticker.id);
+    } catch (e) {
+      console.warn('[ShareSheet] 贴纸加载失败，导出时略过：', sticker.id, e);
+      return null;
+    }
+  };
+
   const handleSave = async () => {
     if (!cardRef.current || saving) return;
     if (!html2canvasRef.current) {
@@ -246,7 +283,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 
     try {
       // 首选字体子集：几十 KB，首访也不慢。这条路不通才退回整套字体。
-      const family = await resolveCardFont();
+      // 贴纸和字体两条路并行等，首访不叠加等待。
+      const [family, stickerMarkup] = await Promise.all([resolveCardFont(), resolveStickerSvg()]);
+      setStickerSvg(stickerMarkup);
 
       const html2canvas = html2canvasRef.current;
       const canvas = await html2canvas(cardRef.current, {
@@ -260,7 +299,11 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         ignoreElements: buildIgnoreElements(cardRef.current),
         // 字体栈直接钉在克隆 DOM 上。上面刚 await 完子集，setState 还没渲染完，
         // 靠状态的话这次截图用的还是旧字体栈 —— 静默退化，最难查。
-        onclone: (doc: Document) => applyCardFont(doc, family),
+        onclone: (doc: Document) => {
+          applyCardFont(doc, family);
+          // 贴纸同理：刚 setStickerSvg 还没渲染，克隆里那张还是空的。
+          applyCardSticker(doc, stickerMarkup);
+        },
       });
       const blob = await new Promise<Blob>((resolve, reject) => {
         canvas.toBlob((b: Blob | null) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png');
@@ -459,7 +502,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             {/* Sticker — fixed bottom-left */}
             {sticker ? (
               <div
-                dangerouslySetInnerHTML={{ __html: sticker.svg }}
+                data-share-sticker=""
+                dangerouslySetInnerHTML={{ __html: stickerSvg ?? '' }}
                 style={{
                   height: 40,
                   width: 40,
@@ -662,8 +706,21 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                 }}
               >
                 <div
-                  dangerouslySetInnerHTML={{ __html: s.svg }}
-                  style={{ height: 24, width: 24, overflow: 'hidden', lineHeight: 0, color: color.textColor }}
+                  aria-hidden="true"
+                  style={{
+                    height: 24,
+                    width: 24,
+                    flex: 'none',
+                    backgroundColor: color.textColor,
+                    WebkitMaskImage: `url(${s.thumb})`,
+                    maskImage: `url(${s.thumb})`,
+                    WebkitMaskSize: 'contain',
+                    maskSize: 'contain',
+                    WebkitMaskRepeat: 'no-repeat',
+                    maskRepeat: 'no-repeat',
+                    WebkitMaskPosition: 'center',
+                    maskPosition: 'center',
+                  }}
                 />
                 <span
                   style={{

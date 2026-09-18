@@ -311,3 +311,15 @@ export function applyCardFont(root: Document | Element, family: string): void {
     (node as HTMLElement).style.fontFamily = family;
   }
 }
+
+export const STICKER_HOST_ATTR = 'data-share-sticker';
+
+/**
+ * 把贴纸 SVG 钉在克隆文档上，理由和 applyCardFont 一样：handleSave 里可能刚
+ * 拿到贴纸就立刻截图，setState 还没渲染，克隆里那张是空的 —— 图会静默少一个贴纸。
+ * markup 为 null（没选贴纸 / chunk 没拉到）时清空，让「没贴纸」也是一种确定结果。
+ */
+export function applyCardSticker(root: Document | Element, markup: string | null): void {
+  const host = root.querySelector(`[${STICKER_HOST_ATTR}]`);
+  if (host) host.innerHTML = markup ?? '';
+}
