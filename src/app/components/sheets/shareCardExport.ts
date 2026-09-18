@@ -315,11 +315,28 @@ export function applyCardFont(root: Document | Element, family: string): void {
 export const STICKER_HOST_ATTR = 'data-share-sticker';
 
 /**
+ * 把贴纸里继承自 CSS 的 currentColor 换成具体颜色。
+ *
+ * 贴纸 SVG 用的是 fill="currentColor"（或内部 <style> 里的 fill: currentColor），
+ * 在页面上靠 CSS 继承拿卡片文字色。但 html2canvas 会把 <svg> 单独序列化成
+ * data: URL 当图片画，脱离了页面 CSS —— currentColor 只能退回初始值黑色，
+ * 深色主题下导出的贴纸就是一团黑。颜色必须提前烤进 markup。
+ */
+export function bakeStickerColor(markup: string, color: string): string {
+  return markup.replace(/currentColor/g, color);
+}
+
+/**
  * 把贴纸 SVG 钉在克隆文档上，理由和 applyCardFont 一样：handleSave 里可能刚
  * 拿到贴纸就立刻截图，setState 还没渲染，克隆里那张是空的 —— 图会静默少一个贴纸。
  * markup 为 null（没选贴纸 / chunk 没拉到）时清空，让「没贴纸」也是一种确定结果。
+ * color 必传：贴纸的颜色就靠它，漏传会退回黑色，在深色主题上几乎看不见。
  */
-export function applyCardSticker(root: Document | Element, markup: string | null): void {
+export function applyCardSticker(
+  root: Document | Element,
+  markup: string | null,
+  color: string,
+): void {
   const host = root.querySelector(`[${STICKER_HOST_ATTR}]`);
-  if (host) host.innerHTML = markup ?? '';
+  if (host) host.innerHTML = markup ? bakeStickerColor(markup, color) : '';
 }

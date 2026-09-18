@@ -302,7 +302,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         onclone: (doc: Document) => {
           applyCardFont(doc, family);
           // 贴纸同理：刚 setStickerSvg 还没渲染，克隆里那张还是空的。
-          applyCardSticker(doc, stickerMarkup);
+          // 颜色也得一起钉：克隆里的 <svg> 会被单独序列化，够不到页面的 CSS 继承。
+          applyCardSticker(doc, stickerMarkup, color.textColor);
         },
       });
       const blob = await new Promise<Blob>((resolve, reject) => {
