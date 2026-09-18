@@ -131,8 +131,7 @@ function stubAssets(options: StubOptions = {}): { urls: string[] } {
     const path = new URL(url).pathname;
     if (options.missingPath && path === options.missingPath) return new Response('nope', { status: 404 });
 
-    const file =
-      path === '/hb-subset.wasm' ? 'node_modules/harfbuzzjs/dist/harfbuzz-subset.wasm' : `public${path}`;
+    const file = `public${path}`;
     const bytes =
       options.corruptFonts && path.startsWith('/fonts/sfnt/')
         ? new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])
@@ -306,7 +305,10 @@ describe('静态资源取法', () => {
     expect(response.status).toBe(200);
     expect(assetsPaths).toContain('/fonts/sfnt/index.json');
     expect(assetsPaths).toContain(`/fonts/sfnt/${INDEX.FZSongHei}`);
-    expect(assetsPaths).toContain('/hb-subset.wasm');
+    // 子集化 wasm 是构建期编进 function 的，运行时**不该**再有这次抓取：
+    // 之前它走 fetch 字节 + WebAssembly.instantiate(buffer)，workerd 禁运行时编译，
+    // 线上就是这个点 500 的。
+    expect(assetsPaths).toEqual(['/fonts/sfnt/index.json', `/fonts/sfnt/${INDEX.FZSongHei}`]);
     expect(globalCalls).toEqual([]);
   });
 });

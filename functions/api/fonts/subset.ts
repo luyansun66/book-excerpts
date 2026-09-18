@@ -8,6 +8,17 @@
 // 注意：Cloudflare Pages 把 functions/ 下的**每个文件**都当路由，共享代码不能
 // 放在这里。为了让逻辑可单测，纯函数直接从本文件导出给 vitest 直接 import。
 
+// wasm 走构建期导入，由 wrangler 编成 WebAssembly.Module 随 function 一起打包。
+// **不能用 fetch 拿字节再 WebAssembly.instantiate(arrayBuffer)** —— workerd 禁掉了
+// 运行时编译（Wasm code generation disallowed by embedder），线上接口 500 就是
+// 栽在这里，前端拿不到子集只能退回下载整套字体。构建期编好、运行时只实例化，
+// 这条路 workerd 是允许的。
+//
+// 用命名空间导入而不是默认导入：wrangler/esbuild 给的是 { default: Module }，
+// 而 vitest 走 node 原生 wasm ESM，命名空间本身就是 wasm 的导出表（没有 default）。
+// 默认导入在后一种形态下拿到的是 undefined，会变成「instantiate(undefined)」。
+import * as hbWasmModule from 'harfbuzzjs/dist/harfbuzz-subset.wasm';
+
 /** 摘录字符数上限。超了直接 400，客户端拿到非 2xx 就走降级路径。 */
 export const MAX_TEXT_LENGTH = 2000;
 
@@ -16,7 +27,6 @@ const CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
 const INDEX_PATH = '/fonts/sfnt/index.json';
 const FONT_DIR = '/fonts/sfnt';
-const WASM_PATH = '/hb-subset.wasm';
 
 interface SubsetEnv {
   /** Pages 的静态资源绑定。本地/单测里没有它，那就退回同源 fetch。 */
@@ -128,14 +138,12 @@ export function fontContentType(bytes: Uint8Array): string {
 const runtime: {
   index: Record<string, string> | null;
   wasm: HbExports | null;
-  wasmPending: Promise<HbExports> | null;
-} = { index: null, wasm: null, wasmPending: null };
+} = { index: null, wasm: null };
 
 /** 清掉模块作用域缓存。给测试用；线上靠 isolate 生命周期自然失效。 */
 export function resetRuntimeCache(): void {
   runtime.index = null;
   runtime.wasm = null;
-  runtime.wasmPending = null;
 }
 
 function cacheDefault(): Cache | null {
@@ -165,27 +173,38 @@ async function loadIndex(context: SubsetContext): Promise<Record<string, string>
   return index;
 }
 
-async function getWasm(context: SubsetContext): Promise<HbExports> {
+/**
+ * 实例化 harfbuzz 并返回导出表，每个 isolate 只付一次。
+ *
+ * 导入的东西有两种形态，两种都得认：
+ * - 线上（wrangler/workerd）：WebAssembly.Module，要自己实例化；
+ * - vitest（node 原生 wasm ESM）：导入的已经就是导出表本身。
+ * 认错的后果很隐蔽 —— 拿不到真的导出表，子集化会失败或产出空字体。
+ */
+function isHbExports(imported: unknown): imported is HbExports {
+  return typeof (imported as { _initialize?: unknown } | null)?._initialize === 'function';
+}
+
+async function getWasm(): Promise<HbExports> {
   if (runtime.wasm) return runtime.wasm;
-  if (!runtime.wasmPending) {
-    runtime.wasmPending = (async (): Promise<HbExports> => {
-      const response = await fetchAsset(WASM_PATH, context);
-      if (!response.ok) throw new Error(`wasm fetch failed: ${response.status}`);
-      const { instance } = await WebAssembly.instantiate(await response.arrayBuffer());
-      const exports = instance.exports as unknown as HbExports;
-      // 不调 _initialize()，hb_subset_or_fail 会静默返回 0（看着像「字体读不了」）。
-      exports._initialize();
-      return exports;
-    })();
-    // 实例化失败就别缓存这个失败态：下一次请求还能重试。
-    runtime.wasmPending = runtime.wasmPending.catch((error) => {
-      runtime.wasmPending = null;
-      throw error;
-    });
+
+  const imported: unknown = (hbWasmModule as { default?: unknown }).default ?? hbWasmModule;
+  let exports: HbExports;
+  if (isHbExports(imported)) {
+    exports = imported;
+  } else {
+    // 入参只能是 Module：它走「构建期已编好、运行时仅实例化」，workerd 允许。
+    const instance = (await WebAssembly.instantiate(
+      imported as WebAssembly.Module,
+      {},
+    )) as unknown as WebAssembly.Instance;
+    exports = instance.exports as unknown as HbExports;
   }
-  const wasm = await runtime.wasmPending;
-  runtime.wasm = wasm;
-  return wasm;
+
+  // 不调 _initialize()，hb_subset_or_fail 会静默返回 0（看着像「字体读不了」）。
+  exports._initialize();
+  runtime.wasm = exports;
+  return exports;
 }
 
 export async function onRequestGet(context: SubsetContext): Promise<Response> {
@@ -216,7 +235,7 @@ export async function onRequestGet(context: SubsetContext): Promise<Response> {
     const fontResponse = await fetchAsset(`${FONT_DIR}/${filename}`, context);
     if (!fontResponse.ok) return new Response('font asset missing', { status: 404 });
     const fontBytes = new Uint8Array(await fontResponse.arrayBuffer());
-    bytes = subsetFont(await getWasm(context), fontBytes, text);
+    bytes = subsetFont(await getWasm(), fontBytes, text);
   } catch (error) {
     console.error('[fonts/subset] subset failed', error);
     return new Response('subset failed', { status: 500 });
