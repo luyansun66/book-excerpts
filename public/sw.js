@@ -1,9 +1,9 @@
-// ─── 摘录 PWA — Service Worker ────────────────────────────────────────────────
+// ─── 折角 PWA — Service Worker ────────────────────────────────────────────────
 // Cache-first for hashed static assets (immutable), network-first for navigation.
 // Module scripts need special handling: the cached response must preserve the
 // Content-Type header or Safari's module loader rejects it.
 
-const CACHE_NAME = 'zhai-lu-v13';
+const CACHE_NAME = 'zhe-jiao-v13';
 
 // 安装时预缓存核心静态资源，确保离线首次打开不白屏。
 // 只放「外壳」：底图和字体不在这里 —— 它们有 MB 级体积，装 SW 时预下载会和
