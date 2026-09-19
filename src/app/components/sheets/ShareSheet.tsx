@@ -127,7 +127,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
   /** 全屏预览滚动区的 clientWidth */
   const [fsWidth, setFsWidth] = useState(0);
-  const [atBottom, setAtBottom] = useState(false);
   const [dragY, setDragY] = useState(0);
 
   const color = useCustomColor && customColor
@@ -235,7 +234,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     setSubsetFailedFace(null);
     setFullscreen(false);
     setDragY(0);
-    setAtBottom(false);
   }, [open]);
 
   // 卡片上的贴纸要真 SVG（矢量、跟随主题色），选择器里只要 PNG 蒙版。
@@ -430,7 +428,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const previewScale = fitScale >= fillScale * FIT_TOLERANCE ? fitScale : fillScale;
   const previewH = cardHeight * previewScale;
   const previewScrollable = previewScale > 0 && cardHeight > 0 && previewH > availH + 1;
-  const showFade = previewScrollable && !atBottom;
 
   const fsAvailW = Math.max(0, fsWidth - FS_PAD_X * 2);
   const fsScale = fsAvailW > 0 ? Math.min(fsAvailW / CARD_WIDTH, MAX_PREVIEW_SCALE) : 0;
@@ -510,11 +507,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             <div
               ref={stageRef}
               className="hide-scrollbar"
-              onScroll={(e) => {
-                const el = e.currentTarget;
-                const bottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-                setAtBottom(prev => (prev === bottom ? prev : bottom));
-              }}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -525,9 +517,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: previewScrollable ? 'flex-start' : 'center',
-                // 长图：底部渐隐，提示「下面还有」。滚到底就把渐隐撤掉，别挡着看书信息。
-                maskImage: showFade ? 'linear-gradient(to bottom, #000 72%, rgba(0,0,0,0.05) 100%)' : undefined,
-                WebkitMaskImage: showFade ? 'linear-gradient(to bottom, #000 72%, rgba(0,0,0,0.05) 100%)' : undefined,
               }}
             >
               {previewScale > 0 && (
