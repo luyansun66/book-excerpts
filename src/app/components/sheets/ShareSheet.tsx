@@ -569,8 +569,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             width: '100%',
             height: '88vh',
             maxHeight: '88vh',
-            background: 'var(--color-bg)',
-            borderRadius: '24px 24px 0 0',
+            // 卡片那一层不垫底色：卡片直接浮在压暗的页面上，背后不再有一块
+            // 米白「容器」把整张卡包起来。米白只留给下面的控制面板。
+            background: 'transparent',
             display: 'flex',
             flexDirection: 'column',
             overflowY: 'auto',
@@ -668,7 +669,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           <div
             style={{
               flex: 'none',
-              borderTop: '1px solid var(--color-border-light)',
+              // 圆角从整块面板挪到控制面板上：上面那截已经透明，露出来的是背景
+              borderRadius: '24px 24px 0 0',
               padding: '10px 20px 0',
               background: 'var(--color-bg)',
             }}
