@@ -629,7 +629,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               <div style={labelStyle}>
                 主题<span style={valueStyle}> · {themeName}</span>
               </div>
-              <div style={rowStyle}>
+              <div style={swatchRowStyle}>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <input
                     type="color"
@@ -663,6 +663,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                       key={t.id}
                       onClick={() => { setColorIndex(i); setUseCustomColor(false); }}
                       title={t.name}
+                      aria-label={`主题 ${t.name}`}
                       style={{
                         flex: 'none',
                         width: 34,
@@ -672,17 +673,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                         padding: 0,
                         cursor: 'pointer',
                         background: t.bgColor,
-                        color: t.textColor,
-                        fontSize: 11,
-                        fontFamily: META_FONT,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                         boxShadow: active ? swatchRingActive : swatchRing,
                       }}
-                    >
-                      字
-                    </button>
+                    />
                   );
                 })}
               </div>
@@ -984,6 +977,15 @@ const rowStyle: React.CSSProperties = {
   margin: '0 -20px',
   padding: '0 20px 2px',
   scrollbarWidth: 'none',
+};
+
+/** 主题色行：选中的环画在圆外面（box-shadow 外扩 4px），这一行得上下各留出 4px，
+ *  否则 rowStyle 的 overflowY: hidden 会把环的顶部切掉（底部同样会被切掉 2px）。
+ *  负 margin 把多出来的上边距收回去，圆的视觉位置不变。 */
+const swatchRowStyle: React.CSSProperties = {
+  ...rowStyle,
+  padding: '4px 20px 6px',
+  margin: '-4px -20px 0',
 };
 
 const swatchRing = 'inset 0 0 0 1px rgba(28,22,16,0.10)';
