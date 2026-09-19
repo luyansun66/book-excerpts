@@ -15,7 +15,7 @@ import {
 const CONTENT_LEFT = 60.2;    // 内容左边界（横线左端）
 const RIGHT = 960.2;          // 内容右边界（横线右端 / 出处右对齐基准）
 const QUOTE_X = 220;          // 摘录正文左起点
-const QUOTE_TOP = 867.5;      // 摘录首行基线
+const QUOTE_TOP = 810.7;      // 摘录首行基线
 // 行距比例 7/5 = 1.4（模板原本是 48px 配 64px，即 4/3 ≈ 1.333，排版偏紧）。
 // 放宽到 1.4 后 45px 档行距 60px → 63px。这个值是可放的最大档位：再松到 1.45
 // 时首信那段（7 行 × 45px）的底部间距只剩 87px，逼近 85px 硬下限，字号会被迫掉档。
@@ -50,10 +50,10 @@ const attrRuleDy = (size: number) => r1(ATTR_RULE_DY_EM * size);
 const attrLineH = (size: number) => r1(ATTR_LINE_H_EM * size);
 
 // ─── 大编号：按「字形真实可视边界」对齐右格小房子的中心 ───────────────────────
-// 模板右格小房子 path（M738,202.3l88.4,56.1v101h-176.8v-101l88.4,-56.1Z）的几何包围盒：
-const HOUSE_BOX = { x1: 649.6, y1: 202.3, x2: 826.4, y2: 359.4 };
+// 模板右格小房子 path（M743.8,185.2l82.6,52.4v94.4h-165.2v-94.4l82.6,-52.4Z）的几何包围盒：
+const HOUSE_BOX = { x1: 661.2, y1: 185.2, x2: 826.4, y2: 332 };
 const BIGNUM_TARGET_X = 283.5;                               // 编号所在左格的视觉中心
-const BIGNUM_TARGET_Y = (HOUSE_BOX.y1 + HOUSE_BOX.y2) / 2;   // 与右格小房子中心同高（280.85）
+const BIGNUM_TARGET_Y = (HOUSE_BOX.y1 + HOUSE_BOX.y2) / 2;   // 与右格小房子中心同高（258.6）
 
 // 从 书签字体/Georgia Bold.ttf 用 fontTools 读 glyf 的 xMin/xMax/yMin/yMax（unitsPerEm = 2048）。
 // 只用真实轮廓、不用 Em 框：Georgia 用旧式数字，'3/4/5/7/9' 带降部、'6/8' 带升部，
@@ -712,7 +712,7 @@ export function bigNumberInkCenter(digits: string): { x: number; y: number } {
 function bigNumberNode(number: number): string {
   const digits = String(number);
   const len = digits.length;
-  const size = len <= 2 ? 220 : len === 3 ? 170 : len === 4 ? 130 : 105;
+  const size = len <= 2 ? 210 : len === 3 ? 162 : len === 4 ? 124 : 100;
   const ink = bigNumberInkCenter(digits);
   const x = BIGNUM_TARGET_X - ink.x * size;
   const y = BIGNUM_TARGET_Y - ink.y * size;

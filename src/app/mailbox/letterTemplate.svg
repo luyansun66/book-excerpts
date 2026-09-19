@@ -42,7 +42,7 @@
 .letter-rule-cream { stroke: #ede0c4; stroke-width: 4px; }
 .letter-attr-rule { stroke: #6b411b; stroke-width: 2px; }
 .letter-kicker { fill: #6b4a2a; font-family: "Trebuchet MS", "Helvetica Neue", sans-serif; font-size: 32px; }
-.letter-bignum { fill: #6b4a2a; font-family: Georgia, "Times New Roman", serif; font-size: 220px; font-weight: 700; }
+.letter-bignum { fill: #6b4a2a; font-family: Georgia, "Times New Roman", serif; font-size: 210px; font-weight: 700; }
 .letter-cn-title { fill: #6b4a2a; font-family: "DFPSongW3-GB", "Songti SC", serif; font-size: 44px; font-weight: 300; }
 .letter-letter-no { fill: #6b4a2a; font-family: Georgia, "Times New Roman", serif; font-size: 26px; font-style: italic; }
 .letter-cn-date { fill: #6b4a2a; font-family: "DFPSongW3-GB", "Songti SC", serif; font-size: 42px; font-weight: 300; }
@@ -67,24 +67,24 @@
   <text class="letter-kicker" transform="translate(610.2 105)"><tspan x="0" y="0">TIME</tspan></text>
   <text class="letter-kicker" transform="translate(845.2 105)"><tspan x="0" y="0">LETTER</tspan></text>
   <line class="letter-rule-bold" x1="60.2" y1="130" x2="960.2" y2="130"/>
-  <line class="letter-rule-thin" x1="60.2" y1="403.9" x2="960.2" y2="403.9"/>
-  <line class="letter-rule-thin" x1="60.2" y1="586.8" x2="960.2" y2="586.8"/>
-  <line class="letter-rule-thin" x1="510.2" y1="130" x2="510.2" y2="586.8"/>
+  <line class="letter-rule-thin" x1="60.2" y1="387.3" x2="960.2" y2="387.3"/>
+  <line class="letter-rule-thin" x1="60.2" y1="567.5" x2="960.2" y2="567.5"/>
+  <line class="letter-rule-thin" x1="510.2" y1="130" x2="510.2" y2="567.5"/>
   {{BIG_NUMBER}}
-  <text class="letter-cn-title" transform="translate(651.4 486)"><tspan x="0" y="0">{{TITLE_CN}}</tspan></text>
-  <text class="letter-letter-no" transform="translate(661.5 533)"><tspan x="0" y="0">{{LETTER_NO}}</tspan></text>
-  <text class="letter-cn-date" transform="translate(69.5 669.8)"><tspan x="0" y="0">{{DATE_CN}}</tspan></text>
-  <text class="letter-en-date" transform="translate(69.8 712.8)"><tspan x="0" y="0">{{DATE_EN}}</tspan></text>
-  <path class="letter-brown-fill" d="M899.2,651.4h35l15,15-15,15h-35v-30Z"/>
-  <circle class="letter-cream-fill" cx="909.2" cy="666.4" r="4"/>
-  <line class="letter-rule-thin" x1="60.2" y1="740.5" x2="960.2" y2="740.5"/>
+  <text class="letter-cn-title" transform="translate(651.4 468.6)"><tspan x="0" y="0">{{TITLE_CN}}</tspan></text>
+  <text class="letter-letter-no" transform="translate(661.5 515.6)"><tspan x="0" y="0">{{LETTER_NO}}</tspan></text>
+  <text class="letter-cn-date" transform="translate(69.5 631.8)"><tspan x="0" y="0">{{DATE_CN}}</tspan></text>
+  <text class="letter-en-date" transform="translate(69.8 674.8)"><tspan x="0" y="0">{{DATE_EN}}</tspan></text>
+  <path class="letter-brown-fill" d="M907.2,621.4h35l15,15-15,15h-35v-30Z"/>
+  <circle class="letter-cream-fill" cx="917.2" cy="636.4" r="4"/>
+  <line class="letter-rule-thin" x1="60.2" y1="705.3" x2="960.2" y2="705.3"/>
   {{QUOTE_LINES}}
   {{ATTR_LINE}}
   <line class="letter-rule-bold" x1="60.2" y1="1413.1" x2="960.2" y2="1413.1"/>
   <text class="letter-cn-title" transform="translate(60.2 1468.1)"><tspan x="0" y="0">折角</tspan></text>
   <text class="letter-en-date" transform="translate(761.6 1463.1)"><tspan x="0" y="0">revisit, remember.</tspan></text>
-  <path class="letter-brown-fill" d="M283.5,438.4l40,95c-26.7,26.7-53.3,26.7-80,0l40-95Z"/>
-  <line class="letter-rule-cream" x1="283.5" y1="443.4" x2="283.5" y2="538.4"/>
-  <path class="letter-brown-fill" d="M738,202.3l88.4,56.1v101h-176.8v-101l88.4-56.1Z"/>
-  <circle class="letter-cream-fill" cx="738" cy="294.7" r="26"/>
+  <path class="letter-brown-fill" d="M283.5,421l40,95c-26.7,26.7-53.3,26.7-80,0l40-95Z"/>
+  <line class="letter-rule-cream" x1="283.5" y1="426" x2="283.5" y2="521"/>
+  <path class="letter-brown-fill" d="M743.8,185.2l82.6,52.4v94.4h-165.2v-94.4l82.6,-52.4Z"/>
+  <circle class="letter-cream-fill" cx="743.8" cy="271.6" r="24.3"/>
 </svg>

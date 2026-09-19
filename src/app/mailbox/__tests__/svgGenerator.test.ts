@@ -140,9 +140,9 @@ describe('generateLetterSvg', () => {
   it('lays out the quote from the template anchor with 7/5 leading', () => {
     const svg = generateLetterSvg({ ...base, quote });
 
-    // 模板坐标：左起点 220、首行基线 867.5；45px 档行距 = round(45 × 7/5) = 63
-    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 867.5)"');
-    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 930.5)"');
+    // 模板坐标：左起点 220、首行基线 810.7；45px 档行距 = round(45 × 7/5) = 63
+    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 810.7)"');
+    expect(svg).toContain('class="letter-quote" style="font-size:45px" transform="translate(220 873.7)"');
     expect(svg).toContain('所有的大人都曾经是小孩');
   });
 
@@ -196,14 +196,14 @@ describe('generateLetterSvg', () => {
     expect(svg).toContain('><tspan x="0" y="0">47</tspan></text>');
 
     // Georgia 旧式数字：47 的轮廓并集中心相对锚点为 (0.0141602, -0.1791992) em
-    expect(svg).toContain('style="font-size:220px" transform="translate(280.4 320.3)"');
+    expect(svg).toContain('style="font-size:210px" transform="translate(280.5 296.2)"');
 
     const three = generateLetterSvg({ ...base, number: 123, quote });
-    expect(three).toContain('style="font-size:170px" transform="translate(282.9 311.6)"');
+    expect(three).toContain('style="font-size:162px" transform="translate(282.9 287.9)"');
   });
 
   it('lands the glyph outline centre on the house centre for every digit string', () => {
-    // 右格小房子 path 的包围盒 y ∈ [202.3, 359.4] → 中心 280.85；编号所在左格中心 x = 283.5
+    // 右格小房子 path 的包围盒 y ∈ [185.2, 332.0] → 中心 258.6；编号所在左格中心 x = 283.5
     for (const digits of ['1', '2', '6', '8', '9', '47', '123', '2024', '99999']) {
       const svg = generateLetterSvg({ ...base, number: Number(digits), quote });
       const m = /text-anchor="middle" style="font-size:([\d.]+)px" transform="translate\((-?[\d.]+) (-?[\d.]+)\)"><tspan x="0" y="0">(\d+)<\/tspan>/.exec(svg);
@@ -215,7 +215,7 @@ describe('generateLetterSvg', () => {
       // 锚点 + 轮廓中心偏移 = 真实字形中心，必须落在目标点上（round1 精度 0.1）
       const ink = bigNumberInkCenter(digits);
       expect(Number(x) + ink.x * Number(size)).toBeCloseTo(283.5, 0);
-      expect(Number(y) + ink.y * Number(size)).toBeCloseTo(280.85, 0);
+      expect(Number(y) + ink.y * Number(size)).toBeCloseTo(258.6, 0);
     }
   });
 
