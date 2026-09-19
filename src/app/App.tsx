@@ -970,6 +970,17 @@ const PAGE_EDGE_SHADOW = '-12px 0 30px rgba(28, 22, 12, 0.22)';
 // 右滑返回：认方向之前允许的抖动。小于这个位移先不动，免得把点击和小抖动读成滑动
 const SWIPE_ARM_SLOP = 6;
 
+// 三层页面的堆叠次序，必须写死 z-index，不能靠"谁后挂载谁在上面"。
+//
+// 书架层只在被推入时才带 transform：停在原位时 shelfShift 是 '0%'，motion 会直接
+// 写成 transform: none —— 那一刻它不再是层叠上下文，里面任何 z-index ≥ 1 的东西
+// （右上角设置按钮 z-index 5、拖动中的封面 z-index 10）就跳到根层叠上下文里，
+// 把 z-index: auto 的详情层/分类层反盖住，于是二级页面上冒出一个设置按钮。
+// 给了 z-index 之后，书架层无论如何都是层叠上下文，三层次序也一眼能读出来。
+const LAYER_Z_SHELF = 0;
+const LAYER_Z_CATEGORY = 10;
+const LAYER_Z_DETAIL = 20;
+
 type SwipeGesture = {
   pointerId: number;
   startX: number;
@@ -1212,6 +1223,7 @@ export default function App() {
         style={{
           position: 'absolute',
           inset: 0,
+          zIndex: LAYER_Z_SHELF,
           pointerEvents: categoryOpen ? 'none' : 'auto',
           x: shelfShift,
           opacity: shelfOpacity,
@@ -1251,6 +1263,7 @@ export default function App() {
           style={{
             position: 'absolute',
             inset: 0,
+            zIndex: LAYER_Z_CATEGORY,
             background: 'var(--color-bg)',
             boxShadow: PAGE_EDGE_SHADOW,
             pointerEvents: detailOpen || categoryExiting ? 'none' : 'auto',
@@ -1277,7 +1290,13 @@ export default function App() {
             animate={settled}
             exit={leave}
             transition={transition}
-            style={{ position: 'absolute', inset: 0, background: 'var(--color-bg)', boxShadow: PAGE_EDGE_SHADOW }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: LAYER_Z_DETAIL,
+              background: 'var(--color-bg)',
+              boxShadow: PAGE_EDGE_SHADOW,
+            }}
           >
             <Suspense fallback={null}>
               <BookDetailPage key={selectedBook.id} book={selectedBook} onBack={() => selectBook(null)} />
