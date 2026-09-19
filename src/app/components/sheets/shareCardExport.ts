@@ -340,3 +340,27 @@ export function applyCardSticker(
   const host = root.querySelector(`[${STICKER_HOST_ATTR}]`);
   if (host) host.innerHTML = markup ? bakeStickerColor(markup, color) : '';
 }
+
+/** 注入克隆文档的补丁样式用这个属性标记，方便测试和排查。 */
+export const CLONE_COLOR_STYLE_ATTR = 'data-share-clone-color';
+
+/**
+ * 给克隆文档的 body 钉一个能解析的 color。
+ *
+ * html2canvas 1.x 的颜色解析只认 rgb / rgba / hsl / hex，碰到 CSS Color 4 的
+ * oklch / oklab 会直接抛「Attempting to parse an unsupported color function」，
+ * 整张图都出不来。
+ *
+ * 中招的是渲染根：截的是 cardRef 那层 wrapper，它自己没写 color，继承的是 body 的
+ * text-foreground —— theme.css 的 shadcn base 层里那是 oklch(0.145 0 0)。
+ * html2canvas 解析根元素的计算样式时第一个就撞上它（color / text-decoration-color /
+ * -webkit-text-stroke-color 都是这个继承值）。卡片内部每个元素都写死了 hex，
+ * 所以把克隆里 body 的颜色换成一个能解析的值就行，出图结果不变。
+ */
+export function applyCloneSafeColors(doc: Document, color: string): void {
+  const style = doc.createElement('style');
+  style.setAttribute(CLONE_COLOR_STYLE_ATTR, '');
+  // 不放进 @layer：无层级规则优先于 theme.css 的 @layer base，不用 !important。
+  style.textContent = `body{color:${color}}`;
+  doc.head.appendChild(style);
+}

@@ -8,6 +8,7 @@ import {
   FONTS,
   applyCardFont,
   applyCardSticker,
+  applyCloneSafeColors,
   applySubsetFont,
   buildIgnoreElements,
   clearSubsetFont,
@@ -355,6 +356,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         // 字体栈直接钉在克隆 DOM 上。上面刚 await 完子集，setState 还没渲染完，
         // 靠状态的话这次截图用的还是旧字体栈 —— 静默退化，最难查。
         onclone: (doc: Document) => {
+          // 渲染根继承的 body 颜色是 oklch，html2canvas 解析不了，先换成 hex。
+          applyCloneSafeColors(doc, color.textColor);
           applyCardFont(doc, family);
           // 贴纸同理：刚 setStickerSvg 还没渲染，克隆里那张还是空的。
           // 颜色也得一起钉：克隆里的 <svg> 会被单独序列化，够不到页面的 CSS 继承。

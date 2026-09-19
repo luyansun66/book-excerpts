@@ -6,8 +6,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  CLONE_COLOR_STYLE_ATTR,
   FONTS,
   applyCardFont,
+  applyCloneSafeColors,
   applySubsetFont,
   buildIgnoreElements,
   clearSubsetFont,
@@ -333,5 +335,26 @@ describe('applyCardFont — 导出用的字体栈钉在克隆 DOM 上', () => {
     expect(fontOf('text')).toBe('"ShareSub-FZSongHei", serif');
     // 书名等其它字不是卡片正文，必须保持原样。
     expect(fontOf('footer')).toBe('');
+  });
+});
+
+describe('applyCloneSafeColors — 给克隆文档一个 html2canvas 解析得了的 color', () => {
+  it('往 head 注入 body 的 color 覆盖，值就是卡片文字色', () => {
+    const doc = document.implementation.createHTMLDocument('clone');
+
+    applyCloneSafeColors(doc, '#F4E1B8');
+
+    const style = doc.head.querySelector(`style[${CLONE_COLOR_STYLE_ATTR}]`);
+    expect(style, '没有往克隆文档里注入补丁样式').not.toBeNull();
+    // 渲染根继承的就是 body 的 color；theme.css 里那条是 oklch，html2canvas 解析不了。
+    expect(style!.textContent).toBe('body{color:#F4E1B8}');
+  });
+
+  it('导出时真的调了它，别只写在模块里', () => {
+    const sheetSrc = readFileSync(
+      path.resolve(process.cwd(), 'src/app/components/sheets/ShareSheet.tsx'),
+      'utf8',
+    );
+    expect(sheetSrc).toContain('applyCloneSafeColors(doc, color.textColor)');
   });
 });
