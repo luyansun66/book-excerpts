@@ -69,6 +69,7 @@ function getAccentColor(bgHex: string): string {
 const META_FONT = '-apple-system, BlinkMacSystemFont, sans-serif';
 /** 舞台内边距：卡片铺满「可用宽」，可用宽 = 舞台宽 - 2 * 这个值 */
 const STAGE_PAD_X = 20;
+/** 顶部额外留白；真正的内边距还要加上 env(safe-area-inset-top)，见 stagePadStyle */
 const STAGE_PAD_TOP = 14;
 const STAGE_PAD_BOTTOM = 26;
 /** 全屏预览的内边距 */
@@ -132,6 +133,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [cardHeight, setCardHeight] = useState(0);
   /** 舞台滚动区的 clientWidth / clientHeight */
   const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
+  /** 舞台实测的上下内边距（顶部含状态栏安全区） */
+  const [stagePad, setStagePad] = useState({ top: STAGE_PAD_TOP, bottom: STAGE_PAD_BOTTOM });
   /** 全屏预览滚动区的 clientWidth */
   const [fsWidth, setFsWidth] = useState(0);
   const [dragY, setDragY] = useState(0);
@@ -162,6 +165,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   /** 离屏的原尺寸导出节点 —— html2canvas 只截它 */
   const cardRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  /** 舞台里那张卡片的框 —— 点按命中测试用（卡内看全图，卡外关面板） */
+  const stageCardRef = useRef<HTMLDivElement>(null);
   const fsRef = useRef<HTMLDivElement>(null);
   const html2canvasRef = useRef<any>(null);
   const toastTimerRef = useRef<number | undefined>(undefined);
@@ -272,6 +277,12 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       if (stage) {
         const w = stage.clientWidth, h = stage.clientHeight;
         setStageBox(prev => (prev.w === w && prev.h === h ? prev : { w, h }));
+        // 内边距里含 env(safe-area-inset-top)，浏览器只认 px 就得自己量出来 ——
+        // 用常量估的话，可用高会多算一个状态栏，长图会被判成「装得下」然后底部被切掉。
+        const cs = getComputedStyle(stage);
+        const top = parseFloat(cs.paddingTop) || 0;
+        const bottom = parseFloat(cs.paddingBottom) || 0;
+        setStagePad(prev => (prev.top === top && prev.bottom === bottom ? prev : { top, bottom }));
       }
       const fs = fsRef.current;
       if (fs) setFsWidth(prev => (prev === fs.clientWidth ? prev : fs.clientWidth));
@@ -447,7 +458,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     if (!st || st.id !== e.pointerId) return;
     if (Date.now() - st.at > TAP_MAX_MS) return;
     if (Math.abs(e.clientX - st.x) > TAP_SLOP_PX || Math.abs(e.clientY - st.y) > TAP_SLOP_PX) return;
-    setFullscreen(true);
+    // 点卡片 = 看全图；点卡片外的空白 = 关面板（面板没有标题行，空白处是它的关闭靶子）。
+    // 舞台现在铺满整屏，这条空白就只剩内边距那一圈了。
+    if (stageCardRef.current?.contains(e.target as Node)) setFullscreen(true);
+    else if (e.target === stageRef.current) onClose();
   };
   const onStagePointerCancel = () => { tapRef.current = null; };
 
@@ -496,7 +510,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 
   // ── 舞台几何 ────────────────────────────────────────────────────────────────
   const availW = Math.max(0, stageBox.w - STAGE_PAD_X * 2);
-  const availH = Math.max(0, stageBox.h - STAGE_PAD_TOP - STAGE_PAD_BOTTOM);
+  const availH = Math.max(0, stageBox.h - stagePad.top - stagePad.bottom);
   // 铺满宽度：卡片宽度撑满舞台可用宽（最多放大到 MAX_PREVIEW_SCALE，免得短卡片被拉得过大）
   const fillScale = availW > 0 ? Math.min(availW / CARD_WIDTH, MAX_PREVIEW_SCALE) : 0;
   // 整张装下：再按可用高收一次，短卡片就不用滚动了
@@ -567,8 +581,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           style={{
             position: 'relative',
             width: '100%',
-            height: '88vh',
-            maxHeight: '88vh',
+            height: '100%',
             // 卡片那一层不垫底色：卡片直接浮在压暗的页面上，背后不再有一块
             // 米白「容器」把整张卡包起来。米白只留给下面的控制面板。
             background: 'transparent',
@@ -592,7 +605,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               style={{
                 position: 'absolute',
                 inset: 0,
-                padding: `${STAGE_PAD_TOP}px ${STAGE_PAD_X}px ${STAGE_PAD_BOTTOM}px`,
+                padding: stagePadStyle,
                 boxSizing: 'border-box',
                 overflowY: previewScrollable ? 'auto' : 'hidden',
                 overflowX: 'hidden',
@@ -603,6 +616,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             >
               {previewScale > 0 && (
                 <div
+                  ref={stageCardRef}
                   style={{
                     width: CARD_WIDTH * previewScale,
                     height: previewH,
@@ -671,6 +685,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               flex: 'none',
               // 圆角从整块面板挪到控制面板上：上面那截已经透明，露出来的是背景
               borderRadius: '24px 24px 0 0',
+              // 卡片是从面板底下滑过去的，给一条向上的阴影才读得出「面板压在卡片上」
+              boxShadow: '0 -10px 28px rgba(28,22,16,0.22)',
               padding: '10px 20px 0',
               background: 'var(--color-bg)',
             }}
@@ -1042,6 +1058,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 }
 
 // ─── 面板里复用的小样式 ───────────────────────────────────────────────────────
+/** 舞台内边距。顶部含状态栏安全区：滚动时内边距会跟着滚走，卡片因此能一直滑到屏幕最顶上。 */
+const stagePadStyle = `calc(env(safe-area-inset-top, 0px) + ${STAGE_PAD_TOP}px) ${STAGE_PAD_X}px ${STAGE_PAD_BOTTOM}px`;
+
 /** toast 气泡：舞台和全屏共用（位置各自定，气泡长一样） */
 const toastBubbleStyle: React.CSSProperties = {
   background: 'rgba(28,22,16,0.88)',

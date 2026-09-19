@@ -1,14 +1,17 @@
 /**
  * @vitest-environment jsdom
- * 分享面板上「看全图 / 存相册」这两下，用户是当系统行为来用的：
+ * 分享面板上「看全图 / 存相册 / 关面板」这几下，用户是当系统行为来用的：
  *
  * - 点卡片上的任意位置都应该看全图。之前只有底下那颗「长图 · 可上下拖动 ·
  *   点按看全图」的药丸能点，点图片本身没反应 —— 跟那句提示自相矛盾。
  * - 全图里长按要能存到相册。卡片是 DOM 不是 <img>，系统那套「存储图像」不会
  *   自己出现，所以得自己计时跑一遍导出。
+ * - 点卡片外的空白仍然要能关掉面板。预览区现在铺满整屏，原来顶上那条
+ *   「点一下就关」的遮罩带没了，关闭靶子只剩舞台内边距那一圈，不能一起丢掉。
  *
- * 两个手势都跟「滚动」抢同一片区域，所以这里重点守两件事：
- * 拖动滚屏不能误开全屏；长按中途移动手指要作废（否则用户想滚屏却存了张图）。
+ * 这几个手势都跟「滚动」抢同一片区域，所以这里重点守两件事：
+ * 拖动滚屏不能误开全屏、也不能顺手把面板关掉；长按中途移动手指要作废
+ * （否则用户想滚屏却存了张图）。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, fireEvent, cleanup, waitFor } from '@testing-library/react';
@@ -45,58 +48,74 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const renderSheet = () =>
-  render(<ShareSheet open onClose={() => {}} quote={quote} bookTitle="人间词话" bookAuthor="王国维" />);
+const renderSheet = (onClose: () => void = () => {}) =>
+  render(<ShareSheet open onClose={onClose} quote={quote} bookTitle="人间词话" bookAuthor="王国维" />);
 
 /** 舞台（预览区）。全屏没打开时，页面上只有它带 hide-scrollbar。 */
 const stage = () => document.body.querySelector('.hide-scrollbar') as HTMLElement;
-/** 全屏浮层：靠那句只在全屏里出现的提示语定位。 */
-const fullscreen = () =>
-  document.body
-    .querySelector('div[style*="z-index: 110"]') as HTMLElement | null;
+/** 舞台里那张卡片 —— 点按的命中测试就是按它分的。 */
+const stageCard = () => stage().firstElementChild as HTMLElement;
+/** 全屏浮层。 */
+const fullscreen = () => document.body.querySelector('div[style*="z-index: 110"]') as HTMLElement | null;
 /** 全屏里那张卡片的外框（滚动区的唯一子节点）。 */
 const fullscreenCard = () => fullscreen()!.querySelector('.hide-scrollbar')!.firstElementChild as HTMLElement;
 
 const pointer = { pointerId: 1, pointerType: 'touch' as const };
+const tap = (el: HTMLElement) => {
+  fireEvent.pointerDown(el, { ...pointer, clientX: 195, clientY: 400 });
+  fireEvent.pointerUp(el, { ...pointer, clientX: 195, clientY: 400 });
+};
 
 describe('分享面板 · 点卡片看全图', () => {
   it('点图片本身（不只是那颗药丸）就打开全屏', () => {
     renderSheet();
     expect(fullscreen()).toBeNull();
 
-    fireEvent.pointerDown(stage(), { ...pointer, clientX: 195, clientY: 400 });
-    fireEvent.pointerUp(stage(), { ...pointer, clientX: 195, clientY: 400 });
+    tap(stageCard());
 
     expect(fullscreen()).not.toBeNull();
   });
 
-  it('拖动滚屏不会顺手弹出全屏', () => {
-    renderSheet();
+  it('点卡片外的空白关掉面板，不是弹全屏', () => {
+    const onClose = vi.fn();
+    renderSheet(onClose);
 
-    fireEvent.pointerDown(stage(), { ...pointer, clientX: 195, clientY: 700 });
-    fireEvent.pointerMove(stage(), { ...pointer, clientX: 195, clientY: 640 });
-    fireEvent.pointerMove(stage(), { ...pointer, clientX: 195, clientY: 400 });
-    fireEvent.pointerUp(stage(), { ...pointer, clientX: 195, clientY: 400 });
+    tap(stage());
 
+    expect(onClose).toHaveBeenCalledTimes(1);
     expect(fullscreen()).toBeNull();
   });
 
-  it('滚动中浏览器发的 pointercancel 也算作废', () => {
-    renderSheet();
+  it('拖动滚屏不会顺手弹出全屏', () => {
+    const onClose = vi.fn();
+    renderSheet(onClose);
 
-    fireEvent.pointerDown(stage(), { ...pointer, clientX: 195, clientY: 700 });
-    fireEvent.pointerCancel(stage(), { ...pointer, clientX: 195, clientY: 700 });
-    fireEvent.pointerUp(stage(), { ...pointer, clientX: 195, clientY: 700 });
+    fireEvent.pointerDown(stageCard(), { ...pointer, clientX: 195, clientY: 700 });
+    fireEvent.pointerMove(stageCard(), { ...pointer, clientX: 195, clientY: 640 });
+    fireEvent.pointerMove(stageCard(), { ...pointer, clientX: 195, clientY: 400 });
+    fireEvent.pointerUp(stageCard(), { ...pointer, clientX: 195, clientY: 400 });
 
     expect(fullscreen()).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('滚动中浏览器发的 pointercancel 也算作废', () => {
+    const onClose = vi.fn();
+    renderSheet(onClose);
+
+    fireEvent.pointerDown(stageCard(), { ...pointer, clientX: 195, clientY: 700 });
+    fireEvent.pointerCancel(stageCard(), { ...pointer, clientX: 195, clientY: 700 });
+    fireEvent.pointerUp(stageCard(), { ...pointer, clientX: 195, clientY: 700 });
+
+    expect(fullscreen()).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 
 describe('分享面板 · 全屏里长按存相册', () => {
   const openFullscreen = () => {
     renderSheet();
-    fireEvent.pointerDown(stage(), { ...pointer, clientX: 195, clientY: 400 });
-    fireEvent.pointerUp(stage(), { ...pointer, clientX: 195, clientY: 400 });
+    tap(stageCard());
     expect(fullscreen()).not.toBeNull();
   };
 
