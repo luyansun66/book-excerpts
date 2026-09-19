@@ -14,6 +14,8 @@ import { applyCardSticker, bakeStickerColor } from '../shareCardExport';
 const sheetsDir = path.resolve(process.cwd(), 'src/app/components/sheets');
 const indexSrc = readFileSync(path.join(sheetsDir, 'stickers/index.ts'), 'utf8');
 const sheetSrc = readFileSync(path.join(sheetsDir, 'ShareSheet.tsx'), 'utf8');
+// 卡片本体（引号 / 正文 / 贴纸 / 书目信息）在 ShareCard.tsx，导出和预览共用一份。
+const cardSrc = readFileSync(path.join(sheetsDir, 'ShareCard.tsx'), 'utf8');
 
 describe('贴纸资源按需加载', () => {
   it('20 张贴纸里只有默认那张是静态引入的', () => {
@@ -60,13 +62,17 @@ describe('选择器用 PNG 蒙版，卡片才用真 SVG', () => {
     expect(sheetSrc).toContain('maskImage: `url(${s.thumb})`');
     // Safari 只认 -webkit- 前缀，两个都得在。
     expect(sheetSrc).toContain('WebkitMaskImage: `url(${s.thumb})`');
-    // 蒙版是黑色 PNG，颜色靠 background-color 给，才能跟着主题走。
-    expect(sheetSrc).toContain('backgroundColor: color.textColor');
+    // 蒙版是黑色 PNG，颜色靠 background-color 给。
+    // 面板底色是米色，所以固定用中性色 —— 跟着主题文字色走的话，浅色主题下
+    // 浅色蒙版会直接看不见（卡片上那份才需要跟主题色）。
+    expect(sheetSrc).toContain("backgroundColor: active ? 'var(--color-text)' : 'var(--color-text-secondary)'");
   });
 
   it('卡片仍然渲染真 SVG（矢量 + currentColor 跟随主题色）', () => {
-    expect(sheetSrc).toContain("__html: stickerSvg ?? ''");
-    expect(sheetSrc).toContain('data-share-sticker=""');
+    expect(cardSrc).toContain('dangerouslySetInnerHTML={{ __html: stickerSvg }}');
+    expect(cardSrc).toContain('data-share-sticker=""');
+    // currentColor 要能被卡片根节点的文字色继承到，否则贴纸会退化成黑色。
+    expect(cardSrc).toContain('color: theme.textColor');
   });
 });
 

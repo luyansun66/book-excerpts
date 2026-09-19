@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Download } from 'lucide-react';
 import type { Quote } from '../../types';
 import { STICKERS, eagerStickerSvg, loadStickerSvg } from './stickers';
+import ShareCard, { CARD_WIDTH } from './ShareCard';
 import {
   FONTS,
   applyCardFont,
@@ -36,6 +37,7 @@ const COLOR_THEMES: ColorTheme[] = [
   { id: 'plainwhite', name: '素白', bgColor: '#FAFAFA', textColor: '#2D1F16', accentColor: '#A69060' },
   { id: 'bookcream', name: '书卷米', bgColor: '#FEFCF8', textColor: '#2D1F16', accentColor: '#B08D57' },
 ];
+
 // ─── Color helpers ────────────────────────────────────────────────────────────
 function getLuminance(hex: string): number {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -50,26 +52,31 @@ function getTextColor(bgHex: string): string {
 }
 
 function getAccentColor(bgHex: string): string {
-  // Use a slightly muted complementary tone
   const r = parseInt(bgHex.slice(1, 3), 16);
   const g = parseInt(bgHex.slice(3, 5), 16);
   const b = parseInt(bgHex.slice(5, 7), 16);
   const lum = getLuminance(bgHex);
   if (lum > 0.5) {
-    // Light bg → warm accent
     return `#${Math.min(255, r + 40).toString(16).padStart(2, '0')}${Math.max(0, g - 60).toString(16).padStart(2, '0')}${Math.max(0, b - 80).toString(16).padStart(2, '0')}`;
   } else {
-    // Dark bg → golden accent
     return `#${Math.min(255, r + 100).toString(16).padStart(2, '0')}${Math.min(255, Math.round(g * 0.8 + 80)).toString(16).padStart(2, '0')}${Math.max(0, b - 20).toString(16).padStart(2, '0')}`;
   }
 }
 
-
-
-
-
-// Preview at 270px, output at 1080px wide (scale=4), height auto
-const CARD_W = 270;
+// ─── Layout constants ─────────────────────────────────────────────────────────
+const META_FONT = '-apple-system, BlinkMacSystemFont, sans-serif';
+/** 舞台内边距：卡片铺满「可用宽」，可用宽 = 舞台宽 - 2 * 这个值 */
+const STAGE_PAD_X = 20;
+const STAGE_PAD_TOP = 14;
+const STAGE_PAD_BOTTOM = 26;
+/** 全屏预览的内边距 */
+const FS_PAD_X = 20;
+/** 卡片在舞台上最多放大到多少（避免短卡片被放得过大） */
+const MAX_PREVIEW_SCALE = 1.35;
+/** 短卡片为了「整张装下」最多愿意缩到铺满宽度的多少倍；缩过头就改成铺满 + 滚动 */
+const FIT_TOLERANCE = 0.72;
+/** 下拉关闭的触发距离 */
+const DISMISS_DRAG_PX = 90;
 
 interface ShareSheetProps {
   open: boolean;
@@ -77,6 +84,18 @@ interface ShareSheetProps {
   quote: Quote;
   bookTitle: string;
   bookAuthor: string;
+}
+
+/** 生成好的 PNG 落盘：移动端走系统分享，桌面端直接下载 */
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor }: ShareSheetProps) {
@@ -88,9 +107,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [fontIndex, setFontIndex] = useState(0);  // default: system
   const [stickerIndex, setStickerIndex] = useState(1); // default: Kitty (index 1, 0 = 无贴纸)
   const [saving, setSaving] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [saveHint, setSaveHint] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
   const [html2canvasReady, setHtml2canvasReady] = useState<boolean | null>(null);
   const [showThoughts, setShowThoughts] = useState(true);
   /** 已经把 @font-face 注入好的 face（子集就位）。 */
@@ -99,6 +118,16 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [subsetFailedFace, setSubsetFailedFace] = useState<string | null>(null);
   /** 当前贴纸的 SVG 源码。选择器用 PNG 蒙版，只有卡片和导出需要真 SVG。 */
   const [stickerSvg, setStickerSvg] = useState<string | null>(null);
+
+  // ── 预览几何：全部来自实测，不猜 ──────────────────────────────────────────
+  /** 卡片原尺寸高度（由离屏节点量出来，缩放后就是预览高度） */
+  const [cardHeight, setCardHeight] = useState(0);
+  /** 舞台滚动区的 clientWidth / clientHeight */
+  const [stageBox, setStageBox] = useState({ w: 0, h: 0 });
+  /** 全屏预览滚动区的 clientWidth */
+  const [fsWidth, setFsWidth] = useState(0);
+  const [atBottom, setAtBottom] = useState(false);
+  const [dragY, setDragY] = useState(0);
 
   const color = useCustomColor && customColor
     ? {
@@ -123,8 +152,20 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const subsetFailed = font.id !== 'system' && subsetFailedFace === font.face;
   const cardFamily = subsetReady ? subsetStack : subsetFailed ? font.family : font.fallbackFamily;
 
+  /** 离屏的原尺寸导出节点 —— html2canvas 只截它 */
   const cardRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const fsRef = useRef<HTMLDivElement>(null);
   const html2canvasRef = useRef<any>(null);
+  const toastTimerRef = useRef<number | undefined>(undefined);
+
+  const showToast = useCallback((text: string) => {
+    setToast(text);
+    window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  useEffect(() => () => { window.clearTimeout(toastTimerRef.current); }, []);
 
   // Pre-load html2canvas when the sheet opens
   useEffect(() => {
@@ -191,6 +232,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     clearSubsetFont();
     setSubsetReadyFace(null);
     setSubsetFailedFace(null);
+    setFullscreen(false);
+    setDragY(0);
+    setAtBottom(false);
   }, [open]);
 
   // 卡片上的贴纸要真 SVG（矢量、跟随主题色），选择器里只要 PNG 蒙版。
@@ -211,24 +255,36 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     return () => { cancelled = true; };
   }, [open, sticker]);
 
-  // Adaptive font size based on text length
-  const quoteLen = quote.text.length;
-  const quoteFontSize =
-    quoteLen <= 50 ? 15 :
-    quoteLen <= 100 ? 13.5 :
-    quoteLen <= 180 ? 12 :
-    quoteLen <= 300 ? 11 :
-    quoteLen <= 500 ? 10 :
-    9;
-
-  // Cleanup object URL when component unmounts
-  const imageUrlRef = useRef<string | null>(null);
+  // 量尺寸：卡片原高（离屏节点，未缩放）+ 舞台宽高 + 全屏宽。
+  // 不靠公式推算卡片高度 —— 字体、感悟、贴纸都会改它，量最稳。
   useEffect(() => {
-    imageUrlRef.current = imageUrl;
-    return () => {
-      if (imageUrlRef.current) URL.revokeObjectURL(imageUrlRef.current);
+    if (!open) return;
+    const measure = () => {
+      const card = cardRef.current;
+      if (card) setCardHeight(prev => (prev === card.offsetHeight ? prev : card.offsetHeight));
+      const stage = stageRef.current;
+      if (stage) {
+        const w = stage.clientWidth, h = stage.clientHeight;
+        setStageBox(prev => (prev.w === w && prev.h === h ? prev : { w, h }));
+      }
+      const fs = fsRef.current;
+      if (fs) setFsWidth(prev => (prev === fs.clientWidth ? prev : fs.clientWidth));
     };
-  }, [imageUrl]);
+
+    measure();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const ro = new ResizeObserver(measure);
+    for (const node of [cardRef.current, stageRef.current, fsRef.current]) {
+      if (node) ro.observe(node);
+    }
+    return () => ro.disconnect();
+  }, [
+    open, fullscreen, cardFamily, showThoughts, stickerSvg, color.bgColor,
+    colorIndex, useCustomColor, customColor, fontIndex, stickerIndex, quote.text, quote.thought,
+  ]);
 
   /**
    * 决定这次导出用哪条字体栈，并确保它已经能渲染。
@@ -279,7 +335,6 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 
     setSaving(true);
     setErrorMsg(null);
-    setImageUrl(null);
 
     try {
       // 首选字体子集：几十 KB，首访也不慢。这条路不通才退回整套字体。
@@ -288,6 +343,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       setStickerSvg(stickerMarkup);
 
       const html2canvas = html2canvasRef.current;
+      // 截的是离屏的原尺寸节点：它没有 transform，所以出图尺寸和以前一模一样。
       const canvas = await html2canvas(cardRef.current, {
         scale: 3,
         useCORS: true,
@@ -310,23 +366,25 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         canvas.toBlob((b: Blob | null) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/png');
       });
 
-      const url = URL.createObjectURL(blob);
-      setImageUrl(url);
+      // 生成即落地：能唤起系统分享就唤起（存相册），不能就直接下载。
+      // 不再把图片插回面板里让用户长按 —— 那一步会把面板又撑长一截。
+      const file = new File([blob], `摘录-${bookTitle}.png`, { type: 'image/png' });
+      const canShareFiles =
+        typeof navigator.share === 'function' &&
+        (typeof navigator.canShare !== 'function' || navigator.canShare({ files: [file] }));
 
-      // Also try to share
-      const shareFile = new File([blob], `摘录-${bookTitle}.png`, { type: 'image/png' });
-      if (typeof navigator.share === 'function') {
+      if (canShareFiles) {
         try {
-          await navigator.share({ files: [shareFile], title: `摘录：${bookTitle}` });
+          await navigator.share({ files: [file], title: `摘录：${bookTitle}` });
+          showToast('已生成 · 在分享面板里选「存储图像」');
         } catch (shareErr: any) {
-          if (shareErr.name !== 'AbortError') {
-            setSaveHint(true);
-            setTimeout(() => setSaveHint(false), 6000);
-          }
+          if (shareErr?.name === 'AbortError') return;
+          downloadBlob(blob, `摘录-${bookTitle}.png`);
+          showToast('已下载到本地');
         }
       } else {
-        setSaveHint(true);
-        setTimeout(() => setSaveHint(false), 6000);
+        downloadBlob(blob, `摘录-${bookTitle}.png`);
+        showToast('已下载到本地');
       }
     } catch (e: any) {
       console.error('[ShareSheet] Export failed:', e?.message || e, e?.stack || '');
@@ -336,543 +394,636 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     }
   };
 
+  // ── 下拉把手关闭 ────────────────────────────────────────────────────────────
+  const dragRef = useRef<{ startY: number; id: number } | null>(null);
+  const onHandleDown = (e: React.PointerEvent) => {
+    dragRef.current = { startY: e.clientY, id: e.pointerId };
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const onHandleMove = (e: React.PointerEvent) => {
+    const st = dragRef.current;
+    if (!st || st.id !== e.pointerId) return;
+    const dy = e.clientY - st.startY;
+    setDragY(dy > 0 ? dy : 0);
+  };
+  const onHandleUp = (e: React.PointerEvent) => {
+    const st = dragRef.current;
+    if (!st || st.id !== e.pointerId) return;
+    dragRef.current = null;
+    setDragY(prev => {
+      if (prev > DISMISS_DRAG_PX) onClose();
+      return 0;
+    });
+  };
+
   if (!open) return null;
 
-  return (
-    <div
-      onTouchStart={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
-      onTouchEnd={(e) => e.stopPropagation()}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'flex-end',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          if (imageUrl) URL.revokeObjectURL(imageUrl);
-          onClose();
-        }
-      }}
-    >
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
+  // ── 舞台几何 ────────────────────────────────────────────────────────────────
+  const availW = Math.max(0, stageBox.w - STAGE_PAD_X * 2);
+  const availH = Math.max(0, stageBox.h - STAGE_PAD_TOP - STAGE_PAD_BOTTOM);
+  // 铺满宽度：卡片宽度撑满舞台可用宽（最多放大到 MAX_PREVIEW_SCALE，免得短卡片被拉得过大）
+  const fillScale = availW > 0 ? Math.min(availW / CARD_WIDTH, MAX_PREVIEW_SCALE) : 0;
+  // 整张装下：再按可用高收一次，短卡片就不用滚动了
+  const fitScale = cardHeight > 0 ? Math.min(fillScale, availH / cardHeight) : fillScale;
+  // 只差一点点就整体缩一点装下；差太多（长图）就铺满宽度、留给自己拖
+  const previewScale = fitScale >= fillScale * FIT_TOLERANCE ? fitScale : fillScale;
+  const previewH = cardHeight * previewScale;
+  const previewScrollable = previewScale > 0 && cardHeight > 0 && previewH > availH + 1;
+  const showFade = previewScrollable && !atBottom;
 
+  const fsAvailW = Math.max(0, fsWidth - FS_PAD_X * 2);
+  const fsScale = fsAvailW > 0 ? Math.min(fsAvailW / CARD_WIDTH, MAX_PREVIEW_SCALE) : 0;
+
+  const themeName = color.name;
+  const fontName = font.name;
+  const stickerName = sticker ? sticker.name : '无';
+  const buttonBusy = saving || html2canvasReady === null;
+
+  return (
+    <>
+      {/* 离屏的原尺寸导出节点：没有 transform，html2canvas 只截它。
+          舞台里那份是缩放过的，绝不能被截到 —— 所以必须是两个节点。 */}
       <div
-        className="hide-scrollbar"
-        onClick={(e) => e.stopPropagation()}
+        aria-hidden="true"
         style={{
-          position: 'relative',
-          width: '100%',
-          maxHeight: '92vh',
-          background: 'var(--color-bg)',
-          borderRadius: '20px 20px 0 0',
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '16px 20px 28px',
+          position: 'fixed',
+          left: -10000,
+          top: 0,
+          width: CARD_WIDTH,
+          pointerEvents: 'none',
+          zIndex: -1,
         }}
       >
-        {/* Handle */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+        <div ref={cardRef}>
+          <ShareCard
+            quote={quote}
+            bookTitle={bookTitle}
+            bookAuthor={bookAuthor}
+            theme={color}
+            cardFamily={cardFamily}
+            showThoughts={showThoughts}
+            stickerSvg={stickerSvg}
+          />
         </div>
+      </div>
 
-        {/* Header */}
+      <div
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 100,
+          display: 'flex',
+          alignItems: 'flex-end',
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)' }} />
+
         <div
+          onClick={(e) => e.stopPropagation()}
           style={{
+            position: 'relative',
             width: '100%',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 16,
-          }}
-        >
-          <h3
-            style={{
-              margin: 0,
-              fontSize: 16,
-              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              fontWeight: 600,
-              color: 'var(--color-text)',
-            }}
-          >
-            分享摘录
-          </h3>
-          <button
-            onClick={() => { if (imageUrl) URL.revokeObjectURL(imageUrl); onClose(); }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, lineHeight: 1 }}
-          >
-            <X size={18} color="#8a7a60" />
-          </button>
-        </div>
-
-        {/* Card preview */}
-        <div
-          ref={cardRef}
-          style={{
-            width: CARD_W,
-            padding: '28px 26px 22px',
-            background: color.bgColor,
-            color: color.textColor,
-            borderRadius: 0,
-            boxShadow: '0 8px 40px rgba(0,0,0,0.12)',
+            height: '88vh',
+            maxHeight: '88vh',
+            background: 'var(--color-bg)',
+            borderRadius: '24px 24px 0 0',
             display: 'flex',
             flexDirection: 'column',
-            boxSizing: 'border-box',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            transform: dragY ? `translateY(${dragY}px)` : undefined,
+            transition: dragY ? 'none' : 'transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1)',
           }}
         >
-          <span
-            data-share-card-font=""
-            style={{
-              fontFamily: cardFamily,
-              fontSize: Math.min(quoteFontSize * 1.8, 34),
-              color: color.accentColor,
-              lineHeight: 0.7,
-              opacity: 0.35,
-              userSelect: 'none',
-              marginBottom: 4,
-            }}
-          >
-            &ldquo;
-          </span>
-          <p
-            data-share-card-font=""
-            style={{
-              fontFamily: cardFamily,
-              fontSize: quoteFontSize,
-              lineHeight: 1.7,
-              color: color.textColor,
-              margin: 0,
-              padding: '0 2px',
-              wordBreak: 'break-word',
-              textAlign: 'justify',
-              textJustify: 'inter-character' as any,
-              lineBreak: 'strict' as any,
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {quote.text}
-          </p>
-          <div style={{ textAlign: 'right', marginTop: 2 }}>
-            <span
-              data-share-card-font=""
-              style={{
-                fontFamily: cardFamily,
-                fontSize: Math.min(quoteFontSize * 1.8, 34),
-                color: color.accentColor,
-                lineHeight: 0.7,
-                opacity: 0.35,
-                userSelect: 'none',
-              }}
-            >
-              &rdquo;
-            </span>
-          </div>
-          {showThoughts && quote.thought && (
+          {/* ─── 舞台：只放卡片，高度固定，卡片在里面缩放 / 滚动 ─── */}
+          <div style={{ flex: '1 1 auto', minHeight: 140, position: 'relative' }}>
             <div
+              ref={stageRef}
+              className="hide-scrollbar"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const bottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+                setAtBottom(prev => (prev === bottom ? prev : bottom));
+              }}
               style={{
-                fontSize: 10,
-                lineHeight: 1.5,
-                color: color.textColor,
-                opacity: 0.5,
-                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                borderTop: `1px solid ${color.accentColor}22`,
-                paddingTop: 8,
-                marginTop: 4,
-                whiteSpace: 'pre-wrap',
+                position: 'absolute',
+                inset: 0,
+                padding: `${STAGE_PAD_TOP}px ${STAGE_PAD_X}px ${STAGE_PAD_BOTTOM}px`,
+                boxSizing: 'border-box',
+                overflowY: previewScrollable ? 'auto' : 'hidden',
+                overflowX: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: previewScrollable ? 'flex-start' : 'center',
+                // 长图：底部渐隐，提示「下面还有」。滚到底就把渐隐撤掉，别挡着看书信息。
+                maskImage: showFade ? 'linear-gradient(to bottom, #000 72%, rgba(0,0,0,0.05) 100%)' : undefined,
+                WebkitMaskImage: showFade ? 'linear-gradient(to bottom, #000 72%, rgba(0,0,0,0.05) 100%)' : undefined,
               }}
             >
-              {quote.thought}
-            </div>
-          )}
-
-          {/* Bottom: sticker + book info */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-end',
-              marginTop: 14,
-              height: 55,
-            }}
-          >
-            {/* Sticker — fixed bottom-left */}
-            {sticker ? (
-              <div
-                data-share-sticker=""
-                dangerouslySetInnerHTML={{ __html: stickerSvg ?? '' }}
-                style={{
-                  height: 40,
-                  width: 40,
-                  overflow: "hidden",
-                  opacity: 0.9,
-                  flex: 'none',
-                  lineHeight: 0,
-                  color: color.textColor,
-                }}
-              />
-            ) : (
-              <div style={{ width: 40, flex: 'none' }} />
-            )}
-            <div style={{ textAlign: 'right', flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 9,
-                  fontWeight: 400,
-                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                  color: color.textColor,
-                  opacity: 0.6,
-                  lineHeight: 1.4,
-                }}
-              >
-                {bookTitle}
-              </div>
-              <div
-                style={{
-                  fontSize: 9,
-                  fontWeight: 400,
-                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                  color: color.textColor,
-                  opacity: 0.6,
-                  lineHeight: 1.4,
-                }}
-              >
-                {bookAuthor}
-              </div>
-              <div
-                style={{
-                  fontSize: 9,
-                  fontWeight: 400,
-                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                  color: color.textColor,
-                  opacity: 0.6,
-                  lineHeight: 1.4,
-                }}
-              >
-                {quote.page != null && <span>{/^\d+$/.test(quote.page) ? `P.${quote.page}` : quote.page} · </span>}
-                <span>{quote.date}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ─── Selectors ───────────────────────────────────────────────────── */}
-
-        {/* Color selector */}
-        <div style={{ width: '100%', marginTop: 18 }}>
-          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>
-            颜色
-          </div>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-            {/* Custom color picker */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              <input
-                type="color"
-                value={customColor || '#FEFCF8'}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setCustomColor(v);
-                  setUseCustomColor(true);
-                  setImageUrl(null);
-                  try { localStorage.setItem('share-custom-bg', v); } catch {}
-                }}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  border: useCustomColor ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-                  padding: 0,
-                  cursor: 'pointer',
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
-                  flexShrink: 0,
-                }}
-                title="自定义颜色"
-              />
-              {useCustomColor && (
-                <div style={{
-                  position: 'absolute',
-                  top: -4,
-                  right: -4,
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  background: color.textColor,
-                  border: '1px solid var(--color-border)',
-                  pointerEvents: 'none',
-                }} />
+              {previewScale > 0 && (
+                <div
+                  style={{
+                    width: CARD_WIDTH * previewScale,
+                    height: previewH,
+                    margin: '0 auto',
+                    position: 'relative',
+                    flex: 'none',
+                  }}
+                >
+                  <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
+                    <ShareCard
+                      quote={quote}
+                      bookTitle={bookTitle}
+                      bookAuthor={bookAuthor}
+                      theme={color}
+                      cardFamily={cardFamily}
+                      showThoughts={showThoughts}
+                      stickerSvg={stickerSvg}
+                      shadow="0 14px 40px rgba(0,0,0,0.34)"
+                    />
+                  </div>
+                </div>
               )}
             </div>
-            {COLOR_THEMES.map((t, i) => (
-              <button
-                key={t.id}
-                onClick={() => { setColorIndex(i); setUseCustomColor(false); setImageUrl(null); }}
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  border: !useCustomColor && i === colorIndex ? '2px solid var(--color-text)' : '1px solid var(--color-border)',
-                  background: t.bgColor,
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-                title={t.name}
-              />
-            ))}
-          </div>
-        </div>
 
-        {/* Font selector */}
-        <div style={{ width: '100%', marginTop: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>
-            字体
-          </div>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-            {FONTS.map((f, i) => (
+            {previewScrollable && !toast && (
               <button
-                key={f.id}
-                onClick={() => { setFontIndex(i); setImageUrl(null); }}
+                onClick={() => setFullscreen(true)}
                 style={{
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  border: i === fontIndex ? '1px solid var(--color-btn)' : '1px solid var(--color-border-light)',
-                  background: i === fontIndex ? 'var(--color-btn)' : 'var(--color-bg-card)',
-                  color: i === fontIndex ? 'var(--color-btn-text)' : 'var(--color-text)',
-                  // 按钮只用「字体名」子集（每个约 1KB），整套中文字体等用户
-                  // 真的选中了这款再下（见 shareCardExport.ts 的 labelFamily）。
-                  fontFamily: f.labelFamily,
-                  fontWeight: 400,
-                  fontSize: 12,
-                  flexShrink: 0,
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: 8,
+                  transform: 'translateX(-50%)',
+                  border: 'none',
                   cursor: 'pointer',
+                  fontSize: 10.5,
+                  fontFamily: META_FONT,
+                  color: 'rgba(255,255,255,0.86)',
+                  background: 'rgba(28,22,16,0.42)',
+                  padding: '5px 12px',
+                  borderRadius: 20,
                   whiteSpace: 'nowrap',
+                  backdropFilter: 'blur(6px)',
+                  WebkitBackdropFilter: 'blur(6px)',
                 }}
               >
-                {f.name}
+                长图 · 可上下拖动 · 点按看全图
               </button>
-            ))}
-          </div>
-        </div>
+            )}
 
-        {/* Sticker selector */}
-        <div style={{ width: '100%', marginTop: 14 }}>
-          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>
-            贴纸
-          </div>
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, scrollbarWidth: 'none' }}>
-            {/* "无贴纸" option */}
-              <button
-                onClick={() => { setStickerIndex(0); setImageUrl(null); }}
+            {toast && (
+              <div
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '6px 8px',
-                  borderRadius: 8,
-                  border: stickerIndex === 0 ? '1px solid var(--color-btn)' : '1px solid var(--color-border-light)',
-                  background: stickerIndex === 0 ? 'var(--color-btn)' : 'var(--color-bg-card)',
-                  flexShrink: 0,
-                  cursor: 'pointer',
-                  minWidth: 56,
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: 8,
+                  transform: 'translateX(-50%)',
+                  background: 'rgba(28,22,16,0.88)',
+                  color: 'var(--color-btn-text)',
+                  fontSize: 12,
+                  fontFamily: META_FONT,
+                  padding: '8px 15px',
+                  borderRadius: 20,
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 6px 20px rgba(0,0,0,0.28)',
+                  animation: 'fadeIn 0.2s ease',
                 }}
               >
-                <div style={{ height: 24, width: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                {toast}
+              </div>
+            )}
+          </div>
+
+          {/* ─── 控制面板：高度固定，永远在同一个位置 ─── */}
+          <div
+            style={{
+              flex: 'none',
+              borderTop: '1px solid var(--color-border-light)',
+              padding: '10px 20px 0',
+              background: 'var(--color-bg)',
+            }}
+          >
+            {/* 把手 = 关闭手势区（面板没有标题行，靠它和点空白处关闭） */}
+            <div
+              onPointerDown={onHandleDown}
+              onPointerMove={onHandleMove}
+              onPointerUp={onHandleUp}
+              onPointerCancel={onHandleUp}
+              style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 12px', touchAction: 'none', cursor: 'grab' }}
+            >
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+            </div>
+
+            {/* 主题 */}
+            <div style={{ marginTop: 2 }}>
+              <div style={labelStyle}>
+                主题<span style={valueStyle}> · {themeName}</span>
+              </div>
+              <div style={rowStyle}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <input
+                    type="color"
+                    value={customColor || '#FEFCF8'}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setCustomColor(v);
+                      setUseCustomColor(true);
+                      try { localStorage.setItem('share-custom-bg', v); } catch {}
+                    }}
+                    style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: '50%',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      background: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)',
+                      flexShrink: 0,
+                      boxShadow: useCustomColor ? swatchRingActive : swatchRing,
+                    }}
+                    title="自定义颜色"
+                  />
                 </div>
-                <span style={{ fontSize: 9, color: stickerIndex === 0 ? 'var(--color-btn-text)' : 'var(--color-text-muted)', whiteSpace: 'nowrap', fontFamily: '-apple-system, sans-serif' }}>无</span>
-              </button>
-            {STICKERS.map((s, i) => (
+                {COLOR_THEMES.map((t, i) => {
+                  const active = !useCustomColor && i === colorIndex;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => { setColorIndex(i); setUseCustomColor(false); }}
+                      title={t.name}
+                      style={{
+                        flex: 'none',
+                        width: 34,
+                        height: 34,
+                        borderRadius: '50%',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        background: t.bgColor,
+                        color: t.textColor,
+                        fontSize: 11,
+                        fontFamily: META_FONT,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: active ? swatchRingActive : swatchRing,
+                      }}
+                    >
+                      字
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 字体 */}
+            <div style={{ marginTop: 14 }}>
+              <div style={labelStyle}>
+                字体<span style={valueStyle}> · {fontName}</span>
+              </div>
+              <div style={rowStyle}>
+                {FONTS.map((f, i) => {
+                  const active = i === fontIndex;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => setFontIndex(i)}
+                      style={{
+                        ...pillStyle,
+                        // 按钮只用「字体名」子集（每个约 1KB），整套中文字体等用户
+                        // 真的选了再按需下载 —— 否则一开面板就是 22MB。
+                        fontFamily: f.labelFamily,
+                        ...(active ? pillActiveStyle : null),
+                      }}
+                    >
+                      {f.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 贴纸 */}
+            <div style={{ marginTop: 14 }}>
+              <div style={labelStyle}>
+                贴纸<span style={valueStyle}> · {stickerName}</span>
+              </div>
+              <div style={rowStyle}>
+                <button
+                  onClick={() => setStickerIndex(0)}
+                  title="无贴纸"
+                  style={{ ...stickerStyle, ...(stickerIndex === 0 ? stickerActiveStyle : null) }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stickerIndex === 0 ? 'var(--color-text)' : 'var(--color-text-muted)'} strokeWidth="1.8" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="9" />
+                    <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
+                  </svg>
+                </button>
+                {STICKERS.map((s, i) => {
+                  const active = i + 1 === stickerIndex;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setStickerIndex(i + 1)}
+                      title={s.name}
+                      style={{ ...stickerStyle, ...(active ? stickerActiveStyle : null) }}
+                    >
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          height: 24,
+                          width: 24,
+                          flex: 'none',
+                          // 面板底色是米色，蒙版固定用中性色 —— 跟主题文字色走的话，
+                          // 浅色主题下浅色蒙版会直接看不见。
+                          backgroundColor: active ? 'var(--color-text)' : 'var(--color-text-secondary)',
+                          WebkitMaskImage: `url(${s.thumb})`,
+                          maskImage: `url(${s.thumb})`,
+                          WebkitMaskSize: 'contain',
+                          maskSize: 'contain',
+                          WebkitMaskRepeat: 'no-repeat',
+                          maskRepeat: 'no-repeat',
+                          WebkitMaskPosition: 'center',
+                          maskPosition: 'center',
+                        }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 包含感悟 */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
+              <span style={{ fontSize: 13, color: 'var(--color-text)', fontFamily: META_FONT, fontWeight: 500 }}>
+                包含感悟
+              </span>
               <button
-                key={s.id}
-                onClick={() => { setStickerIndex(i + 1); setImageUrl(null); }}
+                onClick={() => setShowThoughts(!showThoughts)}
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '6px 8px',
-                  borderRadius: 8,
-                  border: i + 1 === stickerIndex ? '1px solid var(--color-btn)' : '1px solid var(--color-border-light)',
-                  background: i + 1 === stickerIndex ? 'var(--color-btn)' : 'var(--color-bg-card)',
-                  flexShrink: 0,
+                  width: 44,
+                  height: 26,
+                  borderRadius: 13,
+                  border: 'none',
+                  background: showThoughts ? 'var(--color-btn)' : 'var(--color-border)',
                   cursor: 'pointer',
-                  minWidth: 56,
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                  padding: 0,
                 }}
               >
                 <div
-                  aria-hidden="true"
                   style={{
-                    height: 24,
-                    width: 24,
-                    flex: 'none',
-                    backgroundColor: color.textColor,
-                    WebkitMaskImage: `url(${s.thumb})`,
-                    maskImage: `url(${s.thumb})`,
-                    WebkitMaskSize: 'contain',
-                    maskSize: 'contain',
-                    WebkitMaskRepeat: 'no-repeat',
-                    maskRepeat: 'no-repeat',
-                    WebkitMaskPosition: 'center',
-                    maskPosition: 'center',
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    background: '#fff',
+                    position: 'absolute',
+                    top: 3,
+                    left: showThoughts ? 21 : 3,
+                    transition: 'left 0.2s',
                   }}
                 />
-                <span
-                  style={{
-                    fontSize: 9,
-                    color: i + 1 === stickerIndex ? 'var(--color-btn-text)' : 'var(--color-text-muted)',
-                    whiteSpace: 'nowrap',
-                    fontFamily: '-apple-system, sans-serif',
-                  }}
-                >
-                  {s.name}
-                </span>
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* ─── 包含感悟 toggle ──────────────────────────────────────── */}
-        <div style={{ width: '100%', marginTop: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, color: 'var(--color-text)', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>
-            包含感悟
-          </span>
-          <button
-            onClick={() => { setShowThoughts(!showThoughts); setImageUrl(null); }}
-            style={{
-              width: 44,
-              height: 26,
-              borderRadius: 13,
-              border: 'none',
-              background: showThoughts ? 'var(--color-btn)' : 'var(--color-border)',
-              cursor: 'pointer',
-              position: 'relative',
-              transition: 'background 0.2s',
-              padding: 0,
-            }}
-          >
-            <div
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: '50%',
-                background: '#fff',
-                position: 'absolute',
-                top: 3,
-                left: showThoughts ? 21 : 3,
-                transition: 'left 0.2s',
-              }}
-            />
-          </button>
-        </div>
-
-        {/* Save button */}
-        <div style={{ marginTop: 20, width: '100%' }}>
-          <button
-            onClick={handleSave}
-            disabled={saving || html2canvasReady === null}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              padding: '13px 0',
-              borderRadius: 10,
-              border: 'none',
-              background: saving || html2canvasReady === null ? '#5a4a3a' : 'var(--color-btn)',
-              color: 'var(--color-btn-text)',
-              fontSize: 14,
-              fontWeight: 700,
-              fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-              cursor: saving || html2canvasReady === null ? 'not-allowed' : 'pointer',
-              letterSpacing: 0.5,
-            }}
-          >
-            <Download size={15} />
-            {saving ? '生成中…' : html2canvasReady === null ? '准备中…' : '保存图片'}
-          </button>
-        </div>
-
-        {/* Generated image */}
-        {imageUrl && (
-          <div
-            style={{
-              width: '100%',
-              marginTop: 14,
-              padding: 14,
-              background: 'rgba(255,255,255,0.5)',
-              borderRadius: 12,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            <p
-              style={{
-                fontSize: 11,
-                color: 'var(--color-text-secondary)',
-                fontFamily: '-apple-system, sans-serif',
-                margin: 0,
-                fontWeight: 600,
-              }}
-            >
-              ✅ 图片已生成 — 长按↓保存到相册
-            </p>
-            {saveHint && (
-              <p
+            {errorMsg && (
+              <div
                 style={{
-                  fontSize: 11,
+                  marginTop: 12,
+                  fontSize: 12,
                   color: 'var(--color-danger)',
-                  fontFamily: '-apple-system, sans-serif',
-                  margin: 0,
-                  fontWeight: 700,
-                  animation: 'fadeIn 0.3s ease',
+                  fontFamily: META_FONT,
+                  textAlign: 'center',
+                  padding: '8px 16px',
+                  background: '#fff0ec',
+                  borderRadius: 8,
                 }}
               >
-                💡 系统分享不可用，长按上方图片即可保存到相册
-              </p>
+                {errorMsg}
+              </div>
             )}
-            <img
-              src={imageUrl}
-              alt="摘录卡片"
-              style={{
-                width: '100%',
-                maxHeight: 320,
-                objectFit: 'contain',
-                borderRadius: 8,
-                boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-                background: color.bgColor.includes('gradient') ? '#FEFCF8' : color.bgColor,
-              }}
-            />
-          </div>
-        )}
 
-        {/* Error message */}
-        {errorMsg && (
+            {/* 保存 */}
+            <div style={{ paddingTop: 16, paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}>
+              <button
+                onClick={handleSave}
+                disabled={buttonBusy}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  height: 48,
+                  borderRadius: 12,
+                  border: 'none',
+                  background: buttonBusy ? 'var(--color-btn-disabled)' : 'var(--color-btn)',
+                  color: 'var(--color-btn-text)',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  fontFamily: META_FONT,
+                  cursor: buttonBusy ? 'not-allowed' : 'pointer',
+                  letterSpacing: 0.5,
+                }}
+              >
+                <Download size={16} />
+                {saving ? '生成中…' : html2canvasReady === null ? '准备中…' : '保存图片'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 全屏预览：舞台上 1:1 看细节 ─── */}
+      {fullscreen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 110,
+            background: '#100C06',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <div
             style={{
-              marginTop: 12,
-              fontSize: 12,
-              color: 'var(--color-danger)',
-              fontFamily: '-apple-system, sans-serif',
-              textAlign: 'center',
-              padding: '8px 16px',
-              background: '#fff0ec',
-              borderRadius: 8,
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '18px 20px 12px',
             }}
           >
-            ❌ {errorMsg}
+            <button
+              onClick={() => setFullscreen(false)}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                border: 'none',
+                background: 'rgba(255,255,255,0.16)',
+                color: '#fff',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              <X size={16} />
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={buttonBusy}
+              style={{
+                border: 'none',
+                background: 'rgba(255,255,255,0.16)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: META_FONT,
+                padding: '8px 16px',
+                borderRadius: 20,
+                cursor: buttonBusy ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {saving ? '生成中…' : '保存'}
+            </button>
           </div>
-        )}
-      </div>
-    </div>
+
+          <div
+            ref={fsRef}
+            className="hide-scrollbar"
+            style={{
+              flex: '1 1 auto',
+              minHeight: 0,
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              padding: `0 ${FS_PAD_X}px`,
+            }}
+          >
+            {fsScale > 0 && (
+              <div
+                style={{
+                  width: CARD_WIDTH * fsScale,
+                  height: cardHeight * fsScale,
+                  margin: '0 auto',
+                  position: 'relative',
+                }}
+              >
+                <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${fsScale})`, transformOrigin: 'top left' }}>
+                  <ShareCard
+                    quote={quote}
+                    bookTitle={bookTitle}
+                    bookAuthor={bookAuthor}
+                    theme={color}
+                    cardFamily={cardFamily}
+                    showThoughts={showThoughts}
+                    stickerSvg={stickerSvg}
+                    shadow="0 18px 44px rgba(0,0,0,0.4)"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              flex: 'none',
+              textAlign: 'center',
+              padding: '14px 20px calc(22px + env(safe-area-inset-bottom, 0px))',
+              fontSize: 11.5,
+              fontFamily: META_FONT,
+              color: 'rgba(255,255,255,0.7)',
+            }}
+          >
+            上下拖动查看整张卡片 · 长按保存到相册
+          </div>
+        </div>
+      )}
+    </>
   );
 }
+
+// ─── 面板里复用的小样式 ───────────────────────────────────────────────────────
+const labelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  color: 'var(--color-text-secondary)',
+  fontFamily: META_FONT,
+  letterSpacing: 0.3,
+  marginBottom: 8,
+};
+
+const valueStyle: React.CSSProperties = {
+  color: 'var(--color-text-muted)',
+  fontWeight: 500,
+};
+
+/** 选择器行横向铺到面板边缘（负 margin 出血），滑动时选项从屏幕边缘进出 */
+const rowStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  overflowX: 'auto',
+  overflowY: 'hidden',
+  margin: '0 -20px',
+  padding: '0 20px 2px',
+  scrollbarWidth: 'none',
+};
+
+const swatchRing = 'inset 0 0 0 1px rgba(28,22,16,0.10)';
+const swatchRingActive = 'inset 0 0 0 1px rgba(28,22,16,0.10), 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-btn)';
+
+const pillStyle: React.CSSProperties = {
+  flex: 'none',
+  height: 34,
+  padding: '0 14px',
+  borderRadius: 10,
+  border: '1px solid var(--color-border-light)',
+  background: 'var(--color-bg-card)',
+  color: 'var(--color-text)',
+  fontSize: 13,
+  fontFamily: META_FONT,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  whiteSpace: 'nowrap',
+};
+
+const pillActiveStyle: React.CSSProperties = {
+  border: '1.5px solid var(--color-btn)',
+  background: 'var(--color-bg-card-alt)',
+  fontWeight: 600,
+  padding: '0 13.5px',
+  boxShadow: '0 1px 3px rgba(28,22,16,0.10)',
+};
+
+const stickerStyle: React.CSSProperties = {
+  flex: 'none',
+  width: 40,
+  height: 40,
+  borderRadius: '50%',
+  border: '1px solid var(--color-border-light)',
+  background: 'var(--color-bg-card)',
+  cursor: 'pointer',
+  padding: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const stickerActiveStyle: React.CSSProperties = {
+  border: '1.5px solid var(--color-btn)',
+  background: 'var(--color-bg-card-alt)',
+  boxShadow: '0 1px 3px rgba(28,22,16,0.10)',
+};
