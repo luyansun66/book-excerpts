@@ -17,7 +17,6 @@ import scholarThumb from './thumb/scholar.png';
 import belleThumb from './thumb/belle.png';
 import fluffyThumb from './thumb/fluffy.png';
 import duoThumb from './thumb/duo.png';
-import sageThumb from './thumb/sage.png';
 import loyalThumb from './thumb/loyal.png';
 import jesterThumb from './thumb/jester.png';
 import classicThumb from './thumb/classic.png';
@@ -52,16 +51,15 @@ export const STICKERS: Sticker[] = [
   { id: 'belle', name: 'Belle', thumb: belleThumb, load: () => import('./08-belle.svg?raw').then((m) => m.default) },
   { id: 'fluffy', name: 'Fluffy', thumb: fluffyThumb, load: () => import('./09-fluffy.svg?raw').then((m) => m.default) },
   { id: 'duo', name: 'Duo', thumb: duoThumb, load: () => import('./10-duo.svg?raw').then((m) => m.default) },
-  { id: 'sage', name: 'Sage', thumb: sageThumb, load: () => import('./11-sage.svg?raw').then((m) => m.default) },
-  { id: 'loyal', name: 'Loyal', thumb: loyalThumb, load: () => import('./12-loyal.svg?raw').then((m) => m.default) },
-  { id: 'jester', name: 'Jester', thumb: jesterThumb, load: () => import('./13-jester.svg?raw').then((m) => m.default) },
-  { id: 'classic', name: 'Classic', thumb: classicThumb, load: () => import('./14-classic.svg?raw').then((m) => m.default) },
-  { id: 'bookworm', name: 'Bookworm', thumb: bookwormThumb, load: () => import('./15-bookworm.svg?raw').then((m) => m.default) },
-  { id: 'stardust', name: 'Stardust', thumb: stardustThumb, load: () => import('./16-stardust.svg?raw').then((m) => m.default) },
-  { id: 'waiting', name: 'Waiting', thumb: waitingThumb, load: () => import('./17-waiting.svg?raw').then((m) => m.default) },
-  { id: 'hammock', name: 'Hammock', thumb: hammockThumb, load: () => import('./18-hammock.svg?raw').then((m) => m.default) },
-  { id: 'keyboard', name: 'Keyboard', thumb: keyboardThumb, load: () => import('./19-keyboard.svg?raw').then((m) => m.default) },
-  { id: 'stamping', name: 'Stamping', thumb: stampingThumb, load: () => import('./20-stamping.svg?raw').then((m) => m.default) },
+  { id: 'loyal', name: 'Loyal', thumb: loyalThumb, load: () => import('./11-loyal.svg?raw').then((m) => m.default) },
+  { id: 'jester', name: 'Jester', thumb: jesterThumb, load: () => import('./12-jester.svg?raw').then((m) => m.default) },
+  { id: 'classic', name: 'Classic', thumb: classicThumb, load: () => import('./13-classic.svg?raw').then((m) => m.default) },
+  { id: 'bookworm', name: 'Bookworm', thumb: bookwormThumb, load: () => import('./14-bookworm.svg?raw').then((m) => m.default) },
+  { id: 'stardust', name: 'Stardust', thumb: stardustThumb, load: () => import('./15-stardust.svg?raw').then((m) => m.default) },
+  { id: 'waiting', name: 'Waiting', thumb: waitingThumb, load: () => import('./16-waiting.svg?raw').then((m) => m.default) },
+  { id: 'hammock', name: 'Hammock', thumb: hammockThumb, load: () => import('./17-hammock.svg?raw').then((m) => m.default) },
+  { id: 'keyboard', name: 'Keyboard', thumb: keyboardThumb, load: () => import('./18-keyboard.svg?raw').then((m) => m.default) },
+  { id: 'stamping', name: 'Stamping', thumb: stampingThumb, load: () => import('./19-stamping.svg?raw').then((m) => m.default) },
 ];
 
 /** 已经静态打进来的贴纸（默认那几张）。拿不到就是 null，调用方去 await load()。 */

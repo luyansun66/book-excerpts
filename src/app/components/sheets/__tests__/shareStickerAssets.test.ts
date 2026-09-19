@@ -18,8 +18,8 @@ const sheetSrc = readFileSync(path.join(sheetsDir, 'ShareSheet.tsx'), 'utf8');
 const cardSrc = readFileSync(path.join(sheetsDir, 'ShareCard.tsx'), 'utf8');
 
 describe('贴纸资源按需加载', () => {
-  it('20 张贴纸里只有默认那张是静态引入的', () => {
-    expect(STICKERS).toHaveLength(20);
+  it('19 张贴纸里只有默认那张是静态引入的', () => {
+    expect(STICKERS).toHaveLength(19);
     const eager = STICKERS.filter((s) => eagerStickerSvg(s.id) !== null).map((s) => s.id);
     expect(eager).toEqual(['kitty']);
   });
@@ -29,11 +29,11 @@ describe('贴纸资源按需加载', () => {
     expect(sheetSrc).toMatch(/const \[stickerIndex, setStickerIndex\] = useState\(1\)/);
   });
 
-  it('生成物里恰好 1 次静态 ?raw 引入，另外 19 次都是 import()', () => {
+  it('生成物里恰好 1 次静态 ?raw 引入，另外 18 次都是 import()', () => {
     const statics = [...indexSrc.matchAll(/^import \w+Svg from '\.\/\d+-[\w-]+\.svg\?raw';$/gm)];
     const dynamics = [...indexSrc.matchAll(/import\('\.\/\d+-[\w-]+\.svg\?raw'\)/g)];
     expect(statics).toHaveLength(1);
-    expect(dynamics).toHaveLength(19);
+    expect(dynamics).toHaveLength(18);
   });
 
   it('按需贴纸能真的取到 SVG，大块头（138KB 的 jester）也不是静态的', async () => {
