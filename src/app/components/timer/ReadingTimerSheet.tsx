@@ -3,6 +3,7 @@ import { Search, X } from 'lucide-react';
 import type { Book } from '../../types';
 import { useReadingTimer } from './ReadingTimerProvider';
 import { formatClock, formatMinutesHuman } from './format';
+import { overlayPortal } from '../overlayPortal';
 
 const SOLID = '#2C2216';
 const GLASS_BG = 'var(--color-glass)';
@@ -100,7 +101,8 @@ export default function ReadingTimerSheet() {
     : books;
   const activeBook = filteredBooks.find((b) => b.id === selectedBookId) ?? null;
 
-  return (
+  // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
+  return overlayPortal(
     <div
       style={{
         position: 'fixed',

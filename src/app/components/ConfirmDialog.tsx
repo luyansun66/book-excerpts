@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { overlayPortal } from './overlayPortal';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -40,7 +41,8 @@ export default function ConfirmDialog({
 
   if (!open) return null;
 
-  return (
+  // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
+  return overlayPortal(
     <div
       style={{
         position: 'fixed',

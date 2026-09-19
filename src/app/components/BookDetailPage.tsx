@@ -6,6 +6,7 @@ import { getBookReadingMinutes } from '../db/readingTime';
 import { formatMinutesHuman } from './timer/format';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
 import ConfirmDialog from './ConfirmDialog';
+import { overlayPortal } from './overlayPortal';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
 import { loadShareSheet, prefetchShareSheet } from './sheets/shareSheetLoader';
 import type { Book, Quote } from '../types';
@@ -52,7 +53,8 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
 
   if (!open) return null;
 
-  return (
+  // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
+  return overlayPortal(
     <div
       style={{
         position: 'fixed',
@@ -72,7 +74,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
           background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
           overflow: 'hidden',
-          padding: '14px 20px 28px',
+          padding: '14px 20px calc(28px + env(safe-area-inset-bottom, 0px))',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>

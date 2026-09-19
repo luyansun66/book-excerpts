@@ -16,6 +16,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import type { Category } from '../types';
+import { overlayPortal } from './overlayPortal';
 
 /**
  * 一整块浮起来的材质，磨砂给厚一点；小碎片用 14px 就够。
@@ -116,7 +117,8 @@ export default function CategoryPicker({
 
   if (!open) return null;
 
-  return (
+  // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
+  return overlayPortal(
     <div
       style={{
         position: 'fixed',

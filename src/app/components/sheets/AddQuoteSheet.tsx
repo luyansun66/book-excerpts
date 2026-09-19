@@ -3,6 +3,7 @@ import { X, Camera } from 'lucide-react';
 import { recognizeText, compressImage } from '../../ocr';
 import type { Quote } from '../../types';
 import ImageCropper from '../ImageCropper';
+import { overlayPortal } from '../overlayPortal';
 
 interface AddQuoteSheetProps {
   open: boolean;
@@ -99,7 +100,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
 
   if (!open) return null;
 
-  return (
+  // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
+  return overlayPortal(
     <div
       style={{
         position: 'fixed',
@@ -374,7 +376,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '12px 20px 24px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+        <div style={{ padding: '12px 20px calc(24px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
           {saveError && (
             <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--color-danger-bg)', color: '#a04030', fontSize: 11, fontFamily: '-apple-system, sans-serif', textAlign: 'center' }}>
               {saveError}

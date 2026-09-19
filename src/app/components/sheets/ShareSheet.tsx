@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { overlayPortal } from '../overlayPortal';
 import { X, Download } from 'lucide-react';
 import type { Quote } from '../../types';
 import { STICKERS, eagerStickerSvg, loadStickerSvg } from './stickers';
@@ -439,7 +440,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const stickerName = sticker ? sticker.name : '无';
   const buttonBusy = saving || html2canvasReady === null;
 
-  return (
+  // 必须挂到 body 上（见 overlayPortal）：留在带 transform 的页面层里，
+  // fixed 的包含块会变成那一层，叠上 body 的 safe-area padding，
+  // 顶部就会露出米白底色 —— 就是「顶部一层米白遮罩」。
+  return overlayPortal(
     <>
       {/* 离屏的原尺寸导出节点：没有 transform，html2canvas 只截它。
           舞台里那份是缩放过的，绝不能被截到 —— 所以必须是两个节点。 */}
@@ -861,7 +865,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '18px 20px 12px',
+              // 浮层现在盖到屏幕最顶上，按钮得让开状态栏
+              padding: 'calc(18px + env(safe-area-inset-top, 0px)) 20px 12px',
             }}
           >
             <button
@@ -951,7 +956,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           </div>
         </div>
       )}
-    </>
+    </>,
   );
 }
 

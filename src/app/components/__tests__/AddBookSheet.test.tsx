@@ -49,10 +49,12 @@ beforeEach(() => {
 const NEW_CAT_INPUT = 'input[placeholder="新分类名称"]';
 
 function open() {
-  const { container } = render(<AddBookSheet open onClose={() => {}} />);
-  const plus = container.querySelector('button[aria-label="新建分类"]') as HTMLButtonElement;
+  // 弹窗挂在 document.body 下（见 overlayPortal），render() 给的 container 里是空的，
+  // 所以查询一律对着 baseElement。
+  const { baseElement } = render(<AddBookSheet open onClose={() => {}} />);
+  const plus = baseElement.querySelector('button[aria-label="新建分类"]') as HTMLButtonElement;
   expect(plus, '分类行里没有「新建分类」入口').not.toBeNull();
-  return { container, plus };
+  return { container: baseElement, plus };
 }
 
 /** 当前选中的分类 id：分类行上直接标着，不用点开列表就知道。 */

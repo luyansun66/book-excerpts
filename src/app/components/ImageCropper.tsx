@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { overlayPortal } from './overlayPortal';
 
 interface ImageCropperProps {
   src: string;
@@ -106,7 +107,8 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
     onCrop(canvas.toDataURL('image/jpeg', 0.9));
   };
 
-  return (
+  // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
+  return overlayPortal(
     <div
       onClick={(e) => e.stopPropagation()}
       style={{
@@ -118,7 +120,7 @@ export default function ImageCropper({ src, onCrop, onCancel }: ImageCropperProp
       {/* Header — with safe area padding */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '44px 16px 8px', flexShrink: 0,
+        padding: 'calc(16px + env(safe-area-inset-top, 28px)) 16px 8px', flexShrink: 0,
       }}>
         <button onClick={onCancel} style={{
           background: 'none', border: 'none', color: '#fff', cursor: 'pointer',

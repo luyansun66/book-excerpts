@@ -33,7 +33,8 @@ function open(overrides: Partial<Parameters<typeof CategoryPicker>[0]> = {}) {
     ...overrides,
   };
   const utils = render(<CategoryPicker {...props} />);
-  return { ...utils, props };
+  // 面板挂在 document.body 下（见 overlayPortal），所以查询对着 baseElement。
+  return { ...utils, props, container: utils.baseElement };
 }
 
 /** 可滚动的分类列表（标题底下那层）。 */

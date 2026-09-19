@@ -5,6 +5,7 @@ import type { Book, Category } from '../../types';
 import { pickMoveTargetOnDelete } from '../../db/categoryUtils';
 import ConfirmDialog from '../ConfirmDialog';
 import CategoryPicker from '../CategoryPicker';
+import { overlayPortal } from '../overlayPortal';
 
 const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
   douban: '豆瓣',
@@ -261,7 +262,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
     ? pickMoveTargetOnDelete(categories, pendingDelete.id)?.name ?? ''
     : '';
 
-  return (
+  // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
+  return overlayPortal(
     <>
     <div
       style={{
@@ -351,7 +353,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
         </div>
 
         {/* Body (scrollable) */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px calc(20px + env(safe-area-inset-bottom, 0px))', display: 'flex', flexDirection: 'column', gap: 24 }}>
 
           {/* ── First Section: Search ── */}
           <div style={{ position: 'relative' }}>
