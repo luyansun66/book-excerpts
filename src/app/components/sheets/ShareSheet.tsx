@@ -79,6 +79,12 @@ const MAX_PREVIEW_SCALE = 1.35;
 const FIT_TOLERANCE = 0.72;
 /** 下拉关闭的触发距离 */
 const DISMISS_DRAG_PX = 90;
+/** 「点一下」的判定：位移和时长都在这个范围里才算点按，而不是拖动 / 长按 */
+const TAP_SLOP_PX = 8;
+const TAP_MAX_MS = 600;
+/** 全屏里「长按存相册」的判定 */
+const LONG_PRESS_MS = 520;
+const LONG_PRESS_SLOP_PX = 10;
 
 interface ShareSheetProps {
   open: boolean;
@@ -418,6 +424,74 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     });
   };
 
+  // ── 点卡片 = 看全图 ──────────────────────────────────────────────────────────
+  // 舞台本身是能滚的（长图），所以不能直接挂 onClick：手指拖完滚屏，浏览器
+  // 照样会补一个 click，用户只想往上翻却弹出全屏。这里自己判定一次 ——
+  // 位移和时长都在阈值内才算点按；滚动一开始浏览器就会发 pointercancel，
+  // 那一下也就自动作废了。
+  const tapRef = useRef<{ x: number; y: number; at: number; id: number } | null>(null);
+  const onStagePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    tapRef.current = { x: e.clientX, y: e.clientY, at: Date.now(), id: e.pointerId };
+  };
+  const onStagePointerMove = (e: React.PointerEvent) => {
+    const st = tapRef.current;
+    if (!st || st.id !== e.pointerId) return;
+    if (Math.abs(e.clientX - st.x) > TAP_SLOP_PX || Math.abs(e.clientY - st.y) > TAP_SLOP_PX) {
+      tapRef.current = null;
+    }
+  };
+  const onStagePointerUp = (e: React.PointerEvent) => {
+    const st = tapRef.current;
+    tapRef.current = null;
+    if (!st || st.id !== e.pointerId) return;
+    if (Date.now() - st.at > TAP_MAX_MS) return;
+    if (Math.abs(e.clientX - st.x) > TAP_SLOP_PX || Math.abs(e.clientY - st.y) > TAP_SLOP_PX) return;
+    setFullscreen(true);
+  };
+  const onStagePointerCancel = () => { tapRef.current = null; };
+
+  // ── 全屏里长按 = 存相册 ─────────────────────────────────────────────────────
+  // 卡片是 DOM 不是 <img>，长按拿不到系统那套「存储图像」，所以自己计时：
+  // 按住不动够久就跑一遍导出，能唤起分享面板就唤起（iOS 上那里面就是
+  // 「存储图像」）。计时器在 gesture 之后 500ms 上下触发，浏览器还认这次用户
+  // 手势（Chromium 的 transient activation 有 5 秒窗口）；万一哪家把
+  // navigator.share 拦掉，handleSave 里也会退回下载，不会白按。
+  const longPressRef = useRef<{ timer: number; x: number; y: number; id: number } | null>(null);
+  /** 上一次按下用的是手指还是鼠标 —— 长按的「上下文菜单」只在触摸时要拦掉。 */
+  const pointerKindRef = useRef<string>('mouse');
+  const cancelLongPress = useCallback(() => {
+    const st = longPressRef.current;
+    if (!st) return;
+    window.clearTimeout(st.timer);
+    longPressRef.current = null;
+  }, []);
+  useEffect(() => () => cancelLongPress(), [cancelLongPress]);
+
+  const onCardPointerDown = (e: React.PointerEvent) => {
+    pointerKindRef.current = e.pointerType;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (saving) return;
+    cancelLongPress();
+    const { clientX: x, clientY: y, pointerId: id } = e;
+    longPressRef.current = {
+      x, y, id,
+      timer: window.setTimeout(() => {
+        longPressRef.current = null;
+        // 安卓上震一下：不用盯着屏幕也知道已经触发了
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(15);
+        handleSave();
+      }, LONG_PRESS_MS),
+    };
+  };
+  const onCardPointerMove = (e: React.PointerEvent) => {
+    const st = longPressRef.current;
+    if (!st || st.id !== e.pointerId) return;
+    if (Math.abs(e.clientX - st.x) > LONG_PRESS_SLOP_PX || Math.abs(e.clientY - st.y) > LONG_PRESS_SLOP_PX) {
+      cancelLongPress();
+    }
+  };
+
   if (!open) return null;
 
   // ── 舞台几何 ────────────────────────────────────────────────────────────────
@@ -510,6 +584,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             <div
               ref={stageRef}
               className="hide-scrollbar"
+              onPointerDown={onStagePointerDown}
+              onPointerMove={onStagePointerMove}
+              onPointerUp={onStagePointerUp}
+              onPointerCancel={onStagePointerCancel}
               style={{
                 position: 'absolute',
                 inset: 0,
@@ -530,6 +608,10 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                     margin: '0 auto',
                     position: 'relative',
                     flex: 'none',
+                    // 舞台整体是「点按看全图」的靶子，别让按住时选中文字
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    WebkitTouchCallout: 'none',
                   }}
                 >
                   <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
@@ -551,6 +633,8 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             {previewScrollable && !toast && (
               <button
                 onClick={() => setFullscreen(true)}
+                onPointerDown={(e) => e.stopPropagation()}
+                onPointerUp={(e) => e.stopPropagation()}
                 style={{
                   position: 'absolute',
                   left: '50%',
@@ -574,23 +658,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
             )}
 
             {toast && (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  bottom: 8,
-                  transform: 'translateX(-50%)',
-                  background: 'rgba(28,22,16,0.88)',
-                  color: 'var(--color-btn-text)',
-                  fontSize: 12,
-                  fontFamily: META_FONT,
-                  padding: '8px 15px',
-                  borderRadius: 20,
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 6px 20px rgba(0,0,0,0.28)',
-                  animation: 'fadeIn 0.2s ease',
-                }}
-              >
+              <div style={{ position: 'absolute', left: '50%', bottom: 8, transform: 'translateX(-50%)', ...toastBubbleStyle }}>
                 {toast}
               </div>
             )}
@@ -904,11 +972,23 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           >
             {fsScale > 0 && (
               <div
+                onPointerDown={onCardPointerDown}
+                onPointerMove={onCardPointerMove}
+                onPointerUp={cancelLongPress}
+                onPointerCancel={cancelLongPress}
+                onPointerLeave={cancelLongPress}
+                onContextMenu={(e) => {
+                  // 触摸长按时别让系统弹出「选中 / 拷贝」那一套，把长按留给我们
+                  if (pointerKindRef.current !== 'mouse') e.preventDefault();
+                }}
                 style={{
                   width: CARD_WIDTH * fsScale,
                   height: cardHeight * fsScale,
                   margin: '0 auto',
                   position: 'relative',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  WebkitTouchCallout: 'none',
                 }}
               >
                 <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${fsScale})`, transformOrigin: 'top left' }}>
@@ -926,6 +1006,20 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               </div>
             )}
           </div>
+
+          {toast && (
+            <div
+              style={{
+                position: 'absolute',
+                left: '50%',
+                bottom: 'calc(78px + env(safe-area-inset-bottom, 0px))',
+                transform: 'translateX(-50%)',
+                ...toastBubbleStyle,
+              }}
+            >
+              {toast}
+            </div>
+          )}
 
           <div
             style={{
@@ -946,6 +1040,19 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
 }
 
 // ─── 面板里复用的小样式 ───────────────────────────────────────────────────────
+/** toast 气泡：舞台和全屏共用（位置各自定，气泡长一样） */
+const toastBubbleStyle: React.CSSProperties = {
+  background: 'rgba(28,22,16,0.88)',
+  color: 'var(--color-btn-text)',
+  fontSize: 12,
+  fontFamily: META_FONT,
+  padding: '8px 15px',
+  borderRadius: 20,
+  whiteSpace: 'nowrap',
+  boxShadow: '0 6px 20px rgba(0,0,0,0.28)',
+  animation: 'fadeIn 0.2s ease',
+};
+
 const labelStyle: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
