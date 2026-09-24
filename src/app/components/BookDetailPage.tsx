@@ -294,7 +294,7 @@ function QuoteCard({
         <span style={{ position: 'absolute', top: -12, left: -4, fontFamily: 'Georgia, serif', fontSize: 40, color: 'var(--color-quote-mark)', lineHeight: 1, userSelect: 'none' }}>
           &#x201C;
         </span>
-        <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 13.5, lineHeight: 1.78, color: 'var(--color-text)', margin: 0, paddingTop: 8, whiteSpace: 'pre-wrap' }}>
+        <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 14.5, lineHeight: 1.78, color: 'var(--color-text)', margin: 0, paddingTop: 8, whiteSpace: 'pre-wrap' }}>
           {quote.text}
         </p>
         <div style={{ textAlign: 'right', marginTop: -4 }}>
@@ -309,7 +309,7 @@ function QuoteCard({
           <span style={{ color: 'var(--color-quote-mark)', fontSize: 13, lineHeight: 1, marginTop: 3, flexShrink: 0, userSelect: 'none' }}>
             ↳
           </span>
-          <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif', fontSize: 11.5, lineHeight: 1.65, color: 'var(--color-quote-thought)', margin: '2px 0 0', background: 'var(--color-bg-thought)', padding: '6px 10px', borderRadius: 6, whiteSpace: 'pre-wrap' }}>
+          <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif', fontSize: 12.5, lineHeight: 1.65, color: 'var(--color-quote-thought)', margin: '2px 0 0', background: 'var(--color-bg-thought)', padding: '6px 10px', borderRadius: 6, whiteSpace: 'pre-wrap' }}>
             {quote.thought}
           </p>
         </div>
