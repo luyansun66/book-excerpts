@@ -245,6 +245,24 @@ function SmallBookCover({ book }: { book: Book }) {
 }
 
 // ─── Quote card ───────────────────────────────────────────────────────────────
+// 卡片右下角三个动作按钮。图标 12px → 15px，外面再套 5px 内边距把命中区撑到
+// 25×25：之前是零内边距，手指很难点中。内边距用等量负外边距收回去，占位尺寸
+// 不变，图标之间的视觉间距就等于外层 gap（12px），和最右边贴卡片内边距的对齐
+// 也保持不变。
+const CARD_ACTION_BUTTON: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 5,
+  margin: -5,
+  cursor: 'pointer',
+  lineHeight: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+const CARD_ACTION_ICON = 15;
+const CARD_ACTION_STROKE = 1.6;
+
 function QuoteCard({
   quote,
   onEdit,
@@ -319,15 +337,15 @@ function QuoteCard({
         <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 9.5, color: 'var(--color-text-muted)', letterSpacing: 0.15 }}>
           {quote.page != null ? (/^\d+$/.test(quote.page) ? `P.${quote.page}` : quote.page) : ''}{quote.page != null && quote.date ? ' · ' : ''}{quote.date || ''}
         </span>
-        <div style={{ display: 'flex', gap: 11, opacity: hovered ? 0.6 : 0.4, transition: 'opacity 0.2s ease' }}>
-          <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }} onClick={onEdit} title="编辑">
-            <Edit3 size={12} color="var(--color-quote-icon)" strokeWidth={1.6} />
+        <div style={{ display: 'flex', gap: 12, opacity: hovered ? 0.6 : 0.4, transition: 'opacity 0.2s ease' }}>
+          <button style={CARD_ACTION_BUTTON} onClick={onEdit} title="编辑">
+            <Edit3 size={CARD_ACTION_ICON} color="var(--color-quote-icon)" strokeWidth={CARD_ACTION_STROKE} />
           </button>
-          <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }} onClick={onDelete} title="删除">
-            <Trash2 size={12} color="var(--color-quote-icon)" strokeWidth={1.6} />
+          <button style={CARD_ACTION_BUTTON} onClick={onDelete} title="删除">
+            <Trash2 size={CARD_ACTION_ICON} color="var(--color-quote-icon)" strokeWidth={CARD_ACTION_STROKE} />
           </button>
-          <button style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', lineHeight: 1 }} onClick={onShare} title="分享">
-            <Share2 size={12} color="var(--color-quote-icon)" strokeWidth={1.6} />
+          <button style={CARD_ACTION_BUTTON} onClick={onShare} title="分享">
+            <Share2 size={CARD_ACTION_ICON} color="var(--color-quote-icon)" strokeWidth={CARD_ACTION_STROKE} />
           </button>
         </div>
       </div>
