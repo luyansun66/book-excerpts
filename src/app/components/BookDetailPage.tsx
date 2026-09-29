@@ -230,6 +230,10 @@ function SmallBookCover({ book }: { book: Book }) {
         justifyContent: 'center',
         padding: '8px 6px',
         position: 'relative',
+        // 里面的书名/作者块用 z-index: 1 压住那圈金线边框。根节点不自成层叠上下文
+        // 的话，这个 1 会被提升到页面级、盖住浮起来的元素（QuoteCard 就是这么把
+        // 底部按钮盖住的）。这里只是防住同一类问题。
+        isolation: 'isolate',
       }}
     >
       <div style={{ position: 'absolute', inset: 4, border: '1px solid var(--color-gold-light)', borderRadius: 1, pointerEvents: 'none' }} />
@@ -286,6 +290,10 @@ function QuoteCard({
         borderLeft: '3px solid ' + (quote.color || 'var(--color-quote-accent)'),
         boxShadow: 'var(--shadow-card)',
         position: 'relative',
+        // 卡片内部靠 z-index 分层（0 = 颜色蒙层，1 = 正文）。根节点必须自成一个
+        // 层叠上下文，否则这个 1 会被提升到页面级：正文区域盖住底部浮起的
+        // 「Add Quotes」按钮，按钮变成点不动 —— 只在按钮压到正文上时才犯。
+        isolation: 'isolate',
         cursor: 'default',
         transition: 'box-shadow var(--transition-fast)',
       }}
