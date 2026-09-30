@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, Layers, ChartColumnIncreasing } from 'lucide-react';
 import CategorySection from './sections/CategorySection';
 import StatsSection from './sections/StatsSection';
+import FinishedLabelSection from './sections/FinishedLabelSection';
 import DataBackupSection from './sections/DataBackupSection';
 import CloudSyncSection from './sections/CloudSyncSection';
 
@@ -134,7 +135,8 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             } as React.CSSProperties}
           >
             <StatsSection />
-            <div style={{ marginTop: 24 }}>
+            <FinishedLabelSection />
+            <div style={{ marginTop: 12 }}>
               <DataBackupSection />
               <CloudSyncSection />
             </div>

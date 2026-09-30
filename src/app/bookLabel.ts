@@ -61,33 +61,60 @@ function findPreset(color: string | null | undefined) {
   return FINISHED_LABEL_PRESETS.find((p) => p.bg === color) ?? null;
 }
 
+/** 按书的覆盖 → 全局默认 → 内置默认，收敛到一个已知预设。 */
+function resolvePreset(
+  book: Pick<Book, 'label'>,
+  defaults: FinishedLabelDefaults,
+): (typeof FINISHED_LABEL_PRESETS)[number] {
+  return findPreset(book.label?.color) ?? findPreset(defaults.color) ?? FINISHED_LABEL_PRESETS[0];
+}
+
 /** 这个色是不是预设之一（用来判断书上的颜色是不是用户自己塞进来的野值）。 */
 export function isPresetLabelColor(color: string | null | undefined): boolean {
   return findPreset(color) !== null;
 }
 
-/**
- * 这本书的角标该长什么样：没标记读完返回 null（调用方据此不渲染），
- * 否则把「按书覆盖 → 全局默认 → 常量」三层收敛成一个具体样式。
- * 颜色不是预设里的值时退回默认色，而不是按原样画——不认识的色多半是坏数据，
- * 与其画一块读不清的角标，不如回到已知可读的那个。
- */
-export function resolveBookLabel(
-  book: Pick<Book, 'finishedAt' | 'label'>,
-  defaults: FinishedLabelDefaults = {
-    text: DEFAULT_FINISHED_LABEL_TEXT,
-    color: DEFAULT_FINISHED_LABEL_COLOR,
-  },
-): FinishedLabelStyle | null {
-  if (!book.finishedAt) return null;
+const BUILTIN_DEFAULTS: FinishedLabelDefaults = {
+  text: DEFAULT_FINISHED_LABEL_TEXT,
+  color: DEFAULT_FINISHED_LABEL_COLOR,
+};
 
+/**
+ * 只看文案与配色，不看有没有读完：把「按书覆盖 → 全局默认 → 常量」三层
+ * 收敛成一个具体样式。颜色不是预设里的值时退回默认色，而不是按原样画——
+ * 不认识的色多半是坏数据，与其画一块读不清的角标，不如回到已知可读的那个。
+ *
+ * 详情页那个开关也要这份配色（未读完时它显示的是「点下去会变成的颜色」），
+ * 所以单独暴露出来，由 resolveBookLabel 负责再加一层「有没有读完」的判断。
+ */
+export function resolveLabelStyle(
+  book: Pick<Book, 'label'>,
+  defaults: FinishedLabelDefaults = BUILTIN_DEFAULTS,
+): FinishedLabelStyle {
   const text =
     clampLabelText(book.label?.text ?? '') ||
     clampLabelText(defaults.text) ||
     DEFAULT_FINISHED_LABEL_TEXT;
-  const preset = findPreset(book.label?.color) ?? findPreset(defaults.color) ?? FINISHED_LABEL_PRESETS[0];
+  const preset = resolvePreset(book, defaults);
 
   return { text, bg: preset.bg, fg: preset.fg };
+}
+
+/** 这本书的角标该长什么样：没标记读完返回 null，调用方据此不渲染。 */
+export function resolveBookLabel(
+  book: Pick<Book, 'finishedAt' | 'label'>,
+  defaults: FinishedLabelDefaults = BUILTIN_DEFAULTS,
+): FinishedLabelStyle | null {
+  if (!book.finishedAt) return null;
+  return resolveLabelStyle(book, defaults);
+}
+
+/** 这本书的角标颜色，跟有没有读完无关（详情页开关的色点用）。 */
+export function resolveLabelColor(
+  book: Pick<Book, 'label'>,
+  defaults: FinishedLabelDefaults = BUILTIN_DEFAULTS,
+): string {
+  return resolveLabelStyle(book, defaults).bg;
 }
 
 /** 角标是否该显示——只跟「有没有标记读完」有关，与文案颜色无关。 */

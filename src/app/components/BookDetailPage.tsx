@@ -10,6 +10,13 @@ import { overlayPortal } from './overlayPortal';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
 import { loadShareSheet, prefetchShareSheet } from './sheets/shareSheetLoader';
 import type { Book, Quote } from '../types';
+import LabelColorSwatches from './LabelColorSwatches';
+import {
+  MAX_LABEL_TEXT_LENGTH,
+  clampLabelText,
+  normalizeLabelText,
+  resolveLabelStyle,
+} from '../bookLabel';
 
 // 分享面板里带着 770KB 的贴纸 SVG，导出图片还要 197KB 的 html2canvas：静态引入会让
 // 每个打开书详情的人都先下载它们。入口在 sheets/shareSheetLoader，平时空闲预取（下面
@@ -26,22 +33,38 @@ function lighten(hex: string): string {
 
 // ─── Book editor dialog ───────────────────────────────────────────────────────
 function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => void; book: Book }) {
-  const { categories, updateBook, deleteBook, selectBook } = useApp();
+  const { categories, updateBook, deleteBook, selectBook, finishedLabel } = useApp();
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
   const [categoryId, setCategoryId] = useState(book.categoryId);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // 角标文案留空 = 跟随全局默认，所以初值取的是「这本书自己的覆盖」，而不是默认值
+  const [labelText, setLabelText] = useState(() => normalizeLabelText(book.label?.text));
+  const [labelColor, setLabelColor] = useState(() => book.label?.color ?? finishedLabel.color);
 
   useEffect(() => {
     setTitle(book.title);
     setAuthor(book.author);
     setCategoryId(book.categoryId);
     setShowDeleteConfirm(false);
-  }, [book]);
+    setLabelText(normalizeLabelText(book.label?.text));
+    setLabelColor(book.label?.color ?? finishedLabel.color);
+  }, [book, finishedLabel.color]);
 
   const handleSave = async () => {
     if (!title.trim() || !author.trim()) return;
-    await updateBook(book.id, { title: title.trim(), author: author.trim(), categoryId });
+    const nextLabelText = clampLabelText(labelText);
+    // 只在真的动过角标时才写 label：否则随手改个书名，就会把「当前默认色」
+    // 固化进这本书，以后在设置里换默认色这本书反而不跟着变。
+    const labelChanged =
+      nextLabelText !== normalizeLabelText(book.label?.text) ||
+      labelColor !== (book.label?.color ?? finishedLabel.color);
+    await updateBook(book.id, {
+      title: title.trim(),
+      author: author.trim(),
+      categoryId,
+      label: labelChanged ? { text: nextLabelText || null, color: labelColor } : (book.label ?? null),
+    });
     onClose();
   };
 
@@ -108,6 +131,25 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
+
+          {/* 读完角标：文案 + 6 个预设色 */}
+          <div style={{ borderTop: '1px solid var(--color-border-light)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-sans)' }}>
+              读完角标
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'var(--font-sans)', lineHeight: 1.5 }}>
+              标记为读完时显示在封面右上角。文案留空则用设置里的默认文案。
+            </div>
+            <input
+              type="text"
+              placeholder={finishedLabel.text}
+              value={labelText}
+              maxLength={MAX_LABEL_TEXT_LENGTH}
+              onChange={(e) => setLabelText(e.target.value)}
+              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: 'var(--color-text)' }}
+            />
+            <LabelColorSwatches value={labelColor} onChange={setLabelColor} />
+          </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
             <button
@@ -368,7 +410,7 @@ interface BookDetailPageProps {
 }
 
 export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
-  const { targetQuoteId, setTargetQuoteId, categories } = useApp();
+  const { targetQuoteId, setTargetQuoteId, categories, updateBook, finishedLabel } = useApp();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -386,6 +428,13 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   const isCropping = useRef(false);
   const [infoExpanded, setInfoExpanded] = useState(false);
   const [readingMinutes, setReadingMinutes] = useState<number | null>(null);
+
+  // 「读完」是纯手动开关：点一下写 finishedAt，再点一下清掉。
+  const isFinished = !!book.finishedAt;
+  const labelStyle = resolveLabelStyle(book, finishedLabel);
+  const handleToggleFinished = async () => {
+    await updateBook(book.id, { finishedAt: isFinished ? null : new Date().toISOString() });
+  };
 
   // ─── Direct DB query — no store indirection, no useCallback chain ────────
   // Use isMounted ref to prevent state updates after unmount
@@ -692,26 +741,60 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowEditBook(true)}
-                style={{
-                  marginTop: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  background: 'none',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 16,
-                  padding: '7px 16px',
-                  cursor: 'pointer',
-                  color: 'var(--color-text-secondary)',
-                  fontSize: 12,
-                  fontFamily: '-apple-system, sans-serif',
-                }}
-              >
-                <Edit3 size={13} strokeWidth={2} />
-                编辑书籍信息
-              </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'center', flexWrap: 'wrap' }}>
+                {/* 读完开关。未读完时是个空心圈 + 「标记读完」，点完变成角标配色，
+                    和封面右上角那块是同一套颜色，不用回头去书架上确认。 */}
+                <button
+                  onClick={handleToggleFinished}
+                  aria-pressed={isFinished}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    background: isFinished ? labelStyle.bg : 'none',
+                    border: `1px solid ${isFinished ? labelStyle.bg : 'var(--color-border)'}`,
+                    borderRadius: 16,
+                    padding: '7px 16px',
+                    cursor: 'pointer',
+                    color: isFinished ? labelStyle.fg : 'var(--color-text-secondary)',
+                    fontSize: 12,
+                    fontFamily: '-apple-system, sans-serif',
+                    transition: 'background 0.15s ease, color 0.15s ease, border-color 0.15s ease',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 9,
+                      height: 9,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      background: isFinished ? labelStyle.fg : 'transparent',
+                      border: `1.5px solid ${isFinished ? labelStyle.fg : labelStyle.bg}`,
+                    }}
+                  />
+                  {isFinished ? '已读完' : '标记读完'}
+                </button>
+
+                <button
+                  onClick={() => setShowEditBook(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    background: 'none',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 16,
+                    padding: '7px 16px',
+                    cursor: 'pointer',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: 12,
+                    fontFamily: '-apple-system, sans-serif',
+                  }}
+                >
+                  <Edit3 size={13} strokeWidth={2} />
+                  编辑书籍信息
+                </button>
+              </div>
             </div>
           </div>
         </div>

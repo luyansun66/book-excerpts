@@ -16,6 +16,7 @@ import {
   isPresetLabelColor,
   normalizeLabelText,
   resolveBookLabel,
+  resolveLabelColor,
 } from '../bookLabel';
 
 const amber = FINISHED_LABEL_PRESETS[0];
@@ -149,5 +150,17 @@ describe('resolveBookLabel', () => {
     for (const preset of FINISHED_LABEL_PRESETS) {
       expect(preset.name.length).toBeLessThanOrEqual(MAX_LABEL_TEXT_LENGTH);
     }
+  });
+});
+
+describe('resolveLabelColor', () => {
+  it('没读完也给出这本书会用的角标色（详情页开关的色点要用）', () => {
+    expect(resolveLabelColor({})) .toBe(amber.bg);
+    expect(resolveLabelColor({ label: { color: crimson.bg } })).toBe(crimson.bg);
+    expect(resolveLabelColor({}, { text: '已读', color: crimson.bg })).toBe(crimson.bg);
+  });
+
+  it('书上的颜色优先于全局默认', () => {
+    expect(resolveLabelColor({ label: { color: crimson.bg } }, { text: '已读', color: amber.bg })).toBe(crimson.bg);
   });
 });

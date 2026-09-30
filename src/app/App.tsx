@@ -77,6 +77,7 @@ const DRAG_HOLD_CONFIRM_MS = 120;
 const APP_BASE_URL = import.meta.env.BASE_URL;
 // ─── Book cover — adapted from original, uses real data ──────────────────────
 function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: Book) => void; dragActive?: boolean }) {
+  const { finishedLabel } = useApp();
   const sharedStyle: React.CSSProperties = {
     width: COVER_W,
     height: COVER_H,
@@ -107,6 +108,7 @@ function BookCover({ book, onSelect, dragActive }: { book: Book; onSelect: (b: B
     <BookCoverSurface
       book={book}
       style={sharedStyle}
+      labelDefaults={finishedLabel}
       onClick={handleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeaveCancel}

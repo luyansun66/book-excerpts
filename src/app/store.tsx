@@ -1,6 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { Book, Category, Quote } from './types';
 import {
+  DEFAULT_FINISHED_LABEL_COLOR,
+  DEFAULT_FINISHED_LABEL_TEXT,
+  clampLabelText,
+  isPresetLabelColor,
+  type FinishedLabelDefaults,
+} from './bookLabel';
+import {
   ensureDefaultCategories,
   getAllCategories,
   addCategory as dbAddCategory,
@@ -21,6 +28,39 @@ import {
   type SearchResult,
 } from './db';
 
+// ─── 「读完」角标的全局默认（设置页里改的那一份）────────────────────────────────
+// 存在 localStorage 而不是 IndexedDB：这是「界面偏好」，跟分享面板的自定义底色
+// 同一个性质，不该占一个需要迁移、还要进备份的表。
+const FINISHED_LABEL_STORAGE_KEY = 'finishedLabelDefaults';
+
+const BUILTIN_LABEL_DEFAULTS: FinishedLabelDefaults = {
+  text: DEFAULT_FINISHED_LABEL_TEXT,
+  color: DEFAULT_FINISHED_LABEL_COLOR,
+};
+
+/** 存进去的可能是旧数据、被手改过的 JSON，读出来一律收敛到合法值再交出去。 */
+function readFinishedLabelDefaults(): FinishedLabelDefaults {
+  try {
+    const raw = localStorage.getItem(FINISHED_LABEL_STORAGE_KEY);
+    if (!raw) return BUILTIN_LABEL_DEFAULTS;
+    const parsed = JSON.parse(raw) as Partial<FinishedLabelDefaults>;
+    return {
+      text: clampLabelText(parsed.text ?? '') || DEFAULT_FINISHED_LABEL_TEXT,
+      color: isPresetLabelColor(parsed.color) ? (parsed.color as string) : DEFAULT_FINISHED_LABEL_COLOR,
+    };
+  } catch {
+    return BUILTIN_LABEL_DEFAULTS;
+  }
+}
+
+function writeFinishedLabelDefaults(next: FinishedLabelDefaults): void {
+  try {
+    localStorage.setItem(FINISHED_LABEL_STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // 隐私模式/禁用存储时写不进去。本次会话内仍然生效，下次打开回到内置默认。
+  }
+}
+
 // ─── Context shape ────────────────────────────────────────────────────────────
 interface AppState {
   // Data
@@ -31,6 +71,10 @@ interface AppState {
   // Navigation
   selectedBook: Book | null;
   targetQuoteId: string | null;
+
+  // 「读完」角标的全局默认文案与颜色（按书的 label 会覆盖它）
+  finishedLabel: FinishedLabelDefaults;
+  setFinishedLabel: (next: FinishedLabelDefaults) => void;
 
   // Search
   searchQuery: string;
@@ -75,6 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [targetQuoteId, setTargetQuoteId] = useState<string | null>(null);
+  const [finishedLabel, setFinishedLabelState] = useState<FinishedLabelDefaults>(readFinishedLabelDefaults);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -164,6 +209,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateBookFn = useCallback(async (id: string, changes: Partial<Book>) => {
     await dbUpdateBook(id, changes);
     await refreshBooks();
+    // selectedBook 是「打开详情页那一刻」的快照，不会跟着 refreshBooks 走。
+    // 不同步的话，在详情页里切「读完」按钮上显示的还是旧状态。
+    setSelectedBook((prev) => (prev && prev.id === id ? { ...prev, ...changes } : prev));
   }, [refreshBooks]);
 
   const deleteBookFn = useCallback(async (id: string) => {
@@ -201,6 +249,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshBooks();
   }, [books, refreshBooks]);
 
+  const setFinishedLabel = useCallback((next: FinishedLabelDefaults) => {
+    const normalized: FinishedLabelDefaults = {
+      text: clampLabelText(next.text) || DEFAULT_FINISHED_LABEL_TEXT,
+      color: isPresetLabelColor(next.color) ? next.color : DEFAULT_FINISHED_LABEL_COLOR,
+    };
+    setFinishedLabelState(normalized);
+    writeFinishedLabelDefaults(normalized);
+  }, []);
+
   // ─── Quote actions ────────────────────────────────────────────────────────
   const getQuotes = useCallback(async (bookId: string) => {
     return getQuotesByBook(bookId);
@@ -230,6 +287,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     initialLoading,
     selectedBook,
     targetQuoteId,
+    finishedLabel,
+    setFinishedLabel,
     searchQuery,
     searchResults,
     isSearching,
