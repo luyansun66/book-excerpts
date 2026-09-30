@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import type { Book } from '../types';
+import { resolveBookLabel, type FinishedLabelDefaults } from '../bookLabel';
 
 /**
  * 封面的视觉本体：图片封面（加载失败时退化）或者带书名作者的占位封面。
  *
  * 书架和分类网格都要画同一本封面，只是尺寸和交互不同，所以这里只管「长什么样」，
  * 交互（拖拽、hover、点击）一律由调用方通过 props 传进来，避免两处封面长得不一样。
+ * 「读完」角标也归在这里：两处封面都要有，而且必须长得一样。
  */
 
-type CoverBook = Pick<Book, 'title' | 'author' | 'coverType' | 'coverData'>;
+type CoverBook = Pick<Book, 'title' | 'author' | 'coverType' | 'coverData' | 'finishedAt' | 'label'>;
 
 export interface BookCoverSurfaceProps {
   book: CoverBook;
@@ -18,6 +20,8 @@ export interface BookCoverSurfaceProps {
    * 网格里的封面更宽，按 实际宽度 / 94 传进来，标题才不会显得缩成一小坨。
    */
   artScale?: number;
+  /** 角标的全局默认文案/颜色；按书上的 label 覆盖它。省略则用内置默认。 */
+  labelDefaults?: FinishedLabelDefaults;
   onClick?: () => void;
   onMouseEnter?: React.MouseEventHandler<HTMLElement>;
   onMouseLeave?: React.MouseEventHandler<HTMLElement>;
@@ -41,6 +45,7 @@ export default function BookCoverSurface({
   book,
   style,
   artScale = 1,
+  labelDefaults,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -51,6 +56,41 @@ export default function BookCoverSurface({
   const [failedCoverSrc, setFailedCoverSrc] = useState<string | null>(null);
   const s = artScale;
 
+  const finishedLabel = resolveBookLabel(book, labelDefaults);
+
+  /**
+   * 右上角的「读完」角标。刻意不给 z-index：它就是封面里最后一个子节点，
+   * DOM 顺序天然压住纸纹和金线；一旦写上 z-index，就会像之前摘录卡那样
+   * 被提升到页面级、盖住浮层。
+   *
+   * 字号/内边距都跟着 artScale 走，否则网格里放大的封面会顶着一个迷你角标。
+   */
+  const ribbon = finishedLabel ? (
+    <span
+      style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        maxWidth: '62%',
+        padding: `${3 * s}px ${7 * s}px`,
+        background: finishedLabel.bg,
+        color: finishedLabel.fg,
+        fontFamily: 'var(--font-sans)',
+        fontSize: 10 * s,
+        fontWeight: 600,
+        letterSpacing: 0.4,
+        lineHeight: 1,
+        borderBottomLeftRadius: 3 * s,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        pointerEvents: 'none',
+      }}
+    >
+      {finishedLabel.text}
+    </span>
+  ) : null;
+
   if (book.coverType && book.coverData && failedCoverSrc !== book.coverData) {
     return (
       <div
@@ -58,7 +98,9 @@ export default function BookCoverSurface({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onContextMenu={onContextMenu}
-        style={{ ...style, overflow: 'hidden' }}
+        // position: relative 是角标的地基：少了它，absolute 的角标会直接
+        // 相对滚动容器定位，跑到别的地方去（占位封面分支一直都有，这里补齐）。
+        style={{ ...style, position: 'relative', overflow: 'hidden' }}
       >
         <img
           src={book.coverData}
@@ -66,6 +108,7 @@ export default function BookCoverSurface({
           onError={() => setFailedCoverSrc(book.coverData ?? null)}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
         />
+        {ribbon}
       </div>
     );
   }
@@ -166,6 +209,7 @@ export default function BookCoverSurface({
       >
         {book.author.length > 10 ? book.author.slice(0, 9) + '…' : book.author}
       </p>
+      {ribbon}
     </div>
   );
 }
