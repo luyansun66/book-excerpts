@@ -10,6 +10,15 @@ export interface Category {
 // ─── Book ─────────────────────────────────────────────────────────────────────
 export type CoverType = 'upload' | 'url';
 
+/**
+ * 「读完」角标里那本书自己的文案/颜色覆盖。
+ * 两个字段都可缺：缺了就用设置页里的全局默认，再没有就用 bookLabel.ts 里的常量。
+ */
+export interface BookLabel {
+  text?: string | null;
+  color?: string | null;
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -18,6 +27,9 @@ export interface Book {
   coverType: CoverType | null;
   coverData: string | null; // blob URL for uploads, external URL for url type
   sortOrder?: number; // for custom shelf ordering within category
+  /** 手动标记读完的时刻（ISO）。空 = 没读完，角标不画。 */
+  finishedAt?: string | null;
+  label?: BookLabel | null;
   createdAt: string;
   updatedAt: string;
 }
