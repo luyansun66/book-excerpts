@@ -13,10 +13,12 @@ import {
   MAX_LABEL_TEXT_LENGTH,
   clampLabelText,
   isBookFinished,
+  FINISHED_LABEL_BG_ALPHA,
+  FINISHED_LABEL_TEXT_COLOR,
   isPresetLabelColor,
   normalizeLabelText,
   resolveBookLabel,
-  resolveLabelColor,
+  withAlpha,
 } from '../bookLabel';
 
 const amber = FINISHED_LABEL_PRESETS[0];
@@ -68,7 +70,7 @@ describe('resolveBookLabel', () => {
 
   it('标记读完但没自定义时用默认文案与默认色', () => {
     const label = resolveBookLabel({ finishedAt: '2026-01-01T00:00:00.000Z' });
-    expect(label).toEqual({ text: DEFAULT_FINISHED_LABEL_TEXT, bg: amber.bg, fg: amber.fg });
+    expect(label).toEqual({ text: DEFAULT_FINISHED_LABEL_TEXT, bg: withAlpha(amber.bg), fg: FINISHED_LABEL_TEXT_COLOR });
   });
 
   it('按书覆盖优先于全局默认', () => {
@@ -76,7 +78,7 @@ describe('resolveBookLabel', () => {
       { finishedAt: '2026-01-01T00:00:00.000Z', label: { text: '已读', color: crimson.bg } },
       { text: '读完啦', color: amber.bg },
     );
-    expect(label).toEqual({ text: '已读', bg: crimson.bg, fg: crimson.fg });
+    expect(label).toEqual({ text: '已读', bg: withAlpha(crimson.bg), fg: FINISHED_LABEL_TEXT_COLOR });
   });
 
   it('按书只覆盖一项时，另一项仍走全局默认', () => {
@@ -84,13 +86,13 @@ describe('resolveBookLabel', () => {
       { finishedAt: '2026-01-01T00:00:00.000Z', label: { text: '已读' } },
       { text: '默认文案', color: crimson.bg },
     );
-    expect(onlyText).toEqual({ text: '已读', bg: crimson.bg, fg: crimson.fg });
+    expect(onlyText).toEqual({ text: '已读', bg: withAlpha(crimson.bg), fg: FINISHED_LABEL_TEXT_COLOR });
 
     const onlyColor = resolveBookLabel(
       { finishedAt: '2026-01-01T00:00:00.000Z', label: { color: crimson.bg } },
       { text: '默认文案', color: amber.bg },
     );
-    expect(onlyColor).toEqual({ text: '默认文案', bg: crimson.bg, fg: crimson.fg });
+    expect(onlyColor).toEqual({ text: '默认文案', bg: withAlpha(crimson.bg), fg: FINISHED_LABEL_TEXT_COLOR });
   });
 
   it('空文案/空白的按书文案不生效，回落到全局默认', () => {
@@ -122,7 +124,7 @@ describe('resolveBookLabel', () => {
       finishedAt: '2026-01-01T00:00:00.000Z',
       label: { color: '#123456' },
     });
-    expect(label).toEqual({ text: DEFAULT_FINISHED_LABEL_TEXT, bg: amber.bg, fg: amber.fg });
+    expect(label).toEqual({ text: DEFAULT_FINISHED_LABEL_TEXT, bg: withAlpha(amber.bg), fg: FINISHED_LABEL_TEXT_COLOR });
   });
 
   it('全局默认色不是预设时也退回默认色', () => {
@@ -130,7 +132,8 @@ describe('resolveBookLabel', () => {
       { finishedAt: '2026-01-01T00:00:00.000Z' },
       { text: DEFAULT_FINISHED_LABEL_TEXT, color: 'oklch(0.7 0.1 60)' },
     );
-    expect(label?.bg).toBe(DEFAULT_FINISHED_LABEL_COLOR);
+    // 退回到默认色，并且已经带上半透明
+    expect(label?.bg).toBe(withAlpha(DEFAULT_FINISHED_LABEL_COLOR));
   });
 
   it('每个预设都能被解析出来，且底色/字色成对', () => {
@@ -139,7 +142,7 @@ describe('resolveBookLabel', () => {
         finishedAt: '2026-01-01T00:00:00.000Z',
         label: { text: preset.name, color: preset.bg },
       });
-      expect(label).toEqual({ text: preset.name, bg: preset.bg, fg: preset.fg });
+      expect(label).toEqual({ text: preset.name, bg: withAlpha(preset.bg), fg: FINISHED_LABEL_TEXT_COLOR });
     }
   });
 
@@ -153,14 +156,23 @@ describe('resolveBookLabel', () => {
   });
 });
 
-describe('resolveLabelColor', () => {
-  it('没读完也给出这本书会用的角标色（详情页开关的色点要用）', () => {
-    expect(resolveLabelColor({})) .toBe(amber.bg);
-    expect(resolveLabelColor({ label: { color: crimson.bg } })).toBe(crimson.bg);
-    expect(resolveLabelColor({}, { text: '已读', color: crimson.bg })).toBe(crimson.bg);
+describe('角标的观感参数', () => {
+  it('底色按 80% 不透明画，色号本身保持不透明（入库的仍是 hex）', () => {
+    expect(FINISHED_LABEL_BG_ALPHA).toBe(0.8);
+    expect(withAlpha(amber.bg)).toBe('rgba(226, 161, 60, 0.8)');
+    expect(amber.bg).toMatch(/^#[0-9A-F]{6}$/);
   });
 
-  it('书上的颜色优先于全局默认', () => {
-    expect(resolveLabelColor({ label: { color: crimson.bg } }, { text: '已读', color: amber.bg })).toBe(crimson.bg);
+  it('字色统一是白色', () => {
+    expect(FINISHED_LABEL_TEXT_COLOR).toBe('#FFFFFF');
+    for (const preset of FINISHED_LABEL_PRESETS) {
+      const label = resolveBookLabel({ finishedAt: '2026-01-01T00:00:00.000Z', label: { color: preset.bg } });
+      expect(label?.fg).toBe('#FFFFFF');
+    }
+  });
+
+  it('withAlpha 支持自定义透明度，且不改色号', () => {
+    expect(withAlpha('#000000', 0.5)).toBe('rgba(0, 0, 0, 0.5)');
+    expect(withAlpha('#FFFFFF', 1)).toBe('rgba(255, 255, 255, 1)');
   });
 });

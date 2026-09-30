@@ -18,23 +18,37 @@ export interface FinishedLabelDefaults {
 
 export interface FinishedLabelStyle {
   text: string;
+  /** 已经带上 `FINISHED_LABEL_BG_ALPHA` 透明度的 CSS 颜色，直接拿去当 background */
   bg: string;
   fg: string;
 }
 
 /**
- * 6 个预设色。每项都把底色和字色成对给出，而不是只存底色再去算——
- * 亮底的「琥珀」配深字才读得清，其余深底配浅字；写死在调色板里比运行时
- * 猜对比度可靠，也方便测试逐个断言。
+ * 6 个预设色。这里存的是**不透明** hex：它是入库的那个值，也是选中态的比对依据，
+ * 画到封面上时才由 withAlpha 转成半透明（见 FINISHED_LABEL_BG_ALPHA）。
  */
 export const FINISHED_LABEL_PRESETS = [
-  { name: '琥珀', bg: '#E2A13C', fg: '#4A3413' },
-  { name: '朱砂', bg: '#B8483C', fg: '#FFF3EC' },
-  { name: '松绿', bg: '#3F6B52', fg: '#F1F7F0' },
-  { name: '黛蓝', bg: '#3C5A7A', fg: '#EFF4FA' },
-  { name: '藕荷', bg: '#7E5570', fg: '#FAF0F6' },
-  { name: '墨玉', bg: '#3A3229', fg: '#F5EFE0' },
+  { name: '琥珀', bg: '#E2A13C' },
+  { name: '朱砂', bg: '#B8483C' },
+  { name: '松绿', bg: '#3F6B52' },
+  { name: '黛蓝', bg: '#3C5A7A' },
+  { name: '藕荷', bg: '#7E5570' },
+  { name: '墨玉', bg: '#3A3229' },
 ] as const;
+
+/** 角标字色，六个预设统一用白。 */
+export const FINISHED_LABEL_TEXT_COLOR = '#FFFFFF';
+
+/** 角标底色不透明度：留一点透，压在书封上不至于像贴了块实心胶布。 */
+export const FINISHED_LABEL_BG_ALPHA = 0.8;
+
+/** #RRGGBB → rgba(r, g, b, alpha)。同一个色号在色板和角标上是同一种颜色，只是浓淡不同。 */
+export function withAlpha(hex: string, alpha: number = FINISHED_LABEL_BG_ALPHA): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export const DEFAULT_FINISHED_LABEL_TEXT = '读完';
 
@@ -97,7 +111,7 @@ export function resolveLabelStyle(
     DEFAULT_FINISHED_LABEL_TEXT;
   const preset = resolvePreset(book, defaults);
 
-  return { text, bg: preset.bg, fg: preset.fg };
+  return { text, bg: withAlpha(preset.bg), fg: FINISHED_LABEL_TEXT_COLOR };
 }
 
 /** 这本书的角标该长什么样：没标记读完返回 null，调用方据此不渲染。 */
@@ -107,14 +121,6 @@ export function resolveBookLabel(
 ): FinishedLabelStyle | null {
   if (!book.finishedAt) return null;
   return resolveLabelStyle(book, defaults);
-}
-
-/** 这本书的角标颜色，跟有没有读完无关（详情页开关的色点用）。 */
-export function resolveLabelColor(
-  book: Pick<Book, 'label'>,
-  defaults: FinishedLabelDefaults = BUILTIN_DEFAULTS,
-): string {
-  return resolveLabelStyle(book, defaults).bg;
 }
 
 /** 角标是否该显示——只跟「有没有标记读完」有关，与文案颜色无关。 */

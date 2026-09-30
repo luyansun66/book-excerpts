@@ -8,7 +8,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import type { Book } from '../../types';
-import { FINISHED_LABEL_PRESETS } from '../../bookLabel';
+import { FINISHED_LABEL_PRESETS, withAlpha } from '../../bookLabel';
 import BookCoverSurface from '../BookCoverSurface';
 
 const amber = FINISHED_LABEL_PRESETS[0];
@@ -28,14 +28,6 @@ function cover(partial: Partial<CoverBook> = {}): CoverBook {
     categoryId: 'cat',
   };
   return { ...base, ...partial };
-}
-
-/** jsdom 会把 inline style 里的 #hex 归一成 rgb(...)，断言前先转一遍 */
-function toRgb(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function ribbon(container: HTMLElement): HTMLElement | null {
@@ -59,8 +51,8 @@ describe('书封「读完」角标', () => {
     const { container } = render(<BookCoverSurface book={cover({ finishedAt: '2026-01-01T00:00:00.000Z' })} />);
     const el = ribbon(container);
     expect(el?.textContent).toBe('读完');
-    expect(el?.style.background).toBe(toRgb(amber.bg));
-    expect(el?.style.color).toBe(toRgb(amber.fg));
+    expect(el?.style.background).toBe(withAlpha(amber.bg));
+    expect(el?.style.color).toBe('rgb(255, 255, 255)');
   });
 
   it('按书覆盖文案和颜色', () => {
@@ -71,7 +63,7 @@ describe('书封「读完」角标', () => {
     );
     const el = ribbon(container);
     expect(el?.textContent).toBe('已读');
-    expect(el?.style.background).toBe(toRgb(crimson.bg));
+    expect(el?.style.background).toBe(withAlpha(crimson.bg));
   });
 
   it('全局默认文案/颜色作用到没自定义的书上', () => {
@@ -83,7 +75,7 @@ describe('书封「读完」角标', () => {
     );
     const el = ribbon(container);
     expect(el?.textContent).toBe('看完了');
-    expect(el?.style.background).toBe(toRgb(crimson.bg));
+    expect(el?.style.background).toBe(withAlpha(crimson.bg));
   });
 
   it('图片封面这条分支也有定位地基（角标不能跑出封面）', () => {
@@ -114,7 +106,7 @@ describe('书封「读完」角标', () => {
     const { container: at2 } = render(
       <BookCoverSurface book={cover({ finishedAt: '2026-01-01T00:00:00.000Z' })} artScale={1.5} />,
     );
-    expect(ribbon(at1)?.style.fontSize).toBe('10px');
-    expect(ribbon(at2)?.style.fontSize).toBe('15px');
+    expect(ribbon(at1)?.style.fontSize).toBe('8.5px');
+    expect(ribbon(at2)?.style.fontSize).toBe('12.75px');
   });
 });
