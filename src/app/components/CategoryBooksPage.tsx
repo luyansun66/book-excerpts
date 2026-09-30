@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Search, X } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, Search, X } from 'lucide-react';
 import { useApp } from '../store';
-import { CATEGORY_GRID_COLUMNS, filterCategoryBooks } from '../categoryBooks';
+import {
+  CATEGORY_GRID_COLUMNS,
+  arrangeCategoryBooks,
+  type BookSort,
+  type FinishedFilter,
+} from '../categoryBooks';
 import { SHELF_COVER_HEIGHT, SHELF_COVER_WIDTH } from '../shelfScroll';
 import BookCoverSurface from './BookCoverSurface';
 
@@ -12,6 +17,12 @@ import BookCoverSurface from './BookCoverSurface';
  * 计数变成了入口，点开推入这一页：先搜索，再一屏看到全部封面。
  * 点封面直接进摘录列表（BookDetailPage 本身就是摘录列表）。
  */
+
+const FINISHED_FILTERS: { key: FinishedFilter; label: string }[] = [
+  { key: 'all', label: '全部' },
+  { key: 'finished', label: '已读完' },
+  { key: 'unfinished', label: '未读完' },
+];
 
 const GRID_PADDING = 18;
 // 列间距给得比行间距宽：封面在三列里本来就够大，留点竖缝，一行三本才不至于
@@ -24,15 +35,31 @@ interface CategoryBooksPageProps {
 }
 
 export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps) {
-  const { categories, books, selectBook } = useApp();
+  const { categories, books, selectBook, finishedLabel } = useApp();
   const [query, setQuery] = useState('');
+  // 筛选/排序是「这一眼想怎么看」，不是书籍属性：只活在本次会话，
+  // 切到别的分类再回来（外层 key 变了会重建组件）就回到全部 + 自定义顺序。
+  const [finishedFilter, setFinishedFilter] = useState<FinishedFilter>('all');
+  const [sort, setSort] = useState<BookSort>('custom');
 
   const category = categories.find((c) => c.id === categoryId);
   const categoryBooks = useMemo(
     () => books.filter((b) => b.categoryId === categoryId),
     [books, categoryId],
   );
-  const shownBooks = useMemo(() => filterCategoryBooks(categoryBooks, query), [categoryBooks, query]);
+  const shownBooks = useMemo(
+    () => arrangeCategoryBooks(categoryBooks, { query, finished: finishedFilter, sort }),
+    [categoryBooks, query, finishedFilter, sort],
+  );
+
+  // 三种「空」要说清是哪种，不然用户不知道自己是不是把书筛没了
+  const emptyMessage = query
+    ? <>没有找到和「{query}」有关的书</>
+    : finishedFilter === 'finished'
+      ? <>这个分类下还没有读完的书</>
+      : finishedFilter === 'unfinished'
+        ? <>这个分类下的书都读完了</>
+        : <>这个分类下还没有书</>;
 
   // 封面等比放大后，占位封面里的字号也得跟着放大，否则标题在宽封面上会缩成一小坨。
   const gridRef = useRef<HTMLDivElement>(null);
@@ -174,6 +201,78 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
         </div>
       </div>
 
+      {/* Filter + sort bar — 分类里一本书都没有时不出现，省得空页面上还挂一排控件 */}
+      {categoryBooks.length > 0 && (
+        <div
+          style={{
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            padding: '0 18px 10px',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              gap: 2,
+              background: 'var(--color-bg-card)',
+              border: '1px solid var(--color-border-light)',
+              borderRadius: 16,
+              padding: 2,
+            }}
+          >
+            {FINISHED_FILTERS.map((option) => {
+              const active = finishedFilter === option.key;
+              return (
+                <button
+                  key={option.key}
+                  onClick={() => setFinishedFilter(option.key)}
+                  aria-pressed={active}
+                  style={{
+                    border: 'none',
+                    borderRadius: 13,
+                    padding: '5px 10px',
+                    cursor: 'pointer',
+                    background: active ? 'var(--color-btn)' : 'transparent',
+                    color: active ? 'var(--color-btn-text)' : 'var(--color-text-secondary)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 11.5,
+                    fontWeight: active ? 700 : 500,
+                    lineHeight: 1.4,
+                    transition: 'background 0.15s ease, color 0.15s ease',
+                  }}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => setSort((prev) => (prev === 'custom' ? 'recentFinished' : 'custom'))}
+            aria-label={sort === 'custom' ? '按自定义顺序排列，点击改为最近读完' : '按最近读完排列，点击改为自定义顺序'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              background: 'none',
+              border: 'none',
+              padding: '4px 2px',
+              cursor: 'pointer',
+              color: 'var(--color-text-secondary)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 11.5,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <ArrowUpDown size={12} strokeWidth={2} />
+            {sort === 'custom' ? '自定义顺序' : '最近读完'}
+          </button>
+        </div>
+      )}
+
       {/* Cover grid */}
       <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
         <div
@@ -223,6 +322,7 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
                   <BookCoverSurface
                     book={book}
                     artScale={artScale}
+                    labelDefaults={finishedLabel}
                     style={{
                       width: '100%',
                       aspectRatio: `${SHELF_COVER_WIDTH} / ${SHELF_COVER_HEIGHT}`,
@@ -273,11 +373,7 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
               }}
             >
               <div style={{ fontSize: 30, marginBottom: 10, lineHeight: 1 }}>📖</div>
-              {query ? (
-                <>没有找到和「{query}」有关的书</>
-              ) : (
-                <>这个分类下还没有书</>
-              )}
+              {emptyMessage}
             </div>
           )}
         </div>
