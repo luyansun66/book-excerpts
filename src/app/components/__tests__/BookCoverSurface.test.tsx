@@ -8,11 +8,8 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import type { Book } from '../../types';
-import { FINISHED_LABEL_PRESETS, withAlpha } from '../../bookLabel';
+import { FINISHED_LABEL_COLOR, withAlpha } from '../../bookLabel';
 import BookCoverSurface from '../BookCoverSurface';
-
-const amber = FINISHED_LABEL_PRESETS[0];
-const crimson = FINISHED_LABEL_PRESETS[1];
 
 type CoverBook = Parameters<typeof BookCoverSurface>[0]['book'];
 
@@ -51,31 +48,8 @@ describe('书封「读完」角标', () => {
     const { container } = render(<BookCoverSurface book={cover({ finishedAt: '2026-01-01T00:00:00.000Z' })} />);
     const el = ribbon(container);
     expect(el?.textContent).toBe('读完');
-    expect(el?.style.background).toBe(withAlpha(amber.bg));
+    expect(el?.style.background).toBe(withAlpha(FINISHED_LABEL_COLOR));
     expect(el?.style.color).toBe('rgb(255, 255, 255)');
-  });
-
-  it('按书覆盖文案和颜色', () => {
-    const { container } = render(
-      <BookCoverSurface
-        book={cover({ finishedAt: '2026-01-01T00:00:00.000Z', label: { text: '已读', color: crimson.bg } })}
-      />,
-    );
-    const el = ribbon(container);
-    expect(el?.textContent).toBe('已读');
-    expect(el?.style.background).toBe(withAlpha(crimson.bg));
-  });
-
-  it('全局默认文案/颜色作用到没自定义的书上', () => {
-    const { container } = render(
-      <BookCoverSurface
-        book={cover({ finishedAt: '2026-01-01T00:00:00.000Z' })}
-        labelDefaults={{ text: '看完了', color: crimson.bg }}
-      />,
-    );
-    const el = ribbon(container);
-    expect(el?.textContent).toBe('看完了');
-    expect(el?.style.background).toBe(withAlpha(crimson.bg));
   });
 
   it('图片封面这条分支也有定位地基（角标不能跑出封面）', () => {

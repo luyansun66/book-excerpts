@@ -2,7 +2,7 @@
  * 「分类里的全部书籍」网格页的纯逻辑。
  *
  * 这一页的活儿是在一个分类里快速找到某本书，所以真正的分支只有两处：
- * 搜索（书名和作者都要能命中，大小写不敏感，首尾空格忽略）和「读完」筛选/排序。
+ * 搜索（书名和作者都要能命中，大小写不敏感，首尾空格忽略）和「读完」筛选。
  * 抽出来单独测，免得以后改搜索框或加筛选顺手把「作者也能搜到」「排序不动书序」
  * 弄丢——那都属于肉眼不容易立刻发现的回归。
  */
@@ -35,12 +35,15 @@ export function filterCategoryBooks<T extends SearchableBook>(books: T[], query:
   return books.filter((book) => matchesBookQuery(book, query));
 }
 
-// ─── 「读完」筛选与排序 ───────────────────────────────────────────────────────
+// ─── 「读完」筛选 ───────────────────────────────────────────────────────
 // 都是「看的角度」，不是书籍数据本身：所以这些函数一律不改入参、也不写回
 // sortOrder。用户手动拖出来的自定义顺序是唯一被持久化的那份顺序。
 
+/**
+ * 「读完」三态里去掉「未标记」剩下的两态：没标记读完的书就是**正在阅读**，
+ * 所以 `unfinished` 在界面上叫「正在阅读」，两态不重不漏地拼成 `all`。
+ */
 export type FinishedFilter = 'all' | 'finished' | 'unfinished';
-export type BookSort = 'custom' | 'recentFinished';
 
 /**
  * 按有没有读完过滤。
@@ -55,48 +58,18 @@ export function filterByFinished<T extends Pick<Book, 'finishedAt'>>(
   return books.filter((book) => !!book.finishedAt === wantFinished);
 }
 
-/**
- * 排序。「自定义顺序」= 调用方给的顺序（getAllBooks 出来的 sortOrder asc → createdAt desc），
- * 原样返回；「最近读完」把标记时间新的排前面，没标记的一律沉底。
- *
- * 同组内用「原数组下标」当兜底比较，不依赖 Array.sort 的稳定性——
- * 稳定性是规范里较新的保证，靠它不如自己写清楚。
- * finishedAt 是坏字符串（解析不出时间）时按「没读完」处理，别让它插到读完那组里。
- */
-export function sortBooks<T extends Pick<Book, 'id' | 'finishedAt'>>(
-  books: T[],
-  sort: BookSort,
-): T[] {
-  if (sort === 'custom') return books;
-
-  const originalIndex = new Map(books.map((book, i) => [book.id, i] as const));
-  const finishedTime = (book: T): number => {
-    if (!book.finishedAt) return NaN;
-    const t = Date.parse(book.finishedAt);
-    return Number.isNaN(t) ? NaN : t;
-  };
-
-  return [...books].sort((a, b) => {
-    const ta = finishedTime(a);
-    const tb = finishedTime(b);
-    const aDone = !Number.isNaN(ta);
-    const bDone = !Number.isNaN(tb);
-    if (aDone !== bDone) return aDone ? -1 : 1;
-    if (aDone && ta !== tb) return tb - ta;
-    return (originalIndex.get(a.id) ?? 0) - (originalIndex.get(b.id) ?? 0);
-  });
-}
-
 export interface ArrangeCategoryBooksOptions {
   query: string;
   finished: FinishedFilter;
-  sort: BookSort;
 }
 
-/** 网格页实际的展示顺序：先搜索、再筛读完、最后排序。 */
-export function arrangeCategoryBooks<T extends Pick<Book, 'id' | 'title' | 'author' | 'finishedAt'>>(
+/**
+ * 网格页实际的展示顺序：先搜索、再筛读完。
+ * 再往后就是调用方给的原顺序（用户拖拽出来的 sortOrder），这里不做任何重排。
+ */
+export function arrangeCategoryBooks<T extends Pick<Book, 'title' | 'author' | 'finishedAt'>>(
   books: T[],
-  { query, finished, sort }: ArrangeCategoryBooksOptions,
+  { query, finished }: ArrangeCategoryBooksOptions,
 ): T[] {
-  return sortBooks(filterByFinished(filterCategoryBooks(books, query), finished), sort);
+  return filterByFinished(filterCategoryBooks(books, query), finished);
 }

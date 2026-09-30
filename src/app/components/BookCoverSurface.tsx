@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Book } from '../types';
-import { resolveBookLabel, type FinishedLabelDefaults } from '../bookLabel';
+import { resolveBookLabel } from '../bookLabel';
 
 /**
  * 封面的视觉本体：图片封面（加载失败时退化）或者带书名作者的占位封面。
@@ -10,7 +10,7 @@ import { resolveBookLabel, type FinishedLabelDefaults } from '../bookLabel';
  * 「读完」角标也归在这里：两处封面都要有，而且必须长得一样。
  */
 
-type CoverBook = Pick<Book, 'title' | 'author' | 'coverType' | 'coverData' | 'finishedAt' | 'label'>;
+type CoverBook = Pick<Book, 'title' | 'author' | 'coverType' | 'coverData' | 'finishedAt'>;
 
 export interface BookCoverSurfaceProps {
   book: CoverBook;
@@ -20,8 +20,6 @@ export interface BookCoverSurfaceProps {
    * 网格里的封面更宽，按 实际宽度 / 94 传进来，标题才不会显得缩成一小坨。
    */
   artScale?: number;
-  /** 角标的全局默认文案/颜色；按书上的 label 覆盖它。省略则用内置默认。 */
-  labelDefaults?: FinishedLabelDefaults;
   onClick?: () => void;
   onMouseEnter?: React.MouseEventHandler<HTMLElement>;
   onMouseLeave?: React.MouseEventHandler<HTMLElement>;
@@ -45,7 +43,6 @@ export default function BookCoverSurface({
   book,
   style,
   artScale = 1,
-  labelDefaults,
   onClick,
   onMouseEnter,
   onMouseLeave,
@@ -56,7 +53,7 @@ export default function BookCoverSurface({
   const [failedCoverSrc, setFailedCoverSrc] = useState<string | null>(null);
   const s = artScale;
 
-  const finishedLabel = resolveBookLabel(book, labelDefaults);
+  const finishedLabel = resolveBookLabel(book);
 
   /**
    * 右上角的「读完」角标。刻意不给 z-index：它就是封面里最后一个子节点，

@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUpDown, Search, X } from 'lucide-react';
+import { ArrowLeft, Search, X } from 'lucide-react';
 import { useApp } from '../store';
 import {
   CATEGORY_GRID_COLUMNS,
   arrangeCategoryBooks,
-  type BookSort,
   type FinishedFilter,
 } from '../categoryBooks';
 import { SHELF_COVER_HEIGHT, SHELF_COVER_WIDTH } from '../shelfScroll';
@@ -20,8 +19,8 @@ import BookCoverSurface from './BookCoverSurface';
 
 const FINISHED_FILTERS: { key: FinishedFilter; label: string }[] = [
   { key: 'all', label: '全部' },
+  { key: 'unfinished', label: '正在阅读' },
   { key: 'finished', label: '已读完' },
-  { key: 'unfinished', label: '未读完' },
 ];
 
 const GRID_PADDING = 18;
@@ -35,12 +34,11 @@ interface CategoryBooksPageProps {
 }
 
 export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps) {
-  const { categories, books, selectBook, finishedLabel } = useApp();
+  const { categories, books, selectBook } = useApp();
   const [query, setQuery] = useState('');
-  // 筛选/排序是「这一眼想怎么看」，不是书籍属性：只活在本次会话，
-  // 切到别的分类再回来（外层 key 变了会重建组件）就回到全部 + 自定义顺序。
+  // 筛选是「这一眼想怎么看」，不是书籍属性：只活在本次会话，
+  // 切到别的分类再回来（外层 key 变了会重建组件）就回到全部。
   const [finishedFilter, setFinishedFilter] = useState<FinishedFilter>('all');
-  const [sort, setSort] = useState<BookSort>('custom');
 
   const category = categories.find((c) => c.id === categoryId);
   const categoryBooks = useMemo(
@@ -48,8 +46,8 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
     [books, categoryId],
   );
   const shownBooks = useMemo(
-    () => arrangeCategoryBooks(categoryBooks, { query, finished: finishedFilter, sort }),
-    [categoryBooks, query, finishedFilter, sort],
+    () => arrangeCategoryBooks(categoryBooks, { query, finished: finishedFilter }),
+    [categoryBooks, query, finishedFilter],
   );
 
   // 三种「空」要说清是哪种，不然用户不知道自己是不是把书筛没了
@@ -201,15 +199,15 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
         </div>
       </div>
 
-      {/* Filter + sort bar — 分类里一本书都没有时不出现，省得空页面上还挂一排控件 */}
+      {/* 筛选条 —— 分类里一本书都没有时不出现，省得空页面上还挂一排控件。
+          整组居中：右侧那个排序按钮已经去掉了，留着 space-between 只会让它偏在左边。 */}
       {categoryBooks.length > 0 && (
         <div
           style={{
             flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 8,
+            justifyContent: 'center',
             padding: '0 18px 10px',
           }}
         >
@@ -249,27 +247,6 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
               );
             })}
           </div>
-
-          <button
-            onClick={() => setSort((prev) => (prev === 'custom' ? 'recentFinished' : 'custom'))}
-            aria-label={sort === 'custom' ? '按自定义顺序排列，点击改为最近读完' : '按最近读完排列，点击改为自定义顺序'}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              background: 'none',
-              border: 'none',
-              padding: '4px 2px',
-              cursor: 'pointer',
-              color: 'var(--color-text-secondary)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 11.5,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <ArrowUpDown size={12} strokeWidth={2} />
-            {sort === 'custom' ? '自定义顺序' : '最近读完'}
-          </button>
         </div>
       )}
 
@@ -322,7 +299,6 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
                   <BookCoverSurface
                     book={book}
                     artScale={artScale}
-                    labelDefaults={finishedLabel}
                     style={{
                       width: '100%',
                       aspectRatio: `${SHELF_COVER_WIDTH} / ${SHELF_COVER_HEIGHT}`,
