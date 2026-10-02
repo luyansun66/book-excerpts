@@ -123,25 +123,39 @@ function ExcerptCardImpl({ quote, book, onOpenFull }: Props) {
         boxShadow: '0 10px 22px rgba(18,20,26,0.16), inset 0 1px 0 rgba(255,255,255,0.8)',
       }}
     >
-      {/* 正文 */}
+      {/* 正文。外面这层是"正文区"本身，高度固定一整块；里面那层才是文字。
+          分开是为了居中：短摘录只有一两行，整块贴在区顶、下面空一大片很难看。
+          居中只能交给 flex（-webkit-box-pack 在 display 被解析成 flow-root 的浏览器里
+          已经不起作用），截断仍留在里层，靠 -webkit-line-clamp 那套。 */}
       <div
         style={{
-          ...TEXT_STYLE,
           position: 'absolute',
           left: BODY_INSET.left,
           right: BODY_INSET.right,
           top: BODY_INSET.top,
-          height: body.height,
-          display: '-webkit-box',
-          WebkitLineClamp: body.lines,
-          WebkitBoxOrient: 'vertical',
+          height: BODY_HEIGHT,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
           overflow: 'hidden',
-          fontSize,
-          // lineHeight 在 React 里属于「不带单位」的属性，数字会被当成倍数，必须显式给 px。
-          lineHeight: `${body.lineHeight}px`,
         }}
       >
-        {quote.text}
+        <div
+          style={{
+            ...TEXT_STYLE,
+            display: '-webkit-box',
+            WebkitLineClamp: body.lines,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            // 高度交给行数自己撑：写死 height 的话短摘录也会撑满一整块，居中就没意义了。
+            flex: '0 0 auto',
+            fontSize,
+            // lineHeight 在 React 里属于「不带单位」的属性，数字会被当成倍数，必须显式给 px。
+            lineHeight: `${body.lineHeight}px`,
+          }}
+        >
+          {quote.text}
+        </div>
       </div>
 
       {/* 量字用的探针：同宽同字体，只换字号，永远不进视野 */}
