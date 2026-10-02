@@ -7,9 +7,9 @@
 // 重开的那一段刻意分成两拍：先让"本轮回顾完成"的过渡卡停 ROUND_END_DWELL_MS，
 // 再淡出 → 换牌 → 淡入。直接原地换掉卡组的话，用户会以为界面出了 bug。
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { ChevronDown, ChevronLeft, ChevronUp, X } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { getAllBooks, getAllQuotes, markQuoteReviewed } from '../db';
 import type { Book, Quote } from '../types';
 import Rolodex, { type RolodexHandle } from './rolodex/Rolodex';
@@ -26,8 +26,6 @@ import {
 } from './rolodex/tokens';
 import {
   buildRound,
-  canGoNext,
-  canGoPrev,
   isAtRoundEnd,
   recentQuotes,
   reviewedCount,
@@ -162,9 +160,6 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
   const current = round ? round.deck[round.index] : undefined;
   const currentQuote = current?.kind === 'excerpt' ? current.quote : null;
   const reviewed = round ? reviewedCount(round) : 0;
-  const canPrev = round ? canGoPrev(round) : false;
-  const canNext = round ? canGoNext(round) : false;
-
   const bookOf = useCallback((bookId: string) => books.get(bookId) ?? null, [books]);
 
   return (
@@ -180,28 +175,18 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
         overflow: 'hidden',
       }}
     >
+      {/* 顶部只剩一个返回键：标题、进度小字和右上角的关闭在进页面时都是重复信息，
+          全撤掉，省下的高度归中间那台装置 —— 舞台是按可用高度整体缩放的。 */}
       <header
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 10,
-          padding: 'calc(8px + env(safe-area-inset-top)) 14px 2px',
+          padding: 'calc(6px + env(safe-area-inset-top)) 14px 0',
           flex: '0 0 auto',
         }}
       >
         <button type="button" onClick={onBack} aria-label="返回" style={iconButtonStyle}>
           <ChevronLeft size={19} strokeWidth={1.9} />
-        </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: SERIF_STACK, fontSize: 16, letterSpacing: 3, color: 'var(--color-text)' }}>
-            摘录回顾
-          </div>
-          <div style={{ fontFamily: SERIF_STACK, fontSize: 11.5, letterSpacing: 1.4, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-            {round && round.count > 0 ? `已重读 ${reviewed} / ${round.count}` : '把读过的好句子再过一遍'}
-          </div>
-        </div>
-        <button type="button" onClick={onBack} aria-label="关闭" style={iconButtonStyle}>
-          <X size={18} strokeWidth={1.9} />
         </button>
       </header>
 
@@ -249,25 +234,9 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      <footer
-        style={{
-          flex: '0 0 auto',
-          display: 'flex',
-          justifyContent: 'center',
-          // 底部只留翻页按钮。原来按钮下面还有一行手势提示，去掉之后这一段的高度全给了
-          // 中间的舞台 —— 舞台是按可用高度整体缩放的，这里省多少，装置就大多少。
-          padding: `2px 18px calc(8px + env(safe-area-inset-bottom))`,
-        }}
-      >
-        <div style={{ display: 'flex', gap: 12 }}>
-          <StepButton label="上一张" disabled={!canPrev} onClick={() => rolodexRef.current?.go(-1)}>
-            <ChevronDown size={17} strokeWidth={2} />
-          </StepButton>
-          <StepButton label="下一张" disabled={!canNext} onClick={() => rolodexRef.current?.go(1)}>
-            <ChevronUp size={17} strokeWidth={2} />
-          </StepButton>
-        </div>
-      </footer>
+      {/* 翻页按钮撤掉后翻页只靠手势（和键盘方向键）。这里不能不留：舞台量的是 header
+          和这里之间的高度，留白不占位的话卡片会一路压到 Home 指示条下面去。 */}
+      <div style={{ flex: '0 0 auto', height: 'calc(4px + env(safe-area-inset-bottom))' }} />
 
       {/* 屏幕阅读器靠这一段知道翻到了哪张；视觉上完全不可见。 */}
       <p aria-live="polite" style={screenReaderOnly}>
@@ -302,45 +271,6 @@ const iconButtonStyle = {
   color: COLORS.ink,
   cursor: 'pointer',
 } as const;
-
-function StepButton({
-  label,
-  disabled,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '8px 16px',
-        borderRadius: 999,
-        border: '1px solid rgba(32,35,42,0.14)',
-        background: 'rgba(255,255,255,0.72)',
-        color: COLORS.ink,
-        fontFamily: SERIF_STACK,
-        fontSize: 13,
-        letterSpacing: 1.5,
-        cursor: disabled ? 'default' : 'pointer',
-        opacity: disabled ? 0.4 : 1,
-      }}
-    >
-      {children}
-      {label}
-    </button>
-  );
-}
 
 function Spinner({ label }: { label: string }) {
   return (
