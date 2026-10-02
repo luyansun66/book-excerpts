@@ -123,19 +123,6 @@ function ExcerptCardImpl({ quote, book, onOpenFull }: Props) {
         boxShadow: '0 10px 22px rgba(18,20,26,0.16), inset 0 1px 0 rgba(255,255,255,0.8)',
       }}
     >
-      {/* 打孔圆点 */}
-      <span
-        style={{
-          position: 'absolute',
-          top: 13,
-          right: 13,
-          width: 9,
-          height: 9,
-          borderRadius: '50%',
-          background: 'rgba(32,35,42,0.10)',
-        }}
-      />
-
       {/* 正文 */}
       <div
         style={{
