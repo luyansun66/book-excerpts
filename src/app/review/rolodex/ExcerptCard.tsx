@@ -43,13 +43,23 @@ function fitWholeLines(fontSize: number) {
   return { lines, lineHeight, height: lines * lineHeight };
 }
 
-/** 正文和探针必须共用同一套排版参数，否则量出来的行数和真渲染对不上。 */
+/**
+ * 正文和探针必须共用同一套排版参数，否则量出来的行数和真渲染对不上。
+ *
+ * 对齐方式跟「分享图片」的卡片（components/sheets/ShareCard.tsx）保持一致：两端对齐 +
+ * 字间伸缩，中文靠拉开字距去顶齐右边缘，而不是像西文那样去拉词距；lineBreak: strict
+ * 让标点不掉到行首。改这里要连 ShareCard 一起改。
+ */
 const TEXT_STYLE: CSSProperties = {
   fontFamily: SERIF_STACK,
   letterSpacing: 0.3,
   color: COLORS.ink,
   wordBreak: 'break-word',
   overflowWrap: 'anywhere',
+  whiteSpace: 'pre-wrap',
+  textAlign: 'justify',
+  textJustify: 'inter-character' as never,
+  lineBreak: 'strict' as never,
 };
 
 /** 落款每行只给一行的高度：书名太长就省略号，挤下去会顶到正文。 */
@@ -158,7 +168,6 @@ function ExcerptCardImpl({ quote, book, onOpenFull }: Props) {
           left: -10000,
           visibility: 'hidden',
           pointerEvents: 'none',
-          whiteSpace: 'pre-wrap',
           height: 'auto',
         }}
       >
