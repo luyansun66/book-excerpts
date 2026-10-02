@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="749.8" viewBox="0 0 400 749.8" fill="none">
+  <title>摘录回顾 · 名片架</title>
+  <!--
+    架子在应用里是两层，卡片夹在中间：
+      back  —— 背后的卡堆、两侧滚轮
+      front —— 两条腿 + 外弯的脚 + 底部横杆、中线上的两个卡夹
+    这里把两层压平导出，方便改设计和做静态预览。
+    尺寸与配色同 src/app/review/rolodex/tokens.ts。
+  -->
+
+  <!-- back：探出上槽的纸边，暗示后面还压着一沓 -->
+  <rect x="63.1" y="27.7" width="273.8" height="46" rx="7" fill="#e9e7e1" opacity="0.92"/>
+  <rect x="67.5" y="18.7" width="265.1" height="46" rx="7" fill="#e9e7e1" opacity="0.68"/>
+  <rect x="71.9" y="9.7" width="256.4" height="46" rx="7" fill="#e9e7e1" opacity="0.44"/>
+
+  <!-- back：两侧滚轮 -->
+  <g>
+    <rect x="24.45" y="342.45" width="31.7" height="58.5" rx="9" fill="#15171c"/>
+    <rect x="30.45" y="355.25" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="30.45" y="365" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="30.45" y="374.75" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="30.45" y="384.5" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="31.45" y="347.75" width="17.7" height="3.8" rx="1.9" fill="#ffffff" opacity="0.1"/>
+  </g>
+  <g>
+    <rect x="343.85" y="342.45" width="31.7" height="58.5" rx="9" fill="#15171c"/>
+    <rect x="349.85" y="355.25" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="349.85" y="365" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="349.85" y="374.75" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="349.85" y="384.5" width="19.7" height="3" rx="1.5" fill="#0a0b0e" opacity="0.7"/>
+    <rect x="350.85" y="347.75" width="17.7" height="3.8" rx="1.9" fill="#ffffff" opacity="0.1"/>
+  </g>
+
+  <!-- back：下槽底边露出来的蓝色垫块 -->
+  <rect x="119.9" y="698.7" width="160.2" height="17" rx="8" fill="#6f9dd0" opacity="0.45"/>
+
+  <!-- front：两条腿 + 外弯的脚 + 底部横杆 -->
+  <g fill="none" stroke="#15171c" stroke-width="12" stroke-linecap="round">
+    <path d="M 40.3 395.7 L 40.3 671.7 C 40.3 701.7 31.3 720.7 14.3 730.7"/>
+    <path d="M 359.7 395.7 L 359.7 671.7 C 359.7 701.7 368.7 720.7 385.7 730.7"/>
+    <path d="M 14.3 730.7 L 385.7 730.7"/>
+  </g>
+
+  <!-- front：中线上的两个卡夹 -->
+  <g>
+    <rect x="163" y="355" width="14" height="33.4" rx="5" fill="#15171c"/>
+    <rect x="166" y="359.7" width="8.4" height="4.2" rx="2" fill="#ffffff" opacity="0.12"/>
+  </g>
+  <g>
+    <rect x="223" y="355" width="14" height="33.4" rx="5" fill="#15171c"/>
+    <rect x="226" y="359.7" width="8.4" height="4.2" rx="2" fill="#ffffff" opacity="0.12"/>
+  </g>
+</svg>

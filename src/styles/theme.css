@@ -243,3 +243,19 @@
   40% { transform: rotate(-32deg); }
   100% { transform: rotate(0deg); }
 }
+
+/* ── 摘录回顾 ──────────────────────────────────────────────────────────────── */
+/* 名片架的手势、3D 与配色全部走内联样式（卡片尺寸必须是确定的像素），
+   这里只放内联写不了的东西。 */
+.review-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid rgba(32, 35, 42, 0.16);
+  border-top-color: rgba(32, 35, 42, 0.6);
+  border-radius: 50%;
+  animation: review-spin 0.75s linear infinite;
+}
+
+@keyframes review-spin {
+  to { transform: rotate(360deg); }
+}

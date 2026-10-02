@@ -216,6 +216,25 @@ export async function deleteQuote(id: string): Promise<void> {
   await db.quotes.delete(id);
 }
 
+/**
+ * 记一次回顾：卡片被真正翻过去时才调用。
+ *
+ * 故意不碰 updatedAt —— 那个字段的语义是「摘录内容改过」。回顾进度不是内容，
+ * 混进去会让时间戳失去意义（以后想做「最近改动的摘录」就分不出来了）。
+ * 这两个字段不做索引，所以不需要 bump DB_VERSION。
+ */
+export async function markQuoteReviewed(
+  id: string,
+  reviewedAt: string = new Date().toISOString(),
+): Promise<void> {
+  const quote = await db.quotes.get(id);
+  if (!quote) return;
+  await db.quotes.update(id, {
+    lastReviewedAt: reviewedAt,
+    reviewCount: (quote.reviewCount ?? 0) + 1,
+  });
+}
+
 // ─── Search ───────────────────────────────────────────────────────────────────
 export interface SearchResult {
   quote: Quote;

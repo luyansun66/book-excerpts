@@ -4,6 +4,7 @@
   import { AppProvider } from "./app/store.tsx";
   import { ReadingTimerProvider } from "./app/components/timer/ReadingTimerProvider.tsx";
   import { MailboxProvider } from "./app/mailbox/MailboxProvider.tsx";
+  import { ReviewProvider } from "./app/review/ReviewProvider.tsx";
   import App from "./app/App.tsx";
   import ErrorBoundary from "./app/components/ErrorBoundary.tsx";
   import "./styles/index.css";
@@ -14,7 +15,9 @@
         <AppProvider>
           <ReadingTimerProvider>
             <MailboxProvider>
-              <App />
+              <ReviewProvider>
+                <App />
+              </ReviewProvider>
             </MailboxProvider>
           </ReadingTimerProvider>
         </AppProvider>

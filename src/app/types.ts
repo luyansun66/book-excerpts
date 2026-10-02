@@ -33,6 +33,10 @@ export interface Quote {
   page: string | null;
   date: string;
   color?: string;
+  /** 最近一次在「摘录回顾」里翻过这张卡的时刻（ISO）。空 = 从没回顾过。 */
+  lastReviewedAt?: string | null;
+  /** 累计被翻过去过多少次。只增不减。 */
+  reviewCount?: number;
   createdAt: string;
   updatedAt: string;
 }
