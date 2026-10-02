@@ -18,8 +18,21 @@ export const HINGE_Y = TOP + CARD_H;
 /** 下槽底边。 */
 export const BASE_Y = TOP + CARD_H * 2;
 
+/**
+ * 舞台框上下各多出来的一截透明留白：上面是探出上槽的纸边到容器顶，下面是脚底到容器底。
+ *
+ * 缩放要按"真正画了东西的高度"算（见 STAGE_INK_H）。留着整框去算的话，这两截留白也跟着
+ * 占屏幕高度，装置白白小一圈。数值来自 RolodexRack 里的纸边起点（TOP - 32）和脚底
+ * （BASE_Y + 29 + 半个线宽）—— 改架子几何时这两个数要跟着改。
+ */
+export const STAGE_PAD_TOP = 9.7;
+export const STAGE_PAD_BOTTOM = 13.1;
+
+/** 真正画了东西的高度：缩放按这个算，上下留白不占屏幕。 */
+export const STAGE_INK_H = STAGE_H - STAGE_PAD_TOP - STAGE_PAD_BOTTOM;
+
 /** 整块舞台的缩放上限：小屏铺满，大屏别撑成一面墙。 */
-export const MAX_STAGE_SCALE = 1.15;
+export const MAX_STAGE_SCALE = 1.25;
 
 export const COLORS = {
   /** 架子与滚轮的近黑色 */

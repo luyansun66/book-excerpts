@@ -13,7 +13,17 @@ import { ChevronDown, ChevronLeft, ChevronUp, X } from 'lucide-react';
 import { getAllBooks, getAllQuotes, markQuoteReviewed } from '../db';
 import type { Book, Quote } from '../types';
 import Rolodex, { type RolodexHandle } from './rolodex/Rolodex';
-import { COLORS, HAND_STACK, MAX_STAGE_SCALE, SERIF_STACK, STAGE_H, STAGE_W } from './rolodex/tokens';
+import {
+  COLORS,
+  HAND_STACK,
+  MAX_STAGE_SCALE,
+  SERIF_STACK,
+  STAGE_H,
+  STAGE_INK_H,
+  STAGE_PAD_BOTTOM,
+  STAGE_PAD_TOP,
+  STAGE_W,
+} from './rolodex/tokens';
 import {
   buildRound,
   canGoNext,
@@ -87,7 +97,8 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
     const measure = () => {
       const rect = el.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      setScale(Math.max(0.35, Math.min(rect.width / STAGE_W, rect.height / STAGE_H, MAX_STAGE_SCALE)));
+      // 分母用"真正画了东西的高度"而不是整块舞台框：框上下各有一截透明留白，算进去装置就小了。
+      setScale(Math.max(0.35, Math.min(rect.width / STAGE_W, rect.height / STAGE_INK_H, MAX_STAGE_SCALE)));
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -174,7 +185,7 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
           display: 'flex',
           alignItems: 'center',
           gap: 10,
-          padding: 'calc(10px + env(safe-area-inset-top)) 14px 6px',
+          padding: 'calc(8px + env(safe-area-inset-top)) 14px 2px',
           flex: '0 0 auto',
         }}
       >
@@ -218,7 +229,9 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
               width: STAGE_W,
               height: STAGE_H,
               flex: '0 0 auto',
-              transform: `scale(${scale})`,
+              // 舞台框比画面内容高，缩放后上下留白不一样宽，把框往下挪回半格差值让内容正中对齐，
+              // 免得上面那截留白不够、纸边被容器切掉一条。
+              transform: `translateY(${((STAGE_PAD_BOTTOM - STAGE_PAD_TOP) / 2) * scale}px) scale(${scale})`,
               transformOrigin: 'center center',
             }}
           >
@@ -240,10 +253,10 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
         style={{
           flex: '0 0 auto',
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 8,
-          padding: `4px 20px calc(14px + env(safe-area-inset-bottom))`,
+          justifyContent: 'center',
+          // 底部只留翻页按钮。原来按钮下面还有一行手势提示，去掉之后这一段的高度全给了
+          // 中间的舞台 —— 舞台是按可用高度整体缩放的，这里省多少，装置就大多少。
+          padding: `2px 18px calc(8px + env(safe-area-inset-bottom))`,
         }}
       >
         <div style={{ display: 'flex', gap: 12 }}>
@@ -253,9 +266,6 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
           <StepButton label="下一张" disabled={!canNext} onClick={() => rolodexRef.current?.go(1)}>
             <ChevronUp size={17} strokeWidth={2} />
           </StepButton>
-        </div>
-        <div style={{ fontFamily: SERIF_STACK, fontSize: 11.5, letterSpacing: 1, color: 'var(--color-text-muted)' }}>
-          上滑翻到下一张，下滑翻回上一张
         </div>
       </footer>
 
