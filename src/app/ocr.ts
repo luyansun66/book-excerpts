@@ -1,97 +1,46 @@
-// ─── 百度 OCR（直接从浏览器调用）─────────────────────────────────────────────
-// 跨域说明：百度 OCR API 使用 Content-Type: application/x-www-form-urlencoded,
-// 属于「简单请求」，浏览器跨域不需要预检（preflight），GitHub Pages 可直接调用。
+// ─── 拍照识字的客户端入口 ────────────────────────────────────────────────────
+// 请求发到本站的 /api/ocr（Cloudflare Pages Function），由服务端去换百度 access_token
+// 并调用 OCR —— 浏览器这边不持有任何密钥或 token，所以换票、30 天到期这些事都不需要
+// 前端参与，也不必重新发版（见 functions/api/ocr.ts）。
 //
-// Token 通过 Vite 环境变量注入（只有 VITE_ 前缀会暴露给客户端）：
-//   - 本地开发：复制 .env.example 为 .env.local 并填写（已被 .gitignore 忽略）
-//   - GitHub Pages：在仓库 Secrets 中配置，构建时由 .github/workflows/deploy.yml 注入
-//
-// 注意：纯前端静态站无法真正隐藏密钥，生产环境建议改用服务端代理刷新 token。
+// 代价是识别多一次服务端跳转：图片先上传到自己的 Function，再由它转发给百度。压完图
+// 一般几百 KB，这点往返可以接受。
 
-const API_BASE = 'https://aip.baidubce.com/rest/2.0/ocr/v1';
-const ACCESS_TOKEN = import.meta.env.VITE_OCR_ACCESS_TOKEN ?? '';
-const TOKEN_EXPIRES = parseTokenExpiry();
+/** 服务端要跑两条百度接口（每条 15s 超时），客户端超时必须比它宽，否则先于服务端放弃。 */
+const CLIENT_TIMEOUT_MS = 40000;
 
-const ENDPOINTS = [
-  `${API_BASE}/accurate_basic`,
-  `${API_BASE}/general_basic`,
-];
-
-/** 读取 token 到期时间：优先使用显式配置，否则解析百度 token 自带的时间戳。 */
-function parseTokenExpiry(): number {
-  const explicit = import.meta.env.VITE_OCR_TOKEN_EXPIRES;
-  if (explicit) {
-    const parsed = Date.parse(String(explicit));
-    if (!Number.isNaN(parsed)) return parsed;
-  }
-
-  // 百度 access_token 格式：24.<token>.<expires_in>.<expire_ts>.<scope>
-  const parts = ACCESS_TOKEN.split('.');
-  if (parts.length >= 4) {
-    const expiresAt = Number(parts[3]) * 1000;
-    if (!Number.isNaN(expiresAt) && expiresAt > 0) return expiresAt;
-  }
-
-  return 0; // 未知到期时间 → 交由接口错误处理
-}
-
-// ─── 公共 API ───────────────────────────────────────────────────────────────
-
-/** 识别图片中的文字。 */
+/**
+ * 识别图片中的文字。imageData 可以是 data URL，也可以是一段纯 base64。
+ * 成功时按行返回识别结果；失败抛出的 Error.message 已经是能直接给用户看的中文。
+ */
 export async function recognizeText(imageData: string): Promise<string> {
-  if (!ACCESS_TOKEN) {
-    throw new Error('OCR 未配置：请设置 VITE_OCR_ACCESS_TOKEN（参考 .env.example）后重新构建。');
-  }
+  const image = imageData.replace(/^data:image\/\w+;base64,/, '');
 
-  // 检查 token 是否过期
-  if (TOKEN_EXPIRES > 0 && Date.now() > TOKEN_EXPIRES) {
-    throw new Error(
-      'OCR 服务 Token 已过期，请刷新 VITE_OCR_ACCESS_TOKEN 后重新构建部署。',
-    );
-  }
-
-  // 提取 base64
-  const base64 = imageData.replace(/^data:image\/\w+;base64,/, '');
-
-  // 尝试 accurate_basic → 失败降级到 general_basic
-  let lastError = '';
-  for (const endpoint of ENDPOINTS) {
-    try {
-      const resp = await fetch(`${endpoint}?access_token=${ACCESS_TOKEN}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `image=${encodeURIComponent(base64)}`,
-        signal: AbortSignal.timeout(15000),
-      });
-
-      const data = await resp.json();
-
-      // 调试：打印百度返回的行数
-      // 百度 API 错误
-      if (data.error_code) {
-        if (data.error_code === 110 || data.error_code === 111) {
-          throw new Error('OCR 服务 Token 已过期，请刷新 VITE_OCR_ACCESS_TOKEN 后重新构建部署。');
-        }
-        lastError = `[${data.error_code}] ${data.error_msg || ''}`;
-        continue;
-      }
-
-      const lines = (data.words_result || []).map((r: { words: string }) => r.words);
-      if (lines.length > 0) return lines.join('\n');
-
-      lastError = '未能识别出任何文字';
-    } catch (e: any) {
-      if (e.name === 'TimeoutError' || e.name === 'AbortError') {
-        throw new Error('OCR 识别超时，请检查网络后重试');
-      }
-      // Token 过期错误直接抛出，不继续降级
-      if ((e.message || '').includes('Token 已过期')) throw e;
-      lastError = `请求失败: ${e?.message || e}`;
-      continue;
+  let resp: Response;
+  try {
+    resp = await fetch('/api/ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image }),
+      signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
+    });
+  } catch (e: any) {
+    if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
+      throw new Error('OCR 识别超时，请检查网络后重试');
     }
+    throw new Error('无法连接 OCR 服务，请检查网络后重试');
   }
 
-  throw new Error(`OCR 识别失败: ${lastError}`);
+  // 5xx 时 Function 也可能返回非 JSON（比如运行时崩溃），所以这里别直接 await resp.json()
+  const data = (await resp.json().catch(() => null)) as { words?: string[]; error?: string } | null;
+
+  if (!resp.ok) {
+    throw new Error(data?.error || `OCR 识别失败（HTTP ${resp.status}）`);
+  }
+
+  const lines = data?.words ?? [];
+  if (!lines.length) throw new Error('未能识别出任何文字');
+  return lines.join('\n');
 }
 
 /** 缩放图片到最长边 maxW，输出 JPEG data URL。

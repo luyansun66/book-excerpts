@@ -122,18 +122,26 @@ npm run dev
 
 ## OCR 配置
 
-拍照识字使用百度 OCR，密钥不写入源码，通过环境变量注入：
+拍照识字用百度 OCR，但**浏览器不直接调百度**：图片先发到本站的 `/api/ocr`
+（Cloudflare Pages Function，见 `functions/api/ocr.ts`），由服务端用密钥换 `access_token`、
+调用识别接口，并把这张票缓存在 isolate 内存里。好处是浏览器产物里既没有密钥、也没有
+30 天就过期的 token，换票不用改前端代码、也不用因此重新发版。
+
+本地开发在 `.env.local` 里填百度应用的 Key（名字不带 `VITE_` 前缀，所以不会被打进
+浏览器产物）：
 
 ```bash
 cp .env.example .env.local
-# 编辑 .env.local，填写 VITE_OCR_ACCESS_TOKEN / VITE_OCR_TOKEN_EXPIRES
+# 编辑 .env.local，填写 BAIDU_OCR_API_KEY / BAIDU_OCR_SECRET_KEY
 ```
 
-Cloudflare Pages 构建时，在 Workers & Pages 项目 `Settings → Environment variables`
-中配置 `VITE_OCR_ACCESS_TOKEN` 与 `VITE_OCR_TOKEN_EXPIRES`（Production 分支都要勾选），
-保存后重新部署会自动注入。
+`npm run dev` 和 `vite preview` 下没有 Pages 运行时，`vite.config.ts` 里的中间件会把
+`/api/ocr` 接到同一个 handler 上，因此本地不需要额外起 wrangler，也保证了本地和线上
+走的是同一份换票/降级/报错逻辑。
 
-> 注意：纯前端静态站无法真正隐藏密钥，发布版中的 token 仍可被查看。生产环境建议改用服务端代理刷新并调用 OCR。
+Cloudflare Pages 构建时，在 Workers & Pages 项目 `Settings → Environment variables`
+中配置同样的 `BAIDU_OCR_API_KEY` 与 `BAIDU_OCR_SECRET_KEY`（Production 分支都要勾选）。
+环境变量只在构建与运行时注入，改完需要重新部署一次才会在 Function 里生效。
 
 ## 构建部署
 
