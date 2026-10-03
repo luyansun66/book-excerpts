@@ -152,6 +152,22 @@ npm run build
 构建产物在 `dist/` 目录。Cloudflare Pages 已通过 Git 关联本仓库，
 推送 `main` 分支后会自动执行 `npm run build` 并部署 `dist/`。
 
+### 给 Function 加新接口时：别用 502 / 503 / 504
+
+挂在自定义域名（`luyansun.top`）上的 Pages Functions，一旦返回 502 / 503 / 504，
+响应体会被 Cloudflare 换成它自带的品牌错误页（一整页 `<!DOCTYPE html>`），**只有
+`*.pages.dev` 直连域名才能看到我们写的 JSON**。实测同一个 502：pages.dev 返回
+`{"error":"OCR 识别失败：图片格式不支持"}`，`luyansun.top` 返回 HTML，用户侧只剩一句
+「HTTP 502」，真正的原因全丢了。`500` 和所有 `4xx` 不受影响，会原样透出。
+
+所以约定是：
+
+- 入参问题 → `400` / `413`
+- 业务上「做不了」 → `422`（识别不出文字、上游说图片不合法、超时）
+- 服务端自己配错了 → `500`（缺密钥、鉴权失败）
+
+`tests/ocr-api.test.ts` 里有一条回归测试盯着这个约定。
+
 ## 在线体验
 
 https://book-excerpts-2dm.pages.dev/
