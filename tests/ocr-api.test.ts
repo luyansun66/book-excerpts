@@ -103,7 +103,7 @@ describe('/api/ocr', () => {
 
     const resp = await post({ image: IMAGE });
 
-    expect(resp.status).toBe(502);
+    expect(resp.status).toBe(500);
     const body = (await resp.json()) as { error: string };
     expect(body.error).toContain('API Key');
     expect(body.error).not.toContain('Access token');
@@ -131,7 +131,7 @@ describe('/api/ocr', () => {
 
     const resp = await post({ image: IMAGE });
 
-    expect(resp.status).toBe(502);
+    expect(resp.status).toBe(422);
     expect((await resp.json()) as { error: string }).toMatchObject({
       error: 'OCR 识别失败：未能识别出任何文字',
     });
@@ -153,6 +153,21 @@ describe('/api/ocr', () => {
     expect((await resp.json()) as { error: string }).toMatchObject({
       error: expect.stringContaining('BAIDU_OCR_API_KEY'),
     });
+  });
+
+  it('业务错误不用 502/504：那些状态码在自定义域名上会被 Cloudflare 品牌错误页顶掉', async () => {
+    // luyansun.top 实测过：同一个 502，pages.dev 能看到 {"error":"…图片格式不支持"}，
+    // 自定义域名只剩 Cloudflare 的 HTML 错误页，用户看到的是「HTTP 502」而不是原因。
+    // 所以这条测试盯的是「响应体必须还能被我们控制」这件事本身。
+    installFetch((url) =>
+      url.includes('/oauth/2.0/token') ? TOKEN_OK : { error_code: 216201, error_msg: 'image format error' },
+    );
+
+    const resp = await post({ image: IMAGE });
+
+    expect(resp.status).toBe(422);
+    expect(resp.headers.get('content-type')).toContain('application/json');
+    expect(await resp.json()).toEqual({ error: 'OCR 识别失败：图片格式不支持' });
   });
 
   it('空图片与非法 JSON 都返回 400', async () => {

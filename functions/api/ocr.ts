@@ -32,6 +32,15 @@ interface TokenResponse {
   error_description?: string;
 }
 
+/**
+ * 业务错误一律用 4xx，不要用 502/504。
+ *
+ * 踩过的坑：502/503/504 这类「网关型」状态码会被 Cloudflare 在自定义域名上换成它自带的
+ * 品牌错误页，响应体直接变成 HTML —— 只有 *.pages.dev 的直连域名才能看到我们写的 JSON。
+ * 实测同一份代码、同一个 502：pages.dev 返回 {"error":"…图片格式不支持"}，luyansun.top 返回
+ * <!DOCTYPE html>，用户那边只剩一句「HTTP 502」。所以「识别不出文字」这类业务结果统一回 422，
+ * 只有「服务端自己配错了」才用 500（500 不会被替换）。
+ */
 const TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token';
 const OCR_BASE = 'https://aip.baidubce.com/rest/2.0/ocr/v1';
 /** 先试高精度版，失败再退到通用版；和以前前端那套降级顺序保持一致。 */
@@ -206,16 +215,16 @@ export async function onRequestPost(context: OcrContext): Promise<Response> {
     if (result.retryWithNewToken) result = await recognizeOnce(env, image, true);
 
     if (result.retryWithNewToken) {
-      return json({ error: 'OCR 服务鉴权失败，请检查百度 OCR 的 API Key / Secret Key' }, 502);
+      return json({ error: 'OCR 服务鉴权失败，请检查百度 OCR 的 API Key / Secret Key' }, 500);
     }
-    if (result.error) return json({ error: `OCR 识别失败：${result.error}` }, 502);
+    if (result.error) return json({ error: `OCR 识别失败：${result.error}` }, 422);
     return json({ words: result.words ?? [] });
   } catch (e) {
     if (e instanceof OcrError) return json({ error: e.message }, e.status);
     const name = (e as { name?: string })?.name;
     if (name === 'TimeoutError' || name === 'AbortError') {
-      return json({ error: 'OCR 识别超时，请检查网络后重试' }, 504);
+      return json({ error: 'OCR 识别超时，请检查网络后重试' }, 422);
     }
-    return json({ error: `OCR 识别失败：${(e as Error)?.message || e}` }, 502);
+    return json({ error: `OCR 识别失败：${(e as Error)?.message || e}` }, 422);
   }
 }
