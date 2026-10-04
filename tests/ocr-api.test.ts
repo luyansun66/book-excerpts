@@ -155,6 +155,21 @@ describe('/api/ocr', () => {
     });
   });
 
+  it('百度这边超时时返回 422 和「识别服务响应超时」，而不是把 AbortError 抛出去', async () => {
+    // 真实触发场景：跨境链路上 900KB 的整页图，百度那一次调用超过 25s。
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/oauth/2.0/token')) {
+        return new Response(JSON.stringify(TOKEN_OK), { headers: { 'Content-Type': 'application/json' } });
+      }
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    });
+
+    const resp = await post({ image: IMAGE });
+
+    expect(resp.status).toBe(422);
+    expect(await resp.json()).toEqual({ error: '识别服务响应超时，请重试' });
+  });
+
   it('业务错误不用 502/504：那些状态码在自定义域名上会被 Cloudflare 品牌错误页顶掉', async () => {
     // luyansun.top 实测过：同一个 502，pages.dev 能看到 {"error":"…图片格式不支持"}，
     // 自定义域名只剩 Cloudflare 的 HTML 错误页，用户看到的是「HTTP 502」而不是原因。

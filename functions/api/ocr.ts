@@ -45,7 +45,16 @@ const TOKEN_URL = 'https://aip.baidubce.com/oauth/2.0/token';
 const OCR_BASE = 'https://aip.baidubce.com/rest/2.0/ocr/v1';
 /** 先试高精度版，失败再退到通用版；和以前前端那套降级顺序保持一致。 */
 const ENDPOINTS = [`${OCR_BASE}/accurate_basic`, `${OCR_BASE}/general_basic`];
-const REQUEST_TIMEOUT_MS = 15000;
+/**
+ * 两条腿的超时分开算：换票是百度自家 OAuth，正常几百毫秒；OCR 识别则随图片大小
+ * 和链路状况浮动，实测跨境链路上 900KB 的整页图要 7~17s。以前两条腿共用一个 15s，
+ * 恰好压在识别耗时的中位数上，于是「有时成功、有时超时」—— 用户反馈的就是这个。
+ *
+ * 现在的取值让服务端始终比客户端先放弃（客户端 60s），这样用户看到的是我们写的中文
+ * 提示，而不是浏览器那句干巴巴的 abort。
+ */
+const TOKEN_TIMEOUT_MS = 10000;
+const OCR_TIMEOUT_MS = 25000;
 /** 提前一小时换票：免得刚好在到期那一刻进来的请求拿到一张已经作废的票。 */
 const TOKEN_REFRESH_MARGIN_MS = 60 * 60 * 1000;
 /** 百度要求 base64 编码后不超过 4M；这里按 3M 卡，比较的就是 base64 字符串本身的长度。 */
@@ -85,8 +94,8 @@ export function resetTokenCache(): void {
 
 
 
-function fetchWithTimeout(url: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+function fetchWithTimeout(url: string, timeoutMs: number, init: RequestInit = {}): Promise<Response> {
+  return fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
 }
 
 async function fetchToken(env: OcrEnv): Promise<{ token: string; expiresAt: number }> {
@@ -102,7 +111,7 @@ async function fetchToken(env: OcrEnv): Promise<{ token: string; expiresAt: numb
   const url =
     `${TOKEN_URL}?grant_type=client_credentials` +
     `&client_id=${encodeURIComponent(apiKey)}&client_secret=${encodeURIComponent(secretKey)}`;
-  const resp = await fetchWithTimeout(url, { method: 'POST' });
+  const resp = await fetchWithTimeout(url, TOKEN_TIMEOUT_MS, { method: 'POST' });
   const data = (await resp.json().catch(() => null)) as TokenResponse | null;
 
   if (!data?.access_token) {
@@ -147,11 +156,15 @@ async function callBaidu(
   image: string,
   endpoint: string,
 ): Promise<BaiduOcrResponse> {
-  const resp = await fetchWithTimeout(`${endpoint}?access_token=${encodeURIComponent(token)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body: `image=${encodeURIComponent(image)}`,
-  });
+  const resp = await fetchWithTimeout(
+    `${endpoint}?access_token=${encodeURIComponent(token)}`,
+    OCR_TIMEOUT_MS,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+      body: `image=${encodeURIComponent(image)}`,
+    },
+  );
   return (await resp.json().catch(() => ({}))) as BaiduOcrResponse;
 }
 
@@ -223,7 +236,9 @@ export async function onRequestPost(context: OcrContext): Promise<Response> {
     if (e instanceof OcrError) return json({ error: e.message }, e.status);
     const name = (e as { name?: string })?.name;
     if (name === 'TimeoutError' || name === 'AbortError') {
-      return json({ error: 'OCR 识别超时，请检查网络后重试' }, 422);
+      // 和客户端的超时文案区分开：这句代表「服务端等百度等超时了」，排查时一眼能认出
+      // 是哪一段慢，而不是把两处超时混成同一句话。
+      return json({ error: '识别服务响应超时，请重试' }, 422);
     }
     return json({ error: `OCR 识别失败：${(e as Error)?.message || e}` }, 422);
   }

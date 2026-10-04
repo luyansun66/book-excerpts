@@ -6,8 +6,15 @@
 // 代价是识别多一次服务端跳转：图片先上传到自己的 Function，再由它转发给百度。压完图
 // 一般几百 KB，这点往返可以接受。
 
-/** 服务端要跑两条百度接口（每条 15s 超时），客户端超时必须比它宽，否则先于服务端放弃。 */
-const CLIENT_TIMEOUT_MS = 40000;
+/**
+ * 兜底超时，必须宽于服务端的最坏情况，否则会出现「服务端还在等百度，客户端先放弃」——
+ * 用户看到的是超时，而服务端其实可能马上就成功了。
+ *
+ * 服务端预算（见 functions/api/ocr.ts）：换票 10s；识别单次 25s。识别一旦超时会直接返回
+ * 不再试第二条接口，所以现实中最坏是「冷启动换票 10s + 识别 25s」≈ 35s，只有票失效重试
+ * 那条罕见路径才接近 45s。这里给 60s，留足余量，让服务端始终先给出中文提示。
+ */
+const CLIENT_TIMEOUT_MS = 60000;
 
 /**
  * 识别图片中的文字。imageData 可以是 data URL，也可以是一段纯 base64。
@@ -26,7 +33,8 @@ export async function recognizeText(imageData: string): Promise<string> {
     });
   } catch (e: any) {
     if (e?.name === 'TimeoutError' || e?.name === 'AbortError') {
-      throw new Error('OCR 识别超时，请检查网络后重试');
+      // 措辞和服务端的「识别服务响应超时」区分开，方便从用户截图判断卡在哪一段
+      throw new Error('网络较慢，识别请求超时，请重试');
     }
     throw new Error('无法连接 OCR 服务，请检查网络后重试');
   }
