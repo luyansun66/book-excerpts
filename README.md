@@ -122,50 +122,53 @@ npm run dev
 
 ## OCR 配置
 
-拍照识字用百度 OCR，但**浏览器不直接调百度**：图片先发到本站的 `/api/ocr`
-（Cloudflare Pages Function，见 `functions/api/ocr.ts`），由服务端用密钥换 `access_token`、
-调用识别接口，并把这张票缓存在 isolate 内存里。好处是浏览器产物里既没有密钥、也没有
-30 天就过期的 token，换票不用改前端代码、也不用因此重新发版。
+拍照识字用百度 OCR，链路是**浏览器直连百度**，本站的服务端只负责发一张
+`access_token`：
 
-本地开发在 `.env.local` 里填百度应用的 Key（名字不带 `VITE_` 前缀，所以不会被打进
-浏览器产物）：
+```
+1. 浏览器 → GET /api/ocr-token     函数用密钥换票（服务端缓存，30 天到期自动续）
+2. 浏览器 → POST aip.baidubce.com  带着票直接识别，不再绕服务端
+```
+
+本地开发在 `.env.local` 里填百度应用的 Key（名字不带 `VITE_` 前缀）：
 
 ```bash
 cp .env.example .env.local
 # 编辑 .env.local，填写 BAIDU_OCR_API_KEY / BAIDU_OCR_SECRET_KEY
 ```
 
-`npm run dev` 和 `vite preview` 下没有 Pages 运行时，`vite.config.ts` 里的中间件会把
-`/api/ocr` 接到同一个 handler 上，因此本地不需要额外起 wrangler，也保证了本地和线上
-走的是同一份换票/降级/报错逻辑。
+`npm run dev` / `vite preview` 下没有 Pages 运行时，`vite.config.ts` 里的中间件把
+`/api/ocr-token` 接到同一个 handler 上，所以本地不需要额外起 wrangler。
 
 Cloudflare Pages 构建时，在 Workers & Pages 项目 `Settings → Environment variables`
 中配置同样的 `BAIDU_OCR_API_KEY` 与 `BAIDU_OCR_SECRET_KEY`（Production 分支都要勾选）。
 环境变量只在构建与运行时注入，改完需要重新部署一次才会在 Function 里生效。
 
-### 这条链路是跨境的，务必打开 Smart Placement
+### 识别为什么不走服务端代理（实测数据，别改回去）
 
-Function 默认跑在离**用户**最近的机房。问题在于识别这一步是「Function 回源百度」——
-默认机房往往在境外（实测落在 San Jose），于是凭空多了一跳跨太平洋的往返。同一张
-900KB 的整页图实测：
+代理过一次，结论是这条路在这个项目上不可用：函数跑在 Cloudflare 边缘（实测落在
+San Jose），回源百度要跨太平洋，同一张 956KB 的整页图：
 
-| 路径 | 耗时 |
+| 路径 | 耗时（三次） |
 | --- | --- |
-| 本机（上海）直连百度 | 723ms |
-| 经 Cloudflare 边缘回源百度 | 12.7s ~ 16.6s |
+| 浏览器直连百度（从 `luyansun.top` 的页面发起） | 948 / 803 / 863 ms |
+| 经 Cloudflare 边缘回源百度 | 16.0 / 16.3 / 19.0 s |
 
-18 倍的差距。这也解释了 2026-10 那次用户反馈的「识别超时」：函数里两条腿（换票、识别）
-共用一个 15s 超时，恰好压在识别耗时的中位数上，于是三次里挂一次 —— 是必然的偶发，
-不是用户网络不好。
+相差 19 倍 —— 那条跨境链路的有效吞吐只有约 50KB/s，956KB 光传输就要 15s，函数里
+15s 的超时被顶到中位数上，于是三次挂一次（2026-10 有用户反馈的「识别超时」就是这个）。
 
-治本手段是让 Function 跑在离**百度**更近的机房：Cloudflare 控制台 → 该项目
-`Settings → Runtime` → `Placement` → 选 **Smart**。生效需要先打 20~30 次请求
-（几分钟后开始起作用），然后用 Functions Metrics 对比请求耗时。
+也试过 Smart Placement（`Settings → Runtime → Placement → Smart`）：灌了 55 次流量、
+等了 15 分钟，耗时没有变化，对本项目无效，不用再试。
 
-项目里没有 `functions/_middleware.js`，所以不会触发 Smart Placement「静态资源被一起
-挪到远处机房」的那个坑；但 `functions/api/fonts/subset.ts` 用了 `env.ASSETS.fetch`，
-它取资源的位置会跟着 Function 走，属于可接受的代价（那条路径有缓存，且只看功能不看
-绝对延迟）。
+### 这个方案的取舍
+
+`/api/ocr-token` 是公开的，谁都能调，浏览器发给百度的 URL 里也带着票 —— 也就是说
+**票对访问者是可见的**。能拿它刷识别额度（百度免费额度用完后本站识别会暂时不可用），
+但改不了账号、看不到任何用户数据（书和摘录都在本地 IndexedDB）。这和 2026-09 之前
+「票直接编进 JS 产物」的暴露程度相同。
+
+如果哪天要在意这一点，出路是把代理搬到香港/新加坡（离百度近，且票不落地到浏览器），
+代价是多养一个服务；继续用 Cloudflare 边缘是没用的，上面的实测已经说明。
 
 ## 构建部署
 
@@ -187,10 +190,14 @@ npm run build
 所以约定是：
 
 - 入参问题 → `400` / `413`
-- 业务上「做不了」 → `422`（识别不出文字、上游说图片不合法、超时）
-- 服务端自己配错了 → `500`（缺密钥、鉴权失败）
+- 业务上「做不了」 → `422`
+- 服务端自己配错了 → `500`
 
-`tests/ocr-api.test.ts` 里有一条回归测试盯着这个约定。
+（上面那段 502 的实测来自以前把 OCR 代理放在函数里的版本，那个函数已经删掉了，
+但坑是真的，接口一旦返回网关型状态码就会中招。）
+
+`tests/ocr-token-api.test.ts` 里有一条断言盯着「失败只用 500」，防止以后有人改成
+`502` 又把用户的报错信息吞掉。
 
 ## 在线体验
 
