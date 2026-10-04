@@ -6,8 +6,6 @@
 //   4. 各种失败都翻译成中文提示，不把百度原文糊到界面上。
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const TOKEN_STORAGE_KEY = 'ocr-access-token';
-
 type OcrModule = typeof import('../ocr');
 let recognizeText: OcrModule['recognizeText'];
 
@@ -35,9 +33,6 @@ const countBy = (calls: { url: string }[], part: string) =>
   calls.filter((c) => c.url.includes(part)).length;
 
 beforeEach(async () => {
-  // 票会落到 localStorage，用例之间必须清干净：不清的话上一个用例存的票会被下一个用例
-  // 当成「手上已有的票」复用，取票次数就对不上了。
-  localStorage.clear();
   vi.resetModules();
   ({ recognizeText } = await import('../ocr'));
 });
@@ -73,56 +68,6 @@ describe('recognizeText — 浏览器直连百度', () => {
 
     expect(countBy(calls, '/api/ocr-token')).toBe(1);
     expect(countBy(calls, 'accurate_basic')).toBe(2);
-  });
-
-  it('票写进 localStorage，重开 App 也能直接用（不用再等跨境取票）', async () => {
-    const calls = stubFetch((url) =>
-      url.includes('/api/ocr-token') ? res(TOKEN) : res({ words_result: [{ words: '字' }] }),
-    );
-
-    await recognizeText('AAA');
-    expect(JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEY)!).token).toBe('tok-1');
-
-    // 模拟重开 App：模块级内存缓存没了，但 localStorage 还在
-    vi.resetModules();
-    ({ recognizeText } = await import('../ocr'));
-    calls.length = 0;
-
-    await expect(recognizeText('BBB')).resolves.toBe('字');
-
-    expect(countBy(calls, '/api/ocr-token')).toBe(0);
-    expect(calls[0].url).toContain('access_token=tok-1');
-  });
-
-  it('localStorage 里的票已过期时忽略它，重新取票', async () => {
-    localStorage.setItem(
-      TOKEN_STORAGE_KEY,
-      JSON.stringify({ token: 'tok-expired', expiresAt: Date.now() - 1000 }),
-    );
-    let tokenRound = 0;
-    const calls = stubFetch((url) => {
-      if (url.includes('/api/ocr-token')) {
-        tokenRound += 1;
-        return res({ token: `tok-${tokenRound}`, expiresAt: Date.now() + 3600_000 });
-      }
-      return res({ words_result: [{ words: '字' }] });
-    });
-
-    await expect(recognizeText('AAA')).resolves.toBe('字');
-
-    expect(countBy(calls, '/api/ocr-token')).toBe(1);
-    expect(calls.some((c) => c.url.includes('access_token=tok-expired'))).toBe(false);
-  });
-
-  it('localStorage 里的票写坏了也不影响识别', async () => {
-    localStorage.setItem(TOKEN_STORAGE_KEY, '{ 这不是 JSON');
-    const calls = stubFetch((url) =>
-      url.includes('/api/ocr-token') ? res(TOKEN) : res({ words_result: [{ words: '字' }] }),
-    );
-
-    await expect(recognizeText('AAA')).resolves.toBe('字');
-
-    expect(countBy(calls, '/api/ocr-token')).toBe(1);
   });
 
   it('高精度版报错时退到通用版', async () => {

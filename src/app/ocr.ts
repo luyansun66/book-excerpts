@@ -38,33 +38,6 @@ interface BaiduOcrResponse {
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
 /**
- * 除了内存，再把票落到 localStorage：换票要先跨境调到百度 OAuth，冷启动实测 2.2s，
- * 而票本身有 30 天寿命 —— 不存下来的话，用户每次重新打开 App 第一张图都要白等这一下。
- * 隐私模式等写不了 localStorage 的场景直接跳过，退化成每次内存缓存。
- */
-const TOKEN_STORAGE_KEY = 'ocr-access-token';
-
-function readStoredToken(): { token: string; expiresAt: number } | null {
-  try {
-    const raw = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { token?: string; expiresAt?: number };
-    if (!parsed?.token || typeof parsed.expiresAt !== 'number') return null;
-    return { token: parsed.token, expiresAt: parsed.expiresAt };
-  } catch {
-    return null;
-  }
-}
-
-function storeToken(value: { token: string; expiresAt: number }): void {
-  try {
-    localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    /* 存不下就只留内存缓存，不影响功能 */
-  }
-}
-
-/**
  * AbortSignal.timeout 要 Safari 16.4+ / Chrome 103+。老浏览器上直接不传 signal（放弃超时
  * 保护），好过整个识别功能直接报错不可用。
  */
@@ -74,18 +47,16 @@ function timeoutSignal(ms: number): AbortSignal | undefined {
     : undefined;
 }
 
-/** 取票。force 为真时忽略本地缓存 —— 用来处理「票在百度那边被判失效」的情况。 */
+/**
+ * 取票。force 为真时忽略内存缓存 —— 用来处理「票在百度那边被判失效」的情况。
+ *
+ * 票只留内存，不写 localStorage：落盘能把「重开 App 白等一次跨境取票（冷启动实测 2.2s）」
+ * 摊薄成 30 天一次，但代价是一张 30 天寿命的明文票长期留在浏览器里。取票只在每次冷启动
+ * 付一次，同一会话内连拍多张都是复用，权衡下来不值当。
+ */
 async function getToken(force = false): Promise<string> {
-  const usable = (t: { token: string; expiresAt: number } | null) =>
-    t !== null && t.expiresAt - TOKEN_EXPIRY_MARGIN_MS > Date.now();
-
-  if (!force) {
-    if (usable(tokenCache)) return tokenCache!.token;
-    const stored = readStoredToken();
-    if (usable(stored)) {
-      tokenCache = stored;
-      return stored!.token;
-    }
+  if (!force && tokenCache !== null && tokenCache.expiresAt - TOKEN_EXPIRY_MARGIN_MS > Date.now()) {
+    return tokenCache.token;
   }
 
   let resp: Response;
@@ -103,7 +74,6 @@ async function getToken(force = false): Promise<string> {
   }
 
   tokenCache = { token: data.token, expiresAt: data.expiresAt ?? Date.now() + 30 * 24 * 3600 * 1000 };
-  storeToken(tokenCache);
   return tokenCache.token;
 }
 
