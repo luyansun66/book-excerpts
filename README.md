@@ -143,6 +143,30 @@ Cloudflare Pages 构建时，在 Workers & Pages 项目 `Settings → Environmen
 中配置同样的 `BAIDU_OCR_API_KEY` 与 `BAIDU_OCR_SECRET_KEY`（Production 分支都要勾选）。
 环境变量只在构建与运行时注入，改完需要重新部署一次才会在 Function 里生效。
 
+### 这条链路是跨境的，务必打开 Smart Placement
+
+Function 默认跑在离**用户**最近的机房。问题在于识别这一步是「Function 回源百度」——
+默认机房往往在境外（实测落在 San Jose），于是凭空多了一跳跨太平洋的往返。同一张
+900KB 的整页图实测：
+
+| 路径 | 耗时 |
+| --- | --- |
+| 本机（上海）直连百度 | 723ms |
+| 经 Cloudflare 边缘回源百度 | 12.7s ~ 16.6s |
+
+18 倍的差距。这也解释了 2026-10 那次用户反馈的「识别超时」：函数里两条腿（换票、识别）
+共用一个 15s 超时，恰好压在识别耗时的中位数上，于是三次里挂一次 —— 是必然的偶发，
+不是用户网络不好。
+
+治本手段是让 Function 跑在离**百度**更近的机房：Cloudflare 控制台 → 该项目
+`Settings → Runtime` → `Placement` → 选 **Smart**。生效需要先打 20~30 次请求
+（几分钟后开始起作用），然后用 Functions Metrics 对比请求耗时。
+
+项目里没有 `functions/_middleware.js`，所以不会触发 Smart Placement「静态资源被一起
+挪到远处机房」的那个坑；但 `functions/api/fonts/subset.ts` 用了 `env.ASSETS.fetch`，
+它取资源的位置会跟着 Function 走，属于可接受的代价（那条路径有缓存，且只看功能不看
+绝对延迟）。
+
 ## 构建部署
 
 ```bash
