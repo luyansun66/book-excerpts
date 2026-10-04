@@ -29,7 +29,10 @@ const SOURCE_TIMEOUT_MS = 2500;
 // 它一旦被超时掐掉，中文查询就退回「一条封面都没有」的老样子——正是这次要修的
 // 问题，所以单独给豆瓣更长的预算。代价是最慢情况下整次搜索多等约 1.5s，
 // 而搜索结果本身有 5 分钟缓存，重复查询不会重复付这个成本。
-const DOUBAN_TIMEOUT_MS = 4000;
+//
+// 2026-10 又从 4s 提到 5s：边缘机房回源豆瓣的实测分布里，成功的那批最长见到 3.9s，
+// 而失败的几次都正好停在 4s 预算上（顶到上限被掐），说明 4s 卡在分布中间而不是尾部。
+const DOUBAN_TIMEOUT_MS = 5000;
 const CACHE_TTL_SECONDS = 300;
 
 const defaultCache = (caches as unknown as { default: Cache }).default;
@@ -217,11 +220,34 @@ function mergeResults(...groups: BookCandidate[][]): BookCandidate[] {
   return merged;
 }
 
+/**
+ * 相关度：查询词命中书名**或作者**都算。
+ *
+ * 只认书名会把「按作者搜」毁掉：豆瓣对「村上春树」返回的是《挪威的森林》，书名里
+ * 没有作者名，于是被当噪音删掉；而 Google 的全文检索总能捞到几条书名带作者名的
+ * 条目，一进一出，列表里一条豆瓣都不剩 —— 用户反馈的「豆瓣没有加入搜索列表、
+ * 列表都是 Google 的书」就是这个。
+ *
+ * 实测（改之前，线上）：村上春树 / 王小波 / 加缪 三个查询，豆瓣分别抓到 2 / 3 / 4 条，
+ * 展示里一条都没有（加缪那次是 merged 24 条只剩 1 条）。
+ *
+ * 时间线也对得上：`eb53f91` 引入标题过滤在前，`33af7bf` 补回豆瓣源在后，
+ * 两者叠加之后，凡是「书名不含关键词」的豆瓣结果就全被过滤掉了。
+ */
+function isRelevant(candidate: BookCandidate, normalizedQuery: string): boolean {
+  return (
+    normalize(candidate.title).includes(normalizedQuery) ||
+    normalize(candidate.author).includes(normalizedQuery)
+  );
+}
+
 function filterRelevant(candidates: BookCandidate[], q: string): BookCandidate[] {
   const nq = normalize(q);
   if (!nq) return candidates;
 
-  const matches = candidates.filter((c) => normalize(c.title).includes(nq));
+  const matches = candidates.filter((c) => isRelevant(c, nq));
+  // 全都对不上时保留原样：查询词可能是译名、拼音之类，与其给个空列表，不如把
+  // 各源的原始结果交给用户自己挑。
   return matches.length > 0 ? matches : candidates;
 }
 
@@ -284,6 +310,12 @@ export async function onRequestGet(context: SearchContext): Promise<Response> {
     results: ranked.slice(0, 12),
   };
 
+  // 只要有一个源没跑成，这次结果就是残缺的（最典型的是豆瓣超时 —— 实测约 3% 的查询
+  // 会顶到预算上，那一次结果里一条豆瓣都没有）。残缺结果一旦写进 5 分钟缓存，用户
+  // 反复搜同一个词就一直是残缺的，看起来像「豆瓣再也不出现了」。所以只在三个源都
+  // 正常时才缓存，慢一次换下次自动重试。
+  const allSourcesOk = doubanResult.ok && googleResult.ok && openResult.ok;
+
   if (debug) {
     payload.debug = {
       query: q,
@@ -293,12 +325,13 @@ export async function onRequestGet(context: SearchContext): Promise<Response> {
       merged: merged.length,
       relevant: relevant.length,
       withCover: ranked.filter((c) => c.cover).length,
+      cacheable: allSourcesOk,
     };
   }
 
   const response = json(payload);
 
-  if (!debug && response.ok) {
+  if (!debug && response.ok && allSourcesOk) {
     response.headers.set('Cache-Control', `public, max-age=${CACHE_TTL_SECONDS}, s-maxage=${CACHE_TTL_SECONDS}`);
     await defaultCache.put(context.request, response.clone());
   }

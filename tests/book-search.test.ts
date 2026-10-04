@@ -49,6 +49,24 @@ const OPENLIBRARY_PAYLOAD = {
   docs: [{ title: '昨日的世界', author_name: ['茨威格'], first_publish_year: 1934, cover_i: 12345 }],
 };
 
+// 按作者搜的假数据：豆瓣返回的是这个作者写的书，书名里**没有**作者名；
+// Google 那条的书名里恰好带作者名。改之前，标题过滤会留下 Google、把豆瓣全删掉。
+const DOUBAN_AUTHOR_PAYLOAD = [
+  {
+    title: '挪威的森林',
+    url: 'https://book.douban.com/subject/27200257/',
+    pic: 'https://img2.doubanio.com/view/subject/s/public/s34412041.jpg',
+    author_name: '[日] 村上春树',
+    year: '2018',
+    type: 'b',
+    id: '27200257',
+  },
+];
+
+const GOOGLE_AUTHOR_PAYLOAD = {
+  items: [{ volumeInfo: { title: '村上春树作品集', authors: ['Haruki Murakami'], publishedDate: '2015-01-01' } }],
+};
+
 function mockFetch() {
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
@@ -131,6 +149,80 @@ describe('书封来源', () => {
     expect(data.debug.douban.ok).toBe(true);
     expect(data.debug.google.ok).toBe(true);
     expect(data.debug.openlibrary.ok).toBe(true);
+  });
+});
+
+describe('按作者搜：豆瓣不能被标题过滤吃掉', () => {
+  beforeEach(() => {
+    cacheStore.clear();
+  });
+
+  function authorFetch() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('book.douban.com/j/subject_suggest')) {
+          return new Response(JSON.stringify(DOUBAN_AUTHOR_PAYLOAD));
+        }
+        if (url.includes('googleapis.com')) {
+          // Google 书名里带「村上春树」，只按书名过滤时它会活下来
+          return new Response(JSON.stringify(GOOGLE_AUTHOR_PAYLOAD));
+        }
+        if (url.includes('openlibrary.org')) return new Response(JSON.stringify({ docs: [] }));
+        throw new Error(`unexpected fetch: ${url}`);
+      }),
+    );
+  }
+
+  it('查询词命中作者时，豆瓣结果保留下来并排在前面', async () => {
+    authorFetch();
+    const data = await search('村上春树');
+
+    const douban = data.results.filter((r: any) => r.source === 'douban');
+    expect(douban.map((r: any) => r.title)).toEqual(['挪威的森林']);
+    // 中文查询下豆瓣仍然排最前（它不是靠书名命中的，不能被排到 Google 后面）
+    expect(data.results[0].source).toBe('douban');
+  });
+
+  it('豆瓣超时的那一次不写缓存，下次搜索能自己补回来', async () => {
+    // 第一次：豆瓣挂掉，结果里没有豆瓣
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('book.douban.com')) throw new Error('douban timeout');
+        if (url.includes('googleapis.com')) return new Response(JSON.stringify(GOOGLE_AUTHOR_PAYLOAD));
+        return new Response(JSON.stringify({ docs: [] }));
+      }),
+    );
+
+    const first = await onRequestGet({
+      request: new Request('https://x.pages.dev/api/books/search?q=%E6%9D%91%E4%B8%8A%E6%98%A5%E6%A0%91'),
+      env: {},
+    });
+    const firstData = (await first.json()) as any;
+    expect(firstData.results.some((r: any) => r.source === 'douban')).toBe(false);
+    // 残缺结果不该进缓存 —— 否则同一个词会连着 5 分钟都没有豆瓣
+    expect(cacheStore.size).toBe(0);
+
+    // 第二次：豆瓣恢复。若上一步错误地写了缓存，这里拿到的仍是残缺结果
+    authorFetch();
+    const second = await onRequestGet({
+      request: new Request('https://x.pages.dev/api/books/search?q=%E6%9D%91%E4%B8%8A%E6%98%A5%E6%A0%91'),
+      env: {},
+    });
+    const secondData = (await second.json()) as any;
+    expect(secondData.results.some((r: any) => r.source === 'douban')).toBe(true);
+  });
+
+  it('三个源都正常时才写缓存', async () => {
+    authorFetch();
+    await onRequestGet({
+      request: new Request('https://x.pages.dev/api/books/search?q=%E6%9D%91%E4%B8%8A%E6%98%A5%E6%A0%91'),
+      env: {},
+    });
+    expect(cacheStore.size).toBe(1);
   });
 });
 
