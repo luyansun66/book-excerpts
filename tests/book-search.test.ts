@@ -137,11 +137,17 @@ describe('书封来源', () => {
     const src = readFileSync(resolve(process.cwd(), 'functions/api/books/search.ts'), 'utf8');
     const base = Number(/const SOURCE_TIMEOUT_MS = (\d+);/.exec(src)?.[1]);
     const douban = Number(/const DOUBAN_TIMEOUT_MS = (\d+);/.exec(src)?.[1]);
+    const retry = Number(/const DOUBAN_RETRY_TIMEOUT_MS = (\d+);/.exec(src)?.[1]);
 
     expect(base).toBeGreaterThan(0);
     expect(douban).toBeGreaterThan(base);
+    // 重试的预算要比第一次短，否则最慢路径会叠成两倍
+    expect(retry).toBeGreaterThan(0);
+    expect(retry).toBeLessThan(douban);
     // 豆瓣那次请求必须真的用上这个预算，而不是又退回通用值
-    expect(src).toContain('fetchWithTimeout(url, DOUBAN_TIMEOUT_MS, DOUBAN_HEADERS)');
+    expect(src).toContain('fetchWithTimeout(url, timeoutMs, DOUBAN_HEADERS)');
+    expect(src).toContain('fetchDoubanSuggest(q, DOUBAN_TIMEOUT_MS)');
+    expect(src).toContain('fetchDoubanSuggest(q, DOUBAN_RETRY_TIMEOUT_MS)');
   });
 
   it('debug 里能看到三个源各自的响应情况', async () => {
@@ -223,6 +229,53 @@ describe('按作者搜：豆瓣不能被标题过滤吃掉', () => {
       env: {},
     });
     expect(cacheStore.size).toBe(1);
+  });
+
+  it('豆瓣第一次卡住时重试一次，结果照样有豆瓣', async () => {
+    let doubanAttempts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('book.douban.com')) {
+          doubanAttempts += 1;
+          // 第一次卡到超时（模拟边缘回源豆瓣的突发卡顿），第二次正常返回
+          if (doubanAttempts === 1) throw new DOMException('aborted', 'AbortError');
+          return new Response(JSON.stringify(DOUBAN_AUTHOR_PAYLOAD));
+        }
+        if (url.includes('googleapis.com')) return new Response(JSON.stringify(GOOGLE_AUTHOR_PAYLOAD));
+        return new Response(JSON.stringify({ docs: [] }));
+      }),
+    );
+
+    const data = await search('村上春树');
+
+    expect(doubanAttempts).toBe(2);
+    expect(data.results.some((r: any) => r.source === 'douban')).toBe(true);
+    expect(data.debug.douban.ok).toBe(true);
+  });
+
+  it('重试也不行时才认失败，并且不写缓存', async () => {
+    let doubanAttempts = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('book.douban.com')) {
+          doubanAttempts += 1;
+          throw new DOMException('aborted', 'AbortError');
+        }
+        if (url.includes('googleapis.com')) return new Response(JSON.stringify(GOOGLE_AUTHOR_PAYLOAD));
+        return new Response(JSON.stringify({ docs: [] }));
+      }),
+    );
+
+    const data = await search('村上春树');
+
+    expect(doubanAttempts).toBe(2);
+    expect(data.debug.douban.ok).toBe(false);
+    expect(data.debug.cacheable).toBe(false);
+    expect(cacheStore.size).toBe(0);
   });
 });
 

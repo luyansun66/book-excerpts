@@ -33,6 +33,10 @@ const SOURCE_TIMEOUT_MS = 2500;
 // 2026-10 又从 4s 提到 5s：边缘机房回源豆瓣的实测分布里，成功的那批最长见到 3.9s，
 // 而失败的几次都正好停在 4s 预算上（顶到上限被掐），说明 4s 卡在分布中间而不是尾部。
 const DOUBAN_TIMEOUT_MS = 5000;
+// 第一次没过就再试一次。边缘回源豆瓣的卡顿是突发的：实测同一个词连着打，典型 220ms，
+// 但会成串地冒出 2.5s 以上乃至顶满预算的请求；而顶满的那几次紧接着重试，都在 220ms
+// 左右就回来了。所以重试的命中率很高，代价只在失败路径上（正常情况一次都不多打）。
+const DOUBAN_RETRY_TIMEOUT_MS = 3000;
 const CACHE_TTL_SECONDS = 300;
 
 const defaultCache = (caches as unknown as { default: Cache }).default;
@@ -152,20 +156,33 @@ function parseDoubanSuggest(items: any[]): BookCandidate[] {
     }));
 }
 
+async function fetchDoubanSuggest(q: string, timeoutMs: number): Promise<BookCandidate[]> {
+  const url = `https://book.douban.com/j/subject_suggest?q=${encodeURIComponent(q)}`;
+  let resp: Response;
+  try {
+    resp = await fetchWithTimeout(url, timeoutMs, DOUBAN_HEADERS);
+  } catch {
+    throw new Error('豆瓣请求超时或被拒');
+  }
+  if (!resp.ok) throw new Error(`豆瓣返回 HTTP ${resp.status}`);
+
+  const data = (await resp.json().catch(() => null)) as any;
+  return parseDoubanSuggest(Array.isArray(data) ? data : []);
+}
+
 async function searchDouban(q: string): Promise<SourceResult> {
   const started = Date.now();
-  const url = `https://book.douban.com/j/subject_suggest?q=${encodeURIComponent(q)}`;
 
   try {
-    const resp = await fetchWithTimeout(url, DOUBAN_TIMEOUT_MS, DOUBAN_HEADERS);
-    if (!resp.ok) {
+    return { ok: true, results: await fetchDoubanSuggest(q, DOUBAN_TIMEOUT_MS), ms: Date.now() - started };
+  } catch {
+    // 一次不成不急着认输 —— 详见 DOUBAN_RETRY_TIMEOUT_MS 上面那段实测。
+    try {
+      const results = await fetchDoubanSuggest(q, DOUBAN_RETRY_TIMEOUT_MS);
+      return { ok: true, results, ms: Date.now() - started };
+    } catch {
       return { ok: false, results: [], ms: Date.now() - started };
     }
-    const data = (await resp.json()) as any;
-    const items = Array.isArray(data) ? data : [];
-    return { ok: true, results: parseDoubanSuggest(items), ms: Date.now() - started };
-  } catch {
-    return { ok: false, results: [], ms: Date.now() - started };
   }
 }
 
