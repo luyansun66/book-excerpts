@@ -489,7 +489,7 @@ function ShelfRow({
               top: 0,
               bottom: 0,
               width: 34,
-              background: 'linear-gradient(to right, rgba(246,240,231,0.9), transparent)',
+              background: 'linear-gradient(to right, var(--color-shelf-fade), transparent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-start',
@@ -501,11 +501,12 @@ function ShelfRow({
             <button
               onClick={() => scrollBy(-1)}
               style={{
-                background: 'rgba(255,255,255,0.75)',
+                background: 'var(--color-shelf-arrow-bg)',
                 border: 'none',
                 borderRadius: '50%',
                 width: 26,
                 height: 26,
+                color: 'var(--color-shelf-arrow-icon)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -517,7 +518,7 @@ function ShelfRow({
                 transition: 'background 0.15s',
               }}
             >
-              <ChevronLeft size={15} color="#8a7a60" strokeWidth={2} />
+              <ChevronLeft size={15} strokeWidth={2} />
             </button>
           </div>
         )}
@@ -581,9 +582,9 @@ function ShelfRow({
                       flexShrink: 0,
                     }}
                   >
-                    <div style={{ width: 14, height: 95, borderRadius: '1px 1px 0 0', background: '#D0C8B8', opacity: 0.7, flexShrink: 0 }} />
-                    <div style={{ width: 11, height: 111, borderRadius: '1px 1px 0 0', background: '#D0C8B8', opacity: 0.7, flexShrink: 0 }} />
-                    <div style={{ width: 9, height: 85, borderRadius: '1px 1px 0 0', background: '#D0C8B8', opacity: 0.7, flexShrink: 0, transform: 'rotate(-4.8deg)', transformOrigin: 'bottom center', marginLeft: 4 }} />
+                    <div style={{ width: 14, height: 95, borderRadius: '1px 1px 0 0', background: 'var(--color-shelf-spine)', opacity: 0.7, flexShrink: 0 }} />
+                    <div style={{ width: 11, height: 111, borderRadius: '1px 1px 0 0', background: 'var(--color-shelf-spine)', opacity: 0.7, flexShrink: 0 }} />
+                    <div style={{ width: 9, height: 85, borderRadius: '1px 1px 0 0', background: 'var(--color-shelf-spine)', opacity: 0.7, flexShrink: 0, transform: 'rotate(-4.8deg)', transformOrigin: 'bottom center', marginLeft: 4 }} />
                   </div>
                 )}
               </React.Fragment>
@@ -600,7 +601,7 @@ function ShelfRow({
               top: 0,
               bottom: 0,
               width: 34,
-              background: 'linear-gradient(to left, rgba(246,240,231,0.9), transparent)',
+              background: 'linear-gradient(to left, var(--color-shelf-fade), transparent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'flex-end',
@@ -612,11 +613,12 @@ function ShelfRow({
             <button
               onClick={() => scrollBy(1)}
               style={{
-                background: 'rgba(255,255,255,0.75)',
+                background: 'var(--color-shelf-arrow-bg)',
                 border: 'none',
                 borderRadius: '50%',
                 width: 26,
                 height: 26,
+                color: 'var(--color-shelf-arrow-icon)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -628,14 +630,14 @@ function ShelfRow({
                 transition: 'background 0.15s',
               }}
             >
-              <ChevronRight size={15} color="#8a7a60" strokeWidth={2} />
+              <ChevronRight size={15} strokeWidth={2} />
             </button>
           </div>
         )}
       </div>
 
       {/* Shelf surface */}
-      <div style={{ margin: '4px 18px 0', height: 9, borderRadius: 4, background: 'linear-gradient(to bottom, rgba(234, 225, 202, 0.95) 6%, #BBAC8E 47%, #958A74 81%)', boxShadow: '0px 4px 6px 0px rgba(0, 0, 0, 0.2)' }} />
+      <div style={{ margin: '4px 18px 0', height: 9, borderRadius: 4, background: 'var(--shelf-surface)', boxShadow: '0px 4px 6px 0px rgba(0, 0, 0, 0.2)' }} />
     </div>
   );
 }
@@ -897,11 +899,10 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
             onClick={() => setShowAddBook(true)}
             className="glass-cta"
             style={{
-              background: 'rgba(44, 34, 22, 0.55)',
+              background: 'var(--color-glass-cta)',
               backdropFilter: 'blur(20px) saturate(160%)',
               WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              color: 'var(--color-btn-text)',
+              border: '1px solid var(--color-glass-cta-edge)',
               borderRadius: 20,
               paddingTop: 14,
               paddingBottom: 14,

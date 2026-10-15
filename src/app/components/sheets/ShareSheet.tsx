@@ -1064,7 +1064,8 @@ const stagePadStyle = `calc(env(safe-area-inset-top, 0px) + ${STAGE_PAD_TOP}px) 
 /** toast 气泡：舞台和全屏共用（位置各自定，气泡长一样） */
 const toastBubbleStyle: React.CSSProperties = {
   background: 'rgba(28,22,16,0.88)',
-  color: 'var(--color-btn-text)',
+  /* 固定深色底，文字同样固定浅色（同 .glass-cta，不能用会翻转的 --color-btn-text）。 */
+  color: '#F5EFE0',
   fontSize: 12,
   fontFamily: META_FONT,
   padding: '8px 15px',

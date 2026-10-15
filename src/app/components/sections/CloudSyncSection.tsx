@@ -117,12 +117,12 @@ export default function CloudSyncSection() {
               style={{
                 padding: '8px 14px',
                 borderRadius: 8,
-                border: '1px solid var(--color-border)',
+                border: '1px solid var(--color-input-border)',
                 fontSize: 12,
                 width: 220,
                 textAlign: 'center',
                 fontFamily: '-apple-system, sans-serif',
-                background: 'var(--color-bg)',
+                background: 'var(--color-input-bg)',
                 color: 'var(--color-text)',
               }}
             />
@@ -134,12 +134,12 @@ export default function CloudSyncSection() {
               style={{
                 padding: '8px 14px',
                 borderRadius: 8,
-                border: '1px solid var(--color-border)',
+                border: '1px solid var(--color-input-border)',
                 fontSize: 12,
                 width: 220,
                 textAlign: 'center',
                 fontFamily: '-apple-system, sans-serif',
-                background: 'var(--color-bg)',
+                background: 'var(--color-input-bg)',
                 color: 'var(--color-text)',
               }}
             />
@@ -148,8 +148,8 @@ export default function CloudSyncSection() {
                 onClick={handleLogin}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-                  background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+                  padding: '10px 24px', borderRadius: 8, border: '1px solid var(--color-field-border)',
+                  background: 'var(--color-field-bg)', color: 'var(--color-text-secondary)', fontSize: 12,
                   fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer',
                 }}
               >
@@ -160,8 +160,8 @@ export default function CloudSyncSection() {
                 onClick={handleSignUp}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-                  background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+                  padding: '10px 24px', borderRadius: 8, border: '1px solid var(--color-field-border)',
+                  background: 'var(--color-field-bg)', color: 'var(--color-text-secondary)', fontSize: 12,
                   fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer',
                 }}
               >
@@ -182,8 +182,8 @@ export default function CloudSyncSection() {
                 disabled={syncing}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-                  background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+                  padding: '10px 24px', borderRadius: 8, border: '1px solid var(--color-field-border)',
+                  background: 'var(--color-field-bg)', color: 'var(--color-text-secondary)', fontSize: 12,
                   fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: syncing ? 'not-allowed' : 'pointer',
                   opacity: syncing ? 0.6 : 1,
                 }}
@@ -196,8 +196,8 @@ export default function CloudSyncSection() {
                 disabled={syncing}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  padding: '10px 24px', borderRadius: 8, border: '1px solid #d4c4a0',
-                  background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+                  padding: '10px 24px', borderRadius: 8, border: '1px solid var(--color-field-border)',
+                  background: 'var(--color-field-bg)', color: 'var(--color-text-secondary)', fontSize: 12,
                   fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: syncing ? 'not-allowed' : 'pointer',
                   opacity: syncing ? 0.6 : 1,
                 }}
@@ -224,7 +224,7 @@ export default function CloudSyncSection() {
           <div style={{
             marginTop: 10,
             fontSize: 11,
-            color: msg.startsWith('✅') ? '#3a7a3a' : msg.startsWith('❌') ? '#c0392b' : 'var(--color-text-muted)',
+            color: msg.startsWith('✅') ? 'var(--color-success-text)' : msg.startsWith('❌') ? 'var(--color-danger)' : 'var(--color-text-muted)',
             textAlign: 'center',
             fontFamily: '-apple-system, sans-serif',
             lineHeight: 1.5,

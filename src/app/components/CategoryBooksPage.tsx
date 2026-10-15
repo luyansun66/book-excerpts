@@ -164,10 +164,11 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            background: 'rgba(255,255,255,0.55)',
+            /* 和首页搜索框、空书架提示卡片同一块底色（见 SearchBar.tsx）。 */
+            background: 'var(--color-bg-card)',
             borderRadius: 10,
             padding: '8px 12px',
-            border: '1px solid rgba(0,0,0,0.06)',
+            border: '1px solid var(--color-border-light)',
           }}
         >
           <Search size={14} color="#9a8a6a" strokeWidth={2} />

@@ -38,8 +38,8 @@ export default function CategorySection() {
             gap: 8,
             padding: '10px 12px',
             borderRadius: 8,
-            background: '#fffcf5',
-            border: '1px solid #e8ddd0',
+            background: 'var(--color-row-bg)',
+            border: '1px solid var(--color-row-border)',
           }}
         >
           {editingId === cat.id ? (
@@ -53,12 +53,12 @@ export default function CategorySection() {
                 flex: 1,
                 padding: '4px 8px',
                 borderRadius: 4,
-                border: '1px solid #d4c4a0',
+                border: '1px solid var(--color-field-border)',
                 fontSize: 13,
                 fontFamily: '-apple-system, sans-serif',
                 color: 'var(--color-text)',
                 outline: 'none',
-                background: '#fff',
+                background: 'var(--color-field-bg)',
               }}
             />
           ) : (
@@ -92,7 +92,7 @@ export default function CategorySection() {
                 onClick={() => setEditingId(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
               >
-                <X size={13} color="#8a7a60" />
+                <X size={13} color="var(--color-text-accent)" />
               </button>
             </>
           ) : (
@@ -101,7 +101,7 @@ export default function CategorySection() {
                 onClick={() => { setEditingId(cat.id); setEditingName(cat.name); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, lineHeight: 1 }}
               >
-                <Pencil size={13} color="#b8ae9a" strokeWidth={1.5} />
+                <Pencil size={13} color="var(--color-icon-muted)" strokeWidth={1.5} />
               </button>
               {confirmDelete === cat.id ? (
                 <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -124,7 +124,7 @@ export default function CategorySection() {
                     onClick={() => setConfirmDelete(null)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
                   >
-                    <X size={13} color="#8a7a60" />
+                    <X size={13} color="var(--color-text-accent)" />
                   </button>
                 </div>
               ) : (
@@ -132,7 +132,7 @@ export default function CategorySection() {
                   onClick={() => setConfirmDelete(cat.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, lineHeight: 1 }}
                 >
-                  <Trash2 size={13} color="#b8ae9a" strokeWidth={1.5} />
+                  <Trash2 size={13} color="var(--color-icon-muted)" strokeWidth={1.5} />
                 </button>
               )}
             </>
@@ -151,8 +151,8 @@ export default function CategorySection() {
             flex: 1,
             padding: '10px 12px',
             borderRadius: 8,
-            border: '1px solid #d4c4a0',
-            background: '#fffcf5',
+            border: '1px solid var(--color-field-border)',
+            background: 'var(--color-field-bg)',
             fontSize: 13,
             fontFamily: '-apple-system, sans-serif',
             color: 'var(--color-text)',
@@ -170,7 +170,7 @@ export default function CategorySection() {
             borderRadius: 8,
             border: 'none',
             background: newName.trim() ? 'var(--color-btn)' : 'var(--color-btn-disabled)',
-            color: 'var(--color-btn-text)',
+            color: newName.trim() ? 'var(--color-btn-text)' : 'var(--color-btn-disabled-text)',
             fontSize: 12,
             fontWeight: 600,
             fontFamily: '-apple-system, sans-serif',

@@ -52,4 +52,17 @@ describe('页面层堆叠次序', () => {
     expect(shelf).toMatch(/zIndex:\s*1,/);
     expect(shelf).not.toMatch(/zIndex:\s*LAYER_Z_CATEGORY|zIndex:\s*LAYER_Z_DETAIL/);
   });
+
+  it('被盖住的那层同时断掉点击，不只是画在下面', () => {
+    // 只写死 z-index 解决的是"看得见"：即便分类页画在上面，压在它底下的书架层
+    // 还接着鼠标/触摸，搜索框、设置按钮就照旧能吃掉本该落在分类页上的那一下点击。
+    // 所以被推入的那层一开，下一层必须整体 pointer-events: none，等它退干净
+    // （categoryOpen 变回 false）再交还；详情页同理压住分类页。
+    const shelf = layerBlock('shelf');
+    const category = layerBlock('category');
+    expect(shelf).toMatch(/pointerEvents:\s*categoryOpen\s*\?\s*'none'\s*:\s*'auto'/);
+    expect(category).toMatch(
+      /pointerEvents:\s*detailOpen\s*\|\|\s*categoryExiting\s*\?\s*'none'\s*:\s*'auto'/,
+    );
+  });
 });

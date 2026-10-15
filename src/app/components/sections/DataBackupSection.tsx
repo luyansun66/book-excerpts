@@ -63,8 +63,8 @@ export default function DataBackupSection() {
             }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 10px', borderRadius: 8, border: '1px solid #d4c4a0',
-              background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+              padding: '10px 10px', borderRadius: 8, border: '1px solid var(--color-field-border)',
+              background: 'var(--color-field-bg)', color: 'var(--color-text-secondary)', fontSize: 12,
               fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
@@ -92,8 +92,8 @@ export default function DataBackupSection() {
             }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 10px', borderRadius: 8, border: '1px solid #d4c4a0',
-              background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+              padding: '10px 10px', borderRadius: 8, border: '1px solid var(--color-field-border)',
+              background: 'var(--color-field-bg)', color: 'var(--color-text-secondary)', fontSize: 12,
               fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
@@ -104,8 +104,8 @@ export default function DataBackupSection() {
             onClick={() => fileInputRef.current?.click()}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '10px 10px', borderRadius: 8, border: '1px solid #d4c4a0',
-              background: '#fffcf5', color: 'var(--color-text-secondary)', fontSize: 12,
+              padding: '10px 10px', borderRadius: 8, border: '1px solid var(--color-field-border)',
+              background: 'var(--color-field-bg)', color: 'var(--color-text-secondary)', fontSize: 12,
               fontWeight: 600, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
@@ -175,7 +175,7 @@ export default function DataBackupSection() {
             <button
               onClick={() => setImportPreview(null)}
               style={{
-                padding: '9px 16px', borderRadius: 6, border: '1px solid #d4c4a0',
+                padding: '9px 16px', borderRadius: 6, border: '1px solid var(--color-field-border)',
                 background: 'transparent', color: 'var(--color-text-secondary)', fontSize: 12,
                 fontWeight: 600, cursor: 'pointer', fontFamily: '-apple-system, sans-serif',
               }}

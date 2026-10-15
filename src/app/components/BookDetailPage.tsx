@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { ArrowLeft, Edit3, Trash2, Share2, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Edit3, Trash2, Share2, ChevronDown, ChevronUp, ImagePlus } from 'lucide-react';
 import { useApp } from '../store';
 import { getQuotesByBook, addQuote as dbAddQuote, updateQuote as dbUpdateQuote, deleteQuote as dbDeleteQuote } from '../db';
 import { getBookReadingMinutes } from '../db/readingTime';
@@ -11,6 +11,7 @@ import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
 import { loadShareSheet, prefetchShareSheet } from './sheets/shareSheetLoader';
 import type { Book, Quote } from '../types';
 import { FINISHED_LABEL_STYLE } from '../bookLabel';
+import { compressImage } from '../imageUtils';
 
 // 分享面板里带着 770KB 的贴纸 SVG，导出图片还要 197KB 的 html2canvas：静态引入会让
 // 每个打开书详情的人都先下载它们。入口在 sheets/shareSheetLoader，平时空闲预取（下面
@@ -31,14 +32,34 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
   const [categoryId, setCategoryId] = useState(book.categoryId);
+  // 封面和书名一样是「改完点保存才生效」，所以先在本地留着，别选一张就直接写库
+  const [coverType, setCoverType] = useState<Book['coverType']>(book.coverType);
+  const [coverData, setCoverData] = useState<string | null>(book.coverData);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitle(book.title);
     setAuthor(book.author);
     setCategoryId(book.categoryId);
+    setCoverType(book.coverType);
+    setCoverData(book.coverData);
     setShowDeleteConfirm(false);
   }, [book]);
+
+  const handleCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // 选同一张图第二次不会再触发 change，先把 input 的值清掉
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const compressed = await compressImage(file);
+      setCoverType('upload');
+      setCoverData(compressed);
+    } catch {
+      // 读图失败就留着原来的封面，别顺手把它清空
+    }
+  };
 
   const handleSave = async () => {
     if (!title.trim() || !author.trim()) return;
@@ -46,6 +67,9 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
       title: title.trim(),
       author: author.trim(),
       categoryId,
+      // 移除封面时 coverData 已经是 null，两个字段一起归位
+      coverType: coverData ? coverType : null,
+      coverData,
     });
     onClose();
   };
@@ -57,6 +81,21 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
   };
 
   if (!open) return null;
+
+  // 表单控件统一样式：深色下不再是一块奶白板压在深色面板上，
+  // 改成比面板亮一档的暖褐底 + 一道描边把轮廓勾出来（值来自 tokens.css）。
+  const fieldStyle: React.CSSProperties = {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 12px',
+    borderRadius: 8,
+    border: '1px solid var(--color-field-border)',
+    background: 'var(--color-field-bg)',
+    fontSize: 13,
+    outline: 'none',
+    fontFamily: 'var(--font-sans)',
+    color: 'var(--color-text)',
+  };
 
   // 挂到 body，别留在带 transform 的页面层里（见 overlayPortal）
   return overlayPortal(
@@ -70,44 +109,113 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
       }}
       onClick={onClose}
     >
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--color-bg-overlay)' }} />
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           position: 'relative',
           width: '100%',
+          maxHeight: '86vh',
+          overflowY: 'auto',
           background: 'var(--color-bg)',
           borderRadius: '20px 20px 0 0',
-          overflow: 'hidden',
           padding: '14px 20px calc(28px + env(safe-area-inset-bottom, 0px))',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}>
           <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
         </div>
-        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontFamily: 'Georgia, serif', fontWeight: 'bold', color: 'var(--color-text)' }}>
+        <h3 style={{ margin: '0 0 16px', fontSize: 16, fontFamily: 'var(--font-serif)', fontWeight: 'bold', color: 'var(--color-text)' }}>
           编辑书籍
         </h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* ── 封面 ──
+              这块是这次新加的「更换封面」窗口：缩略图先在本层预览，点保存才写库，
+              和改书名是同一套节奏。图挂了退回空框，不让浏览器留个破图图标。 */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '12px 14px',
+              borderRadius: 10,
+              border: '1px solid var(--color-row-border)',
+              background: 'var(--color-row-bg)',
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleCoverFile}
+              style={{ display: 'none' }}
+            />
+            <CoverThumb src={coverData} width={56} height={84} radius={5} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: 'var(--color-text-accent)', fontFamily: 'var(--font-sans)' }}>
+                封面
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '7px 14px',
+                    borderRadius: 20,
+                    border: '1px solid var(--color-field-border)',
+                    background: 'var(--color-field-bg)',
+                    color: 'var(--color-text)',
+                    fontSize: 12,
+                    fontFamily: 'var(--font-sans)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <ImagePlus size={13} strokeWidth={2} />
+                  {coverData ? '更换封面' : '从相册选择'}
+                </button>
+                {coverData && (
+                  <button
+                    type="button"
+                    onClick={() => { setCoverType(null); setCoverData(null); }}
+                    style={{
+                      padding: '7px 10px',
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--color-text-muted)',
+                      fontSize: 12,
+                      fontFamily: 'var(--font-sans)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    移除
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <input
             type="text"
             placeholder="书名"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: 'var(--color-text)' }}
+            style={fieldStyle}
           />
           <input
             type="text"
             placeholder="作者"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: 'var(--color-text)' }}
+            style={fieldStyle}
           />
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d4c4a0', background: '#fffcf5', fontSize: 13, outline: 'none', fontFamily: '-apple-system, sans-serif', color: 'var(--color-text)' }}
+            style={fieldStyle}
           >
             {categories.map((cat) => (
               <option key={cat.id} value={cat.id}>{cat.name}</option>
@@ -127,6 +235,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
               }}
             >
               保存
@@ -136,12 +245,13 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
               style={{
                 padding: '11px 16px',
                 borderRadius: 8,
-                border: '1px solid #d4c4a0',
+                border: '1px solid var(--color-field-border)',
                 background: 'transparent',
                 color: 'var(--color-danger)',
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
               }}
             >
               删除
@@ -149,7 +259,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
           </div>
 
           {showDeleteConfirm && (
-            <div style={{ background: 'var(--color-danger-bg)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#8a3a30', fontFamily: '-apple-system, sans-serif', lineHeight: 1.6 }}>
+            <div style={{ background: 'var(--color-danger-bg)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', lineHeight: 1.6 }}>
               <strong>确认删除此书籍？</strong>
               该操作不可撤销，该书下的所有摘录也将被删除。
               <div style={{ display: 'flex', gap: 8, marginTop: 8, justifyContent: 'center' }}>
@@ -173,7 +283,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
                   style={{
                     padding: '6px 14px',
                     borderRadius: 6,
-                    border: '1px solid #d4c4a0',
+                    border: '1px solid var(--color-field-border)',
                     background: 'transparent',
                     color: 'var(--color-text-secondary)',
                     fontSize: 12,
@@ -189,6 +299,23 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
       </div>
     </div>
   );
+}
+
+// 封面缩略图：空 / 图挂了都退回一块空框（深色下就是暗底 + 一个图标），
+// 别让浏览器留下破图图标。记「哪张图挂了」而不是布尔值，换一本书能自动恢复。
+function CoverThumb({ src, width, height, radius }: { src: string | null; width: number; height: number; radius: number }) {
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
+  const box = { width, height, borderRadius: radius, flexShrink: 0, background: 'var(--color-bg-skeleton)' } as const;
+
+  if (!src || brokenSrc === src) {
+    return (
+      <div style={{ ...box, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <ImagePlus size={18} style={{ color: 'var(--color-icon-muted)' }} />
+      </div>
+    );
+  }
+
+  return <img src={src} alt="" onError={() => setBrokenSrc(src)} style={{ ...box, objectFit: 'cover' }} />;
 }
 
 // ─── Small book cover ─────────────────────────────────────────────────────────
@@ -798,9 +925,9 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
           onClick={() => setShowAddSheet(true)}
           className="glass-cta"
           style={{
-            background: 'rgba(44, 34, 22, 0.55)', color: 'var(--color-btn-text)',
+            background: 'var(--color-glass-cta)',
             backdropFilter: 'blur(20px) saturate(160%)', WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-            border: '1px solid rgba(255,255,255,0.18)', borderRadius: 20,
+            border: '1px solid var(--color-glass-cta-edge)', borderRadius: 20,
             paddingTop: 14, paddingBottom: 14, width: 128, textAlign: 'center',
             fontSize: 15, fontWeight: 700,
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif',

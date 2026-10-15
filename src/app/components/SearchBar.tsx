@@ -15,10 +15,12 @@ export default function SearchBar() {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          background: 'rgba(255,255,255,0.55)',
+          /* 和空书架提示框（App.tsx 里的 --color-bg-card 卡片）用同一块底色，
+             深色模式下才不会再糊成一块亮灰。 */
+          background: 'var(--color-bg-card)',
           borderRadius: 10,
           padding: '8px 12px',
-          border: '1px solid rgba(0,0,0,0.06)',
+          border: '1px solid var(--color-border-light)',
         }}
       >
         <Search size={14} color="#9a8a6a" strokeWidth={2} />

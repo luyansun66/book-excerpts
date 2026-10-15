@@ -6,6 +6,7 @@ import { pickMoveTargetOnDelete } from '../../db/categoryUtils';
 import ConfirmDialog from '../ConfirmDialog';
 import CategoryPicker from '../CategoryPicker';
 import { overlayPortal } from '../overlayPortal';
+import { compressImage } from '../../imageUtils';
 
 const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
   douban: '豆瓣',
@@ -18,7 +19,7 @@ const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
  *  记的是「哪张图挂了」而不是布尔值，这样换一本书时能自动恢复。 */
 function CoverThumb({ src, width, height, radius }: { src: string | null; width: number; height: number; radius: number }) {
   const [brokenSrc, setBrokenSrc] = useState<string | null>(null);
-  const box = { width, height, borderRadius: radius, flexShrink: 0, background: '#ece4d8' } as const;
+  const box = { width, height, borderRadius: radius, flexShrink: 0, background: 'var(--color-bg-skeleton)' } as const;
 
   if (!src || brokenSrc === src) return <div style={box} />;
 
@@ -155,33 +156,6 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
     }
   };
 
-  // ── Compress image before storing ──────────────────────────────────────
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const MAX = 300;
-        let w = img.width;
-        let h = img.height;
-        if (w > MAX || h > MAX) {
-          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-          else { w = Math.round(w * MAX / h); h = MAX; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d')!;
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      };
-      img.onerror = () => reject(new Error('图片加载失败'));
-      const reader = new FileReader();
-      reader.onload = (ev) => { img.src = ev.target?.result as string; };
-      reader.onerror = () => reject(new Error('文件读取失败'));
-      reader.readAsDataURL(file);
-    });
-  };
-
   // File upload
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -245,15 +219,15 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
   const sectionTitleStyle: React.CSSProperties = {
     fontSize: 14,
     fontWeight: 600,
-    color: '#a09070',
+    color: 'var(--color-text-accent)',
     marginBottom: 8,
     fontFamily: '-apple-system, sans-serif',
   };
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 10,
-    background: '#fffcf5',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+    background: 'var(--color-row-bg)',
+    boxShadow: 'var(--shadow-card)',
     overflow: 'hidden',
   };
 
@@ -276,7 +250,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
       onClick={onClose}
     >
       {/* Overlay */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--color-bg-overlay)' }} />
 
       {/* Sheet */}
       <div
@@ -304,7 +278,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(0,0,0,0.06)',
+            borderBottom: '1px solid var(--color-border-light)',
           }}
         >
           <button
@@ -312,8 +286,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
             style={{
               padding: '6px 16px',
               borderRadius: 20,
-              border: '1px solid #d4c4a0',
-              background: '#fffcf5',
+              border: '1px solid var(--color-field-border)',
+              background: 'var(--color-field-bg)',
               cursor: 'pointer',
               fontSize: 14,
               color: 'var(--color-text-secondary)',
@@ -340,11 +314,11 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
              padding: '6px 16px',
              borderRadius: 20,
              border: 'none',
-              background: isValid ? '#2C2216' : '#E0D8C8',
+              background: isValid ? 'var(--color-btn)' : 'var(--color-btn-disabled)',
               cursor: isValid ? 'pointer' : 'not-allowed',
              fontSize: 14,
              fontWeight: 600,
-              color: isValid ? '#FFFFFF' : '#8A7A60',
+              color: isValid ? 'var(--color-btn-text)' : 'var(--color-btn-disabled-text)',
              fontFamily: '-apple-system, sans-serif',
            }}
          >
@@ -376,8 +350,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                 boxSizing: 'border-box',
                 padding: '10px 14px',
                 borderRadius: 10,
-                border: '1px solid #d4c4a0',
-                background: '#fffcf5',
+                border: '1px solid var(--color-field-border)',
+                background: 'var(--color-field-bg)',
                 fontSize: 14,
                 outline: 'none',
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
@@ -394,9 +368,9 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                   right: 0,
                   zIndex: 10,
                   borderRadius: 12,
-                  border: '1px solid rgba(0,0,0,0.08)',
-                  background: '#fffcf5',
-                  boxShadow: '0 12px 28px rgba(0,0,0,0.16)',
+                  border: '1px solid var(--color-border)',
+                  background: 'var(--color-bg-card)',
+                  boxShadow: 'var(--shadow-float)',
                   overflow: 'hidden',
                 }}
               >
@@ -416,7 +390,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                         width: '100%',
                         padding: '12px 16px',
                         border: 'none',
-                        borderBottom: '1px solid rgba(0,0,0,0.05)',
+                        borderBottom: '1px solid var(--color-border-light)',
                         background: 'transparent',
                         cursor: 'pointer',
                         textAlign: 'left',
@@ -431,7 +405,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                         <div style={{ fontSize: 12, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {candidate.author || '未知作者'}{candidate.year ? ` · ${candidate.year}` : ''}
                         </div>
-                        <div style={{ fontSize: 11, color: '#9a8a70', marginTop: 2 }}>
+                        <div style={{ fontSize: 11, color: 'var(--color-text-accent)', marginTop: 2 }}>
                           {SOURCE_LABEL[candidate.source]}
                         </div>
                       </div>
@@ -451,7 +425,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
             <div style={sectionTitleStyle}>基本信息</div>
             <div style={cardStyle}>
               {/* Title */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--color-border-light)' }}>
                 <span style={{ width: 60, fontSize: 14, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>书名 *</span>
                 <input
                   type="text"
@@ -471,7 +445,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                />
              </div>
              {/* Author */}
-              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--color-border-light)' }}>
                 <span style={{ width: 60, fontSize: 14, color: 'var(--color-text-muted)', fontFamily: '-apple-system, sans-serif' }}>作者 *</span>
                 <input
                   type="text"
@@ -521,7 +495,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {categories.find((c) => c.id === categoryId)?.name ?? '选择分类'}
                   </span>
-                  <ChevronDown size={16} color="#b0a590" style={{ flexShrink: 0 }} />
+                  <ChevronDown size={16} style={{ color: 'var(--color-icon-muted)', flexShrink: 0 }} />
                 </button>
                 <button
                   type="button"
@@ -537,8 +511,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                     marginLeft: 8,
                     flexShrink: 0,
                     borderRadius: 14,
-                    border: '1px solid #d4c4a0',
-                    background: addingCategory ? '#efe6d6' : '#fffcf5',
+                    border: '1px solid var(--color-field-border)',
+                    background: addingCategory ? 'var(--color-field-bg-active)' : 'var(--color-field-bg)',
                     color: 'var(--color-text-secondary)',
                     cursor: 'pointer',
                   }}
@@ -566,8 +540,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                       minWidth: 0,
                       padding: '8px 10px',
                       borderRadius: 8,
-                      border: '1px solid #d4c4a0',
-                      background: '#fffcf5',
+                      border: '1px solid var(--color-field-border)',
+                      background: 'var(--color-field-bg)',
                       fontSize: 13,
                       outline: 'none',
                       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
@@ -583,7 +557,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                       borderRadius: 8,
                       border: 'none',
                       background: newCategoryName.trim() ? 'var(--color-btn)' : 'var(--color-btn-disabled)',
-                      color: 'var(--color-btn-text)',
+                      color: newCategoryName.trim() ? 'var(--color-btn-text)' : 'var(--color-btn-disabled-text)',
                       fontSize: 12,
                       fontWeight: 600,
                       fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
@@ -614,8 +588,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                 {coverDataUrl ? (
                   <CoverThumb src={coverDataUrl} width={80} height={120} radius={6} />
                 ) : (
-                  <div style={{ width: 80, height: 120, borderRadius: 6, background: '#ece4d8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Upload size={24} color="#b0a080" />
+                  <div style={{ width: 80, height: 120, borderRadius: 6, background: 'var(--color-bg-skeleton)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Upload size={24} style={{ color: 'var(--color-icon-muted)' }} />
                   </div>
                 )}
                 <button
@@ -624,8 +598,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                   style={{
                     padding: '8px 20px',
                     borderRadius: 20,
-                    border: '1px solid #d4c4a0',
-                    background: '#fffcf5',
+                    border: '1px solid var(--color-field-border)',
+                    background: 'var(--color-field-bg)',
                     fontSize: 13,
                     color: 'var(--color-text)',
                     fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',

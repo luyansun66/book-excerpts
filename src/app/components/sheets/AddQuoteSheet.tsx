@@ -113,7 +113,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
       onClick={onClose}
     >
       {/* Overlay */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)' }} />
+      <div style={{ position: 'absolute', inset: 0, background: 'var(--color-bg-overlay)' }} />
 
       {/* Sheet */}
       <div
@@ -141,7 +141,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: '1px solid rgba(0,0,0,0.06)',
+            borderBottom: '1px solid var(--color-border-light)',
           }}
         >
           <h3
@@ -159,7 +159,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
             onClick={() => { reset(); onClose(); }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, lineHeight: 1 }}
           >
-            <X size={18} color="#8a7a60" />
+            <X size={18} style={{ color: 'var(--color-text-accent)' }} />
           </button>
         </div>
 
@@ -179,12 +179,12 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
               style={{
                 padding: '10px 12px',
                 borderRadius: 8,
-                border: '1px solid #d4c4a0',
-                background: '#fffcf5',
+                border: '1px solid var(--color-field-border)',
+                background: 'var(--color-field-bg)',
                 fontSize: 13,
                 lineHeight: 1.7,
                 fontFamily: 'Georgia, serif',
-                color: '#333',
+                color: 'var(--color-text)',
                 outline: 'none',
                 resize: 'none',
                 overflow: 'hidden',
@@ -211,8 +211,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
                 disabled={ocrLoading}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 5,
-                  padding: '6px 12px', borderRadius: 6, border: '1px solid #d4c4a0',
-                  background: ocrLoading ? '#ece4d8' : '#fffcf5',
+                  padding: '6px 12px', borderRadius: 6, border: '1px solid var(--color-field-border)',
+                  background: ocrLoading ? 'var(--color-bg-skeleton)' : 'var(--color-field-bg)',
                   color: ocrLoading ? 'var(--color-text-muted)' : 'var(--color-text-secondary)',
                   fontSize: 11, fontWeight: 600, cursor: ocrLoading ? 'not-allowed' : 'pointer',
                   fontFamily: '-apple-system, sans-serif',
@@ -259,8 +259,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
               style={{
                 padding: '10px 12px',
                 borderRadius: 8,
-                border: '1px solid #d4c4a0',
-                background: '#fffcf5',
+                border: '1px solid var(--color-field-border)',
+                background: 'var(--color-field-bg)',
                 fontSize: 13,
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                 color: 'var(--color-text)',
@@ -283,12 +283,12 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
               style={{
                 padding: '10px 12px',
                 borderRadius: 8,
-                border: '1px solid #d4c4a0',
-                background: '#fffcf5',
+                border: '1px solid var(--color-field-border)',
+                background: 'var(--color-field-bg)',
                 fontSize: 12.5,
                 lineHeight: 1.6,
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                color: '#555',
+                color: 'var(--color-text)',
                 outline: 'none',
                 resize: 'none',
                 overflow: 'hidden',
@@ -308,12 +308,13 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
               style={{
                 padding: '10px 12px',
                 borderRadius: 8,
-                border: '1px solid #d4c4a0',
-                background: '#fffcf5',
+                border: '1px solid var(--color-field-border)',
+                background: 'var(--color-field-bg)',
                 fontSize: 13,
                 fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
                 color: 'var(--color-text)',
                 outline: 'none',
+                colorScheme: 'light dark',
               }}
             />
           </div>
@@ -360,8 +361,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
                       flex: 1,
                       padding: "6px 10px",
                       borderRadius: 6,
-                      border: "1px solid #d4c4a0",
-                      background: "#fffcf5",
+                      border: "1px solid var(--color-field-border)",
+                      background: "var(--color-field-bg)",
                       fontSize: 12,
                       fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
                       color: "var(--color-text)",
@@ -376,9 +377,9 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '12px 20px calc(24px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+        <div style={{ padding: '12px 20px calc(24px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid var(--color-border-light)' }}>
           {saveError && (
-            <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--color-danger-bg)', color: '#a04030', fontSize: 11, fontFamily: '-apple-system, sans-serif', textAlign: 'center' }}>
+            <div style={{ marginBottom: 8, padding: '6px 10px', borderRadius: 6, background: 'var(--color-danger-bg)', color: 'var(--color-danger)', fontSize: 11, fontFamily: '-apple-system, sans-serif', textAlign: 'center' }}>
               {saveError}
             </div>
           )}
@@ -390,8 +391,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
               padding: '12px 0',
               borderRadius: 10,
               border: 'none',
-              background: isValid && !saving ? '#3F3F3F' : 'var(--color-btn-disabled)',
-              color: isValid && !saving ? '#ffffff' : '#f5f0e8',
+              background: isValid && !saving ? 'var(--color-btn)' : 'var(--color-btn-disabled)',
+              color: isValid && !saving ? 'var(--color-btn-text)' : 'var(--color-btn-disabled-text)',
               fontSize: 14,
               fontWeight: 700,
               fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
