@@ -3,11 +3,14 @@
 // Uses the padding-bottom aspect-ratio hack (works on ALL browsers, including
 // older Safari where `aspect-ratio` is unsupported).
 //
-// SVG viewBox: 0 0 882.2 781 → aspect ratio ≈ 781/882.2 ≈ 88.5%
+// SVG viewBox: 0 0 918.8 813.4 → aspect ratio ≈ 813.4/918.8 ≈ 88.5%
+// 浅色/深色是同一张插画的两版导出（结构和坐标完全一致，只有配色和飘带文字不同），
+// 跟着系统外观切换，见下面的 usePrefersDark。
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import svgContent from '../../assets/library-decoration.svg?raw';
+import lightSvg from '../../assets/library-decoration.svg?raw';
+import darkSvg from '../../assets/library-decoration-dark.svg?raw';
 
 interface LibraryBuildingProps {
   onClockClick?: () => void;
@@ -18,10 +21,10 @@ interface LibraryBuildingProps {
 
 // 未读气泡的定位：圆心落在邮筒右上角外侧，与小黄旗零重叠。
 // 都用百分比，插画缩放时气泡自动跟随，不需要监听 resize。
-// 数值由插画 viewBox(882.2 × 781) 换算：圆心 (803, 557)、直径 13px @320 宽。
+// 数值由插画 viewBox(918.8 × 813.4) 换算：圆心 (838.3, 582)、直径 13px @320 宽。
 const UNREAD_BADGE = {
-  left: '91.02%',
-  top: '71.32%',
+  left: '91.24%',
+  top: '71.55%',
   size: '4.0625%',   // 13 / 320
 } as const;
 
@@ -74,8 +77,8 @@ function UnreadBadge() {
   );
 }
 
-// 插画里两处可点的东西墨迹都很小：邮筒整块才约 25×51 CSS px（而且「屋顶 + 身子 +
-// 细杆 + 底座」之间有空隙，按上去经常落空），挂钟约 22×27 CSS px。所以各补一块透明
+// 插画里两处可点的东西墨迹都很小：邮筒整块才约 25×53 CSS px（而且「旗子 + 身子 +
+// 细杆 + 底座」之间有空隙，按上去经常落空），挂钟约 19×23 CSS px。所以各补一块透明
 // 命中矩形，把可点范围撑到至少 48×48 CSS px（iOS HIG 的最小点击尺寸是 44，再留点余量）。
 // 矩形跟着 SVG 的用户单位走，缩放时自动跟着变，不需要监听 resize。
 const MIN_TAP_PX = 48;
@@ -90,14 +93,14 @@ interface InkBox {
 
 interface TapTarget {
   selector: string;
-  /** 墨迹在插画 viewBox(882.2 × 781) 里的范围，浏览器里由 getBBox() 实测，
+  /** 墨迹在插画 viewBox(918.8 × 813.4) 里的范围，浏览器里由 getBBox() 实测，
    *  这里只是给没有布局引擎的环境（jsdom）兜底，保证命中区始终有确定尺寸。 */
   fallbackBox: InkBox;
 }
 
 const TAP_TARGETS: TapTarget[] = [
-  { selector: '#time-mailbox', fallbackBox: { x: 724.5, y: 578.7, width: 70.4, height: 140.1 } },
-  { selector: '#reading-clock', fallbackBox: { x: 410.1, y: 397.4, width: 60.8, height: 74.2 } },
+  { selector: '#time-mailbox', fallbackBox: { x: 757.2, y: 606.8, width: 72.7, height: 151.9 } },
+  { selector: '#reading-clock', fallbackBox: { x: 465.9, y: 443, width: 53.5, height: 65.4 } },
 ];
 
 function inkBox(node: SVGGraphicsElement, fallbackBox: InkBox): InkBox {
@@ -127,6 +130,8 @@ function ensureHitArea(node: SVGGraphicsElement, box: InkBox, unitsPerPx: number
   // 再显式写 all，免得以后有人把它改成 fill="none" 又把命中区弄丢。
   hit.setAttribute('fill', 'transparent');
   hit.setAttribute('pointer-events', 'all');
+  // 插画整体不接收指针事件（见下面 effect 里的说明），所以光标要热区自己带。
+  hit.setAttribute('style', 'cursor:pointer');
 
   node.insertBefore(hit, node.firstChild);
 }
@@ -138,13 +143,46 @@ function unitsPerPxOf(svg: SVGSVGElement) {
   return viewWidth / (renderedWidth || viewWidth);
 }
 
+// 深色模式用夜版插画。判据跟 styles/tokens.css 里的 @media (prefers-color-scheme: dark)
+// 保持一致 —— 应用里没有主题切换入口，系统外观就是唯一真源，所以不复用 .dark class。
+const DARK_QUERY = '(prefers-color-scheme: dark)';
+
+function subscribeDark(onChange: () => void) {
+  // jsdom / 老浏览器没有 matchMedia，此时永远按浅色渲染。
+  if (typeof window.matchMedia !== 'function') return () => {};
+  const media = window.matchMedia(DARK_QUERY);
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
+}
+
+function usePrefersDark() {
+  return useSyncExternalStore(
+    subscribeDark,
+    () => typeof window.matchMedia === 'function' && window.matchMedia(DARK_QUERY).matches,
+    () => false,
+  );
+}
+
 export default function LibraryBuilding({ onClockClick, onMailboxClick, hasUnreadLetter }: LibraryBuildingProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const isDarkArt = usePrefersDark();
+  const svgContent = isDarkArt ? darkSvg : lightSvg;
 
   useEffect(() => {
     const root = containerRef.current;
     const svg = root?.querySelector<SVGSVGElement>('svg');
     if (!root || !svg) return;
+
+    // 夜版插画比日版多了几层「天上 + 地上」的装饰（星空、中景暖光、地面光斑），
+    // 它们都画在建筑之后 —— SVG 里后画的在上层，正好盖住挂钟那一片，点下去命中的是装饰，
+    // closest('#reading-clock') 直接落空。与其挨个给装饰加 pointer-events="none"
+    // （每次重新导出都会丢、还得重新找），不如把整张插画关掉指针事件，只把两块热区
+    // 单独放回来：装饰再多也盖不住。
+    svg.style.pointerEvents = 'none';
+
+    // 标一下这是哪一版插画。st* class 名每轮重新导出都会被 Illustrator 重排，
+    // 飘带文字也改成形状了，导出的内部结构没有一处能当稳定判据，所以自己打标记。
+    svg.setAttribute('data-art', isDarkArt ? 'dark' : 'light');
 
     const unitsPerPx = unitsPerPxOf(svg);
     // 插画是静态注入的，命中区补一次就够（ensureHitArea 内部做了重复检查）。
@@ -152,7 +190,8 @@ export default function LibraryBuilding({ onClockClick, onMailboxClick, hasUnrea
       const node = root.querySelector<SVGGraphicsElement>(selector);
       if (node) ensureHitArea(node, inkBox(node, fallbackBox), unitsPerPx);
     }
-  }, []);
+    // 换插画时 React 会重灌 innerHTML，命中区得跟着重补，所以依赖 svgContent。
+  }, [svgContent, isDarkArt]);
 
   const playLidPop = () => {
     const lid = containerRef.current?.querySelector('#time-mailbox-lid');
