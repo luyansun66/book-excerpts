@@ -12,7 +12,7 @@
       }
 
       .st2 {
-        fill: #eae4da;
+        fill: #f4ede6;
       }
 
       .st3 {
@@ -23,22 +23,22 @@
         fill: url(#_未命名的渐变);
         stroke: url(#_未命名的渐变_2);
         stroke-miterlimit: 10;
-        stroke-width: 1.5px;
+        stroke-width: 2px;
       }
     </style>
-    <linearGradient id="_未命名的渐变" data-name="未命名的渐变" x1="332.6" y1="149.8" x2="153.8" y2="190.5" gradientTransform="translate(0 514) scale(1 -1)" gradientUnits="userSpaceOnUse">
+    <linearGradient id="_未命名的渐变" data-name="未命名的渐变" x1="332.6" y1="1510.2" x2="153.8" y2="1469.5" gradientTransform="translate(0 -1146)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#e7e2d6"/>
       <stop offset=".2" stop-color="#d8d2c4"/>
       <stop offset=".6" stop-color="#afa593"/>
       <stop offset=".7" stop-color="#a09480"/>
     </linearGradient>
-    <linearGradient id="_未命名的渐变_2" data-name="未命名的渐变 2" x1="192.8" y1="159.1" x2="386.1" y2="159.1" gradientTransform="translate(0 514) scale(1 -1)" gradientUnits="userSpaceOnUse">
+    <linearGradient id="_未命名的渐变_2" data-name="未命名的渐变 2" x1="192.5" y1="1501.1" x2="386.3" y2="1501.1" gradientTransform="translate(0 -1146)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#dbd4c8"/>
       <stop offset=".3" stop-color="#b6b0a2"/>
       <stop offset=".6" stop-color="#858071"/>
       <stop offset=".7" stop-color="#726e5e"/>
     </linearGradient>
-    <linearGradient id="_未命名的渐变_3" data-name="未命名的渐变 3" x1="341" y1="236.7" x2="341" y2="236.7" gradientTransform="translate(0 514) scale(1 -1)" gradientUnits="userSpaceOnUse">
+    <linearGradient id="_未命名的渐变_3" data-name="未命名的渐变 3" x1="341" y1="1423.3" x2="341" y2="1423.3" gradientTransform="translate(0 -1146)" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#e3d9c8"/>
       <stop offset="0" stop-color="#d2c8b6"/>
       <stop offset=".4" stop-color="#b7ab98"/>
@@ -49,6 +49,6 @@
   <rect class="st2" width="512" height="512" rx="94.2" ry="94.2"/>
   <rect class="st0" width="512" height="512"/>
   <polygon class="st3" points="193.6 74.5 193.6 434.7 225.5 405.9 350.3 260.9 385.9 260.9 193.6 74.5"/>
-  <path class="st4" d="M385.1,261.7c-.3,1.4-1.7,2.7-3,2.7h-3.6c-7.2,0-12,.8-17.5,6.5-16.2,17-32.4,33.9-48.6,50.9-15.9,16.8-31.9,33.5-47.8,50.3-14.5,15.2-29,30.5-43.4,45.7-8.5,8.9-17,17.9-25.5,26.9-.7.8-1.5,1.5-2.2,2.3v-167.3c0-9.2,9.6-17.2,20.2-17.9,8.6,0,13.7-.2,22.2-.2h149.2Z"/>
+  <path class="st4" d="M385.1,261.7c-.7,3.1-2.1,5.2-5.2,5.3s-7.6.5-11.2,1.5c-10.7,2.9-17.9,9.6-25,17.7-4.1,4.7-63.1,69.2-79,86-14.5,15.2-29,30.5-43.4,45.7-8.5,8.9-17,17.9-25.5,26.9-.7.8-1.5,1.5-2.2,2.3v-167.3c0-9.2,9.6-17.2,20.2-17.9,8.6,0,13.7-.2,22.2-.2h149.2s0,.1,0,.1Z"/>
   <path class="st1" d="M341,277.3"/>
 </svg>
