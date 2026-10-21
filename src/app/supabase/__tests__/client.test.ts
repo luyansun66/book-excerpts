@@ -8,6 +8,15 @@
 import { describe, expect, it } from 'vitest'
 import { supabase, describeAuthError, SUPABASE_STORAGE_KEY } from '../client'
 
+/**
+ * storageKey 在类型定义里是 protected（只给 GoTrueClient 内部看），但运行时它确实挂在
+ * auth 实例上 —— 而「这个值有没有被写死」正是要盯的事，所以照上面读 supabaseUrl 的
+ * 老办法转一下类型，不用 any 蒙混过去。
+ */
+function authStorageKey(): string {
+  return (supabase.auth as unknown as { storageKey: string }).storageKey
+}
+
 describe('supabase 客户端', () => {
   it('走本站同源反代', () => {
     expect(window.location.origin).toBe('http://localhost:3000')
@@ -17,8 +26,8 @@ describe('supabase 客户端', () => {
   })
 
   it('storageKey 保持迁移前那个值，老用户不会被登出', () => {
-    expect(supabase.auth.storageKey).toBe('sb-vnbudeahnuysdbqxtzgk-auth-token')
-    expect(SUPABASE_STORAGE_KEY).toBe(supabase.auth.storageKey)
+    expect(authStorageKey()).toBe('sb-vnbudeahnuysdbqxtzgk-auth-token')
+    expect(SUPABASE_STORAGE_KEY).toBe(authStorageKey())
   })
 })
 
