@@ -174,6 +174,41 @@ San Jose），回源百度要跨太平洋，同一张 956KB 的整页图：
 如果哪天要在意这一点，出路是把代理搬到香港/新加坡（离百度近，且票不落地到浏览器），
 代价是多养一个服务；继续用 Cloudflare 边缘是没用的，上面的实测已经说明。
 
+## 云同步：为什么 supabase 的请求走本站 /api/supa
+
+登录和云同步原先由浏览器**直连** `https://<project>.supabase.co`。这条跨境链路在国内
+不是「通 / 不通」，而是**看设备、看网络**：2026-10 有用户反馈手机能登、电脑报
+`Failed to fetch`，而页面本身（Cloudflare Pages 上的 `luyansun.top`）打得开 ——
+用户看到的是「能进 App，一点登录就失败」。
+
+所以 `src/app/supabase/client.ts` 里 `supabaseUrl` 指的是**本站**的 `/api/supa`
+（supabase-js 只是把它当字符串前缀拼：`${url}/auth/v1/token`、`${url}/rest/v1/books`），
+由 `functions/api/supa/[[path]].ts` 转发到真正的项目地址。这样登录 / 同步只要求
+「能打开本站」这一条链路，不再额外要求设备连上 `supabase.co`。
+
+本地 `npm run dev` / `vite preview` 没有 Pages 运行时，`vite.config.ts` 里的
+`supaDevApi` 中间件把 `/api/supa` 接到**同一个** `proxyToSupabase()` 上
+（和 `/api/ocr-token` 一个套路），不会出现「线上能登、本地不能」。
+
+几条别踩回去的约定：
+
+- **`storageKey` 必须写死**。supabase-js 默认按 URL 主机名推 key
+  （`sb-<主机名第一段>-auth-token`），改走反代后主机名变成自己的域名，默认 key 跟着变，
+  等于把所有已登录用户当场登出。`SUPABASE_STORAGE_KEY` 就是迁移前那个值，
+  `src/app/supabase/__tests__/client.test.ts` 有断言盯着。
+- **不是开放代理**。目标域名固定，且只放行 `/auth/v1`、`/rest/v1`、`/storage/v1`、
+  `/functions/v1`、`/realtime/v1`，别的路径一律 404。anon key 本来就编在 JS 产物里，
+  这里没有新增暴露面。
+- **502 / 503 / 504 一律降级成 500**（沿用上面那条约定），否则原因会被 Cloudflare
+  的品牌错误页吃掉。`tests/supa-proxy-api.test.ts` 有断言。
+- 转发时**不带** `Host` / `Origin` / `Referer`：上游不需要知道用户从哪个页面发起。
+- 代价是每个请求多一次 Functions 调用（免费额度 10 万次/天）和一跳边缘转发；
+  载荷都是几 KB 的 JSON，可以接受。**Realtime（WebSocket）不走这里**，目前也没在用。
+
+顺带把网络失败翻成人话：`describeAuthError()` 认得出 Chrome `Failed to fetch`、
+Firefox `NetworkError…`、Safari `Load failed` 这三种说法，统一提示「连不上服务器：
+请检查网络后重试」—— 免得用户以为是密码错了，反复重试。
+
 ## 构建部署
 
 ```bash

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Cloud, CloudOff, LogIn, LogOut, UserPlus } from 'lucide-react';
-import { supabase, signUp, signIn, signOut, getCurrentUser } from '../../supabase/client';
+import { supabase, signUp, signIn, signOut, getCurrentUser, describeAuthError } from '../../supabase/client';
 import { pushAllData, pullAllData } from '../../supabase/sync';
 import { restoreFromCloud } from '../../supabase/restore';
 import { useApp } from '../../store';
@@ -34,7 +34,7 @@ export default function CloudSyncSection() {
       await signIn(email, password);
       setMsg('✅ 登录成功');
     } catch (e: any) {
-      setMsg('❌ 登录失败：' + (e?.message || String(e)));
+      setMsg('❌ 登录失败：' + describeAuthError(e));
     }
   };
 
@@ -49,7 +49,7 @@ export default function CloudSyncSection() {
       await signUp(email, password);
       setMsg('✅ 注册成功，已自动登录');
     } catch (e: any) {
-      setMsg('❌ 注册失败：' + (e?.message || String(e)));
+      setMsg('❌ 注册失败：' + describeAuthError(e));
     }
   };
 
@@ -61,7 +61,7 @@ export default function CloudSyncSection() {
       await pushAllData(data.categories, data.books, data.quotes);
       setMsg('✅ 同步成功');
     } catch (e: any) {
-      setMsg('❌ 同步失败：' + (e?.message || String(e)));
+      setMsg('❌ 同步失败：' + describeAuthError(e));
     }
     setSyncing(false);
   };
@@ -81,7 +81,7 @@ export default function CloudSyncSection() {
         setMsg('✅ 已从云端恢复');
       }
     } catch (e: any) {
-      setMsg('❌ 恢复失败：' + (e?.message || String(e)));
+      setMsg('❌ 恢复失败：' + describeAuthError(e));
     }
     setSyncing(false);
   };

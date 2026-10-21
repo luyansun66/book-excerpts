@@ -5,6 +5,7 @@ import { getQuotesByBook, addQuote as dbAddQuote, updateQuote as dbUpdateQuote, 
 import { getBookReadingMinutes } from '../db/readingTime';
 import { formatMinutesHuman } from './timer/format';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
+import CollapsibleThought from './CollapsibleThought';
 import ConfirmDialog from './ConfirmDialog';
 import { overlayPortal } from './overlayPortal';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
@@ -462,16 +463,8 @@ function QuoteCard({
         </div>
       </div>
 
-      {quote.thought && (
-        <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', marginTop: 4, paddingLeft: 2 }}>
-          <span style={{ color: 'var(--color-quote-mark)', fontSize: 13, lineHeight: 1, marginTop: 3, flexShrink: 0, userSelect: 'none' }}>
-            ↳
-          </span>
-          <p style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif', fontSize: 12.5, lineHeight: 1.65, color: 'var(--color-quote-thought)', margin: '2px 0 0', background: 'var(--color-bg-thought)', padding: '6px 10px', borderRadius: 6, whiteSpace: 'pre-wrap' }}>
-            {quote.thought}
-          </p>
-        </div>
-      )}
+      {/* 感悟长度不受控，超长时折叠（见 CollapsibleThought），不然一张卡片能占好几屏 */}
+      {quote.thought && <CollapsibleThought thought={quote.thought} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 13 }}>
         <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 9.5, color: 'var(--color-text-muted)', letterSpacing: 0.15 }}>
