@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { onRequestGet as ocrTokenHandler } from './functions/api/ocr-token'
+import { proxyToSupabase } from './functions/api/supa/[[path]]'
 
 /**
  * 本地跑 `vite dev` / `vite preview` 时，functions/ 里的 Cloudflare Function 不会执行
@@ -44,6 +45,62 @@ function ocrDevApi(env: Record<string, string>): Plugin {
   }
 }
 
+/**
+ * 本地跑 `vite dev` / `vite preview` 时把 /api/supa/* 接到 Pages Function 的同一份实现上。
+ *
+ * 为什么不能省：前端改成走同源反代之后，本地要是没有这个中间件，登录会直接 404 ——
+ * 开发时反而比线上更难用。和 ocrDevApi 一样共用同一个 handler，本地和线上的转发逻辑
+ * 就是同一份，不会出现「线上能登、本地不能」这类只在一边复现的问题。
+ *
+ * 挂在子路径上时 req.url 只剩后半截，所以要把 /api/supa 前缀拼回去。
+ */
+function supaDevApi(): Plugin {
+  const handler: Connect.NextHandleFunction = async (req, res) => {
+    try {
+      const headers = new Headers()
+      for (const [name, value] of Object.entries(req.headers)) {
+        if (value === undefined) continue
+        headers.set(name, Array.isArray(value) ? value.join(', ') : value)
+      }
+
+      // 云同步的载荷都是几 KB 的 JSON，整段读进来比在 dev 里搭流式转换省事
+      const chunks: Buffer[] = []
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        for await (const chunk of req) chunks.push(chunk as Buffer)
+      }
+
+      const request = new Request(new URL('/api/supa' + (req.url ?? ''), 'http://localhost'), {
+        method: req.method,
+        headers,
+        body: chunks.length ? Buffer.concat(chunks) : undefined,
+      })
+      const response = await proxyToSupabase(request)
+
+      res.statusCode = response.status
+      response.headers.forEach((value, name) => {
+        // 长度和编码交给 Node 按实际写出的字节重算
+        if (name === 'content-length' || name === 'content-encoding') return
+        res.setHeader(name, value)
+      })
+      res.end(Buffer.from(await response.arrayBuffer()))
+    } catch (e) {
+      res.statusCode = 500
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.end(JSON.stringify({ error: `本地 Supabase 反代出错：${(e as Error).message}` }))
+    }
+  }
+
+  return {
+    name: 'supa-dev-api',
+    configureServer(server) {
+      server.middlewares.use('/api/supa', handler)
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use('/api/supa', handler)
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   // 第三个参数传空字符串 = 不做前缀过滤，BAIDU_OCR_* 这类服务端变量才拿得到
   const env = loadEnv(mode, process.cwd(), '')
@@ -56,6 +113,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       ocrDevApi(env),
+      supaDevApi(),
     ],
     resolve: {
       alias: {
