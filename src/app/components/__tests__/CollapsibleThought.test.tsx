@@ -8,12 +8,8 @@
  */
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { render, fireEvent, cleanup } from '@testing-library/react';
-import CollapsibleThought, {
-  canSkipMeasurement,
-  collapseBlankLines,
-  isOverflowing,
-  THOUGHT_MAX_LINES,
-} from '../CollapsibleThought';
+import CollapsibleThought, { collapseBlankLines, THOUGHT_MAX_LINES } from '../CollapsibleThought';
+import { canSkipMeasurement, isOverflowing } from '../../hooks/useClampCollapse';
 
 /** 三行 × 20.6px，和渲染时的高度无关，只是给测量一个「折叠后多高」的基准。 */
 const COLLAPSED_HEIGHT = 62;
@@ -61,11 +57,12 @@ describe('折叠判定', () => {
   });
 
   it('短且没有换行就不用量', () => {
-    expect(canSkipMeasurement('记一笔')).toBe(true);
-    expect(canSkipMeasurement('a'.repeat(30))).toBe(true);
-    expect(canSkipMeasurement('a'.repeat(31))).toBe(false);
+    const lines = THOUGHT_MAX_LINES;
+    expect(canSkipMeasurement('记一笔', lines)).toBe(true);
+    expect(canSkipMeasurement('a'.repeat(30), lines)).toBe(true);
+    expect(canSkipMeasurement('a'.repeat(31), lines)).toBe(false);
     // 字数不多但换行多，照样会超
-    expect(canSkipMeasurement('短\n有换行')).toBe(false);
+    expect(canSkipMeasurement('短\n有换行', lines)).toBe(false);
   });
 
   it('折叠态压掉多余空行，但段落间距留着', () => {
