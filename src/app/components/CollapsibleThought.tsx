@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { canSkipMeasurement, useClampCollapse } from '../hooks/useClampCollapse';
 
 // ─── 摘录下方的感悟：过长时折叠 ────────────────────────────────────────────────
 //
@@ -9,27 +9,11 @@ import type { CSSProperties } from 'react';
 // 截断交给 CSS（-webkit-line-clamp），由浏览器按真实排版算，中英混排、标点避头尾、
 // 换行都算得准 —— 项目里已经用在分类网格的书名和复习卡片正文上。
 //
-// 方向很重要：**先按「会被截断」渲染，再量**。整段渲染时 scrollHeight 恒等于
-// clientHeight，量多少次都量不出溢出 —— 「先量、再决定裁不裁」的写法结论永远是
-// 「不裁」，功能等于没做（实测踩过：千字感悟一张都没折，页面还是一片正常）。
-// 所以未知就先截断、量出「确实没超 N 行」再从折叠态放开。反过来也安全：
-// 就算测量彻底失效（jsdom、老浏览器），也是老老实实截断，不会把内容撑爆。
+// 「先按会被截断渲染、再量」这套测量逻辑和摘录正文共用，在 useClampCollapse 里，
+// 连同当年踩过的坑一起。
 
 /** 折叠时最多显示几行。改动请连卡片整体高度一起看，别顺手往上加。 */
 export const THOUGHT_MAX_LINES = 3;
-
-/**
- * 亚像素误差会让「刚好 N 行」的内容量出 1px 的差，不设容差就会给一行感悟挂上展开按钮。
- * 一行 20.6px，真的多出一行不会差这么点。
- */
-const OVERFLOW_TOLERANCE_PX = 1;
-
-/**
- * 短到不可能溢出的判据，用来跳过测量（一屏几百条摘录时能省下绝大多数测量和观察）。
- * 按最窄的手机算：320px 屏、去掉各处内边距后一行只放得下约 16 个汉字，这里按 10 个算，
- * 留足余量 —— N 行以内、且没有换行，就一定不会超。
- */
-const CHARS_PER_LINE_GUESS = 10;
 
 const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif';
 
@@ -41,16 +25,6 @@ const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", s
  */
 export function collapseBlankLines(text: string): string {
   return text.replace(/^\n+/, '').replace(/\n{3,}/g, '\n\n');
-}
-
-/** 短到不用量：没有换行、总长也远小于 maxLines 行能装的字数。 */
-export function canSkipMeasurement(thought: string, maxLines: number = THOUGHT_MAX_LINES): boolean {
-  return !thought.includes('\n') && thought.length <= CHARS_PER_LINE_GUESS * maxLines;
-}
-
-/** 折叠后内容比可见区高，就是被截断了 —— 只有这时才该给展开按钮。 */
-export function isOverflowing(scrollHeight: number, clientHeight: number): boolean {
-  return scrollHeight > clientHeight + OVERFLOW_TOLERANCE_PX;
 }
 
 /**
@@ -112,70 +86,18 @@ export default function CollapsibleThought({
   maxLines = THOUGHT_MAX_LINES,
 }: CollapsibleThoughtProps) {
   const skippable = canSkipMeasurement(thought, maxLines);
-  const [expanded, setExpanded] = useState(false);
-  /**
-   * 折叠结论。null = 还没量过、或结论已作废（宽度变了），此时按「会被截断」渲染。
-   * 只有量出「确实没超 maxLines 行」才变成 false，也就是那一帧起才不再截断。
-   */
-  const [truncated, setTruncated] = useState<boolean | null>(skippable ? false : null);
-  const textRef = useRef<HTMLParagraphElement>(null);
-  const boxRef = useRef<HTMLDivElement>(null);
-
-  // 换了内容（编辑摘录、翻到另一条）就不能沿用上一条的结论，也不能还停在展开态。
-  const [measuredThought, setMeasuredThought] = useState(thought);
-  if (measuredThought !== thought) {
-    setMeasuredThought(thought);
-    setTruncated(canSkipMeasurement(thought, maxLines) ? false : null);
-    setExpanded(false);
-  }
-
-  // 量一次就够：量的时候必然是折叠态（见上面 truncated 的说明），展开态量不到溢出。
-  useLayoutEffect(() => {
-    if (expanded || skippable || truncated !== null) return;
-    const el = textRef.current;
-    if (!el) return;
-    setTruncated(isOverflowing(el.scrollHeight, el.clientHeight));
-  }, [expanded, skippable, truncated, thought, maxLines]);
-
-  // 宽度一变，结论作废：窄屏被截断的感悟，宽屏可能两行就放下了；反过来更常见 ——
-  // 桌面看好好的，手机上一开就撑满屏。观察外层灰框，它的宽度不随折叠/展开变，
-  // 只在真的换了可用宽度时才变，所以不会自己触发自己。
-  useLayoutEffect(() => {
-    if (skippable) return;
-    const box = boxRef.current;
-    if (!box) return;
-
-    let width = box.clientWidth;
-    const onWidthChange = () => {
-      const next = box.clientWidth;
-      if (next === width) return;
-      width = next;
-      // 展开态量不到溢出（高度跟着内容长），先留着手上的结论，等收起来再重算
-      if (expanded) return;
-      setTruncated(null);
-    };
-
-    if (typeof ResizeObserver === 'function') {
-      const observer = new ResizeObserver(onWidthChange);
-      observer.observe(box);
-      return () => observer.disconnect();
-    }
-    window.addEventListener('resize', onWidthChange);
-    return () => window.removeEventListener('resize', onWidthChange);
-  }, [skippable, expanded]);
+  const { clamped, truncated, expanded, toggle, measureRef } =
+    useClampCollapse<HTMLParagraphElement>({ contentKey: thought, skippable });
 
   if (!thought) return null;
-
-  // 折叠 = 还没量完（null）或量出会截断，且用户没点开。只有量出「放得下」才整段显示。
-  const clamped = !expanded && truncated !== false;
 
   return (
     <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', marginTop: 4, paddingLeft: 2 }}>
       <span style={ARROW_STYLE}>↳</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div ref={boxRef} style={BOX_STYLE}>
+        <div style={BOX_STYLE}>
           <p
-            ref={textRef}
+            ref={measureRef}
             style={
               clamped
                 ? {
@@ -194,7 +116,7 @@ export default function CollapsibleThought({
           <button
             type="button"
             aria-expanded={expanded}
-            onClick={() => setExpanded((prev) => !prev)}
+            onClick={toggle}
             style={TOGGLE_STYLE}
           >
             {expanded ? '收起' : '展开'}

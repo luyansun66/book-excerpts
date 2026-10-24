@@ -6,6 +6,7 @@ import { getBookReadingMinutes } from '../db/readingTime';
 import { formatMinutesHuman } from './timer/format';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
 import CollapsibleThought from './CollapsibleThought';
+import CollapsibleQuoteText from './CollapsibleQuoteText';
 import ConfirmDialog from './ConfirmDialog';
 import { overlayPortal } from './overlayPortal';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
@@ -453,14 +454,8 @@ function QuoteCard({
         <span style={{ position: 'absolute', top: -12, left: -4, fontFamily: 'Georgia, serif', fontSize: 40, color: 'var(--color-quote-mark)', lineHeight: 1, userSelect: 'none' }}>
           &#x201C;
         </span>
-        <p style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 14.5, lineHeight: 1.78, color: 'var(--color-text)', margin: 0, paddingTop: 8, whiteSpace: 'pre-wrap' }}>
-          {quote.text}
-        </p>
-        <div style={{ textAlign: 'right', marginTop: -4 }}>
-          <span style={{ fontFamily: 'Georgia, serif', fontSize: 40, color: 'var(--color-quote-mark)', lineHeight: 1, userSelect: 'none' }}>
-            &#x201D;
-          </span>
-        </div>
+        {/* 正文可能是一整页复制进来的，超过半屏就折起来（见 CollapsibleQuoteText） */}
+        <CollapsibleQuoteText text={quote.text} />
       </div>
 
       {/* 感悟长度不受控，超长时折叠（见 CollapsibleThought），不然一张卡片能占好几屏 */}
