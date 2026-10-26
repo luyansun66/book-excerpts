@@ -44,6 +44,12 @@ const TEXT_STYLE: CSSProperties = {
   whiteSpace: 'pre-wrap',
   // 长英文单词 / URL 不会自己断行，会把卡片横向顶出去
   overflowWrap: 'anywhere',
+  // 两端对齐，跟回顾卡（review/rolodex/ExcerptCard.tsx）和分享图（sheets/ShareCard.tsx）同一套：
+  // 中文靠拉开字距顶齐右边缘，而不是像西文那样去拉词距；lineBreak: strict 让标点不掉到行首。
+  // 折叠测量（useClampCollapse）按行数算，对齐方式不改行数。改这里要连那两处一起看。
+  textAlign: 'justify',
+  textJustify: 'inter-character' as never,
+  lineBreak: 'strict' as never,
 };
 
 const MARK_STYLE: CSSProperties = {

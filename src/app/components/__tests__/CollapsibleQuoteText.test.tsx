@@ -83,6 +83,16 @@ describe('CollapsibleQuoteText', () => {
     expect(clampOf(container)).toBe('');
   });
 
+  // 正文两端对齐：跟回顾卡、分享图同一套（见 TEXT_STYLE 的注释）。左对齐会退回行尾不齐。
+  it('正文两端对齐，中文按字伸缩、标点不掉行首', () => {
+    const { container } = render(<CollapsibleQuoteText text="短摘录" />);
+    const body = container.querySelector('p')!;
+
+    expect(body.style.textAlign).toBe('justify');
+    expect(body.style.textJustify).toBe('inter-character');
+    expect(body.style.lineBreak).toBe('strict');
+  });
+
   it('超过半屏就折到半屏的行数，并给出「展开」', () => {
     stubHeights(OVERFLOWING_HEIGHT);
 
