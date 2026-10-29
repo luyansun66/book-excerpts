@@ -3,6 +3,7 @@ import type { Book, Category, LetterBox, Quote, ReadingTime } from '../types';
 import { prepareImportData } from './prepare';
 import { pickMoveTargetOnDelete } from './categoryUtils';
 import type { ExportData, ImportResult } from './prepare';
+import { quoteHaystack } from '../searchText';
 
 export type { ExportData, ImportResult } from './prepare';
 
@@ -255,12 +256,7 @@ export async function searchQuotes(keyword: string): Promise<SearchResult[]> {
     const book = bookMap.get(q.bookId);
     const bookTitle = book?.title ?? '未知书籍';
     const bookAuthor = book?.author ?? '';
-    const haystack = [
-      q.text,
-      q.thought,
-      bookTitle,
-      bookAuthor,
-    ].filter(Boolean).join(' ');
+    const haystack = quoteHaystack(q, bookTitle, bookAuthor);
 
     if (haystack.toLowerCase().includes(lower)) {
       results.push({ quote: q, bookTitle, bookAuthor });

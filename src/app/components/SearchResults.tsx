@@ -1,5 +1,6 @@
 import { useApp } from '../store';
 import type { SearchResult } from '../db';
+import { stripRichText } from '../richText';
 
 interface SearchResultsProps {
   onSelectResult: (result: SearchResult) => void;
@@ -77,7 +78,7 @@ export default function SearchResults({ onSelectResult }: SearchResultsProps) {
               whiteSpace: 'pre-wrap',
             }}
           >
-            {highlight(result.quote.text, searchQuery)}
+            {highlight(stripRichText(result.quote.text, 'quote'), searchQuery)}
           </div>
 
           {/* Book info */}

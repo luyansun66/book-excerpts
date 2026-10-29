@@ -173,4 +173,21 @@ describe('CollapsibleQuoteText', () => {
     expect(clampOf(container)).toBe('14');
     expect(getByText('展开')).not.toBeNull();
   });
+
+  it('正文里的高程标记渲染成 mark，且折叠行数不变', () => {
+    stubHeights(OVERFLOWING_HEIGHT);
+    const { container } = render(<CollapsibleQuoteText text={LONG + '==重点=='} />);
+
+    expect(container.querySelectorAll('mark')).toHaveLength(1);
+    expect(container.querySelector('mark')!.textContent).toBe('重点');
+    expect(clampOf(container)).toBe('14');
+  });
+
+  it('这条摘录自己的高亮色优先于主题默认', () => {
+    const { container } = render(
+      <CollapsibleQuoteText text="他说==要活下去==。" markColor="#CFE8D5" />,
+    );
+
+    expect(container.querySelector('mark')!.style.background).toMatch(/rgb\(207, 232, 213\)|#CFE8D5/i);
+  });
 });

@@ -31,8 +31,16 @@ CREATE TABLE IF NOT EXISTS quotes (
   thought TEXT DEFAULT '',
   page TEXT,
   date TEXT NOT NULL,
+  color TEXT,
+  text_mark_color TEXT,
+  thought_mark_color TEXT,
   "order" INTEGER DEFAULT 0
 );
+
+-- 已有库补列（新建库上面那几列已经在了，重复执行也安全）
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS color TEXT;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS text_mark_color TEXT;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS thought_mark_color TEXT;
 
 -- Indexes for faster queries
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);

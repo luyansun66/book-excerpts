@@ -8,6 +8,7 @@
 // 标记都是导出链路的契约，改动会直接改变出图结果。
 
 import type { Quote } from '../../types';
+import { stripRichText } from '../../richText';
 
 /** 卡片排版宽度。导出时 scale=3，出图 810px 宽。 */
 export const CARD_WIDTH = 270;
@@ -58,7 +59,8 @@ export default function ShareCard({
   stickerSvg,
   shadow = '0 8px 40px rgba(0,0,0,0.12)',
 }: ShareCardProps) {
-  const size = quoteFontSize(quote.text);
+  // 分档看的是「真字」的长度：标记符号不该把摘录往小一号的档位里挤。
+  const size = quoteFontSize(stripRichText(quote.text, 'quote'));
   const markSize = Math.min(size * 1.8, 34);
 
   return (
@@ -106,7 +108,7 @@ export default function ShareCard({
           whiteSpace: 'pre-wrap',
         }}
       >
-        {quote.text}
+        {stripRichText(quote.text, 'quote')}
       </p>
 
       <div style={{ textAlign: 'right', marginTop: 2 }}>
@@ -139,7 +141,7 @@ export default function ShareCard({
             whiteSpace: 'pre-wrap',
           }}
         >
-          {quote.thought}
+          {stripRichText(quote.thought, 'thought')}
         </div>
       )}
 

@@ -18,6 +18,7 @@ import {
   preloadFont,
   subsetFamily,
 } from './shareCardExport';
+import { stripRichText } from '../../richText';
 
 // ─── Color themes ─────────────────────────────────────────────────────────────
 interface ColorTheme {
@@ -218,7 +219,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     let cancelled = false;
     setSubsetReadyFace(null);
     setSubsetFailedFace(null);
-    const text = collectCardText(quote.text);
+    const text = collectCardText(stripRichText(quote.text, 'quote'));
     (async () => {
       const subset = await fetchSubsetFont(font.face, text);
       // 拉取期间用户换了字体：这次结果作废，连注入都不要做，
@@ -311,7 +312,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     if (font.id === 'system') return font.family;
     if (subsetReady) return subsetStack;
 
-    const text = collectCardText(quote.text);
+    const text = collectCardText(stripRichText(quote.text, 'quote'));
     const subset = await fetchSubsetFont(font.face, text);
     if (subset) {
       await applySubsetFont(subset, text);

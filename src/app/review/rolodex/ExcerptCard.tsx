@@ -6,6 +6,8 @@
 
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Book, Quote } from '../../types';
+import RichText from '../../components/RichText';
+import { normalizeMarkColor } from '../../quoteMarkColors';
 import { FONT_TIERS, LINE_HEIGHT_RATIO, guessTierIndex, pickTierIndex } from '../cardFit';
 import { CARD_H, CARD_W, COLORS, HEI_STACK, SERIF_STACK } from './tokens';
 
@@ -76,6 +78,8 @@ interface Props {
 }
 
 function ExcerptCardImpl({ quote, book, onOpenFull }: Props) {
+  // 回顾卡是固定纸色的实物：这条摘录没设色时保持原来的金色半透明。
+  const markBackground = normalizeMarkColor(quote.textMarkColor) ?? COLORS.highlightBg;
   const probeRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<Fit | null>(() => fitCache.get(quote.id) ?? null);
 
@@ -154,7 +158,7 @@ function ExcerptCardImpl({ quote, book, onOpenFull }: Props) {
             lineHeight: `${body.lineHeight}px`,
           }}
         >
-          {quote.text}
+          <RichText text={quote.text} scope="quote" markBackground={markBackground} />
         </div>
       </div>
 
@@ -172,7 +176,7 @@ function ExcerptCardImpl({ quote, book, onOpenFull }: Props) {
           height: 'auto',
         }}
       >
-        {quote.text}
+        <RichText text={quote.text} scope="quote" markBackground={markBackground} />
       </div>
 
       {/* 落款：书名 / 作者 / 日期。三行同字号、同颜色、同字体，靠行序而不是靠大小和深浅
