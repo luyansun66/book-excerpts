@@ -1,7 +1,7 @@
 # 摘录正文与感悟的轻量格式（A 档）—— 设计文档
 
 **日期：** 2026-10-28
-**状态：** 设计已确认（用户选定 A 档），待实现
+**状态：** 已实现（2026-10-29 调整为按每条摘录独立设置高亮色）
 **关联问题：** 用户希望「添加摘录」页的「摘录原文」「我的感悟」能加文字格式，参考 iPhone 备忘录的格式面板
 
 ## 1. 背景与目标
@@ -11,9 +11,9 @@
 
 用户想照备忘录那样格式面板化：标题/小标题/副标题/正文/等宽、B/I/U/S、荧光笔、项目符号/编号/虚线列表、缩进、勾选清单。
 
-**目标（本档只放行四样标记）：**
+**目标（本档只放行两样标记）：**
 
-- 我的感悟：加粗、无序列表、有序列表、行内高亮。
+- 我的感悟：加粗、行内高亮。
 - 摘录原文：只做行内高亮（划重点）。
 
 **非目标：**
@@ -50,34 +50,44 @@
 `src/app/mailbox/letterMetrics.ts` 那张按字体逐字生成的度量表（生成脚本 `scripts/gen-letter-metrics.py`）
 和字体子集化端点（`functions/api/fonts/subset.ts`）都要跟着扩 —— 收益只是「原文更黑一点」。
 
+所以**分享卡不渲染标记**：导出前统一 `stripRichText`，图上只有干净正文。这是有意为之，
+不是漏做 —— 单字重字族的伪粗体会让字形发肿，配不上卡片原来的排版。
+
 ## 3. 标记集（唯一真相）
 
 | 标记 | 语法 | 允许出现在 | 渲染成 |
 |---|---|---|---|
-| 行内高亮 | `==文字==` | 摘录原文 + 感悟 | `mark`，底色走新令牌 |
+| 行内高亮 | `==文字==` | 摘录原文 + 感悟 | `mark`，底色按这条摘录所选颜色，未选则走主题令牌 |
 | 加粗 | `**文字**` | 只感悟 | `strong` |
-| 无序列表 | 行首 `- ` | 只感悟 | 行内前缀 `· ` |
-| 有序列表 | 行首 `1. `、`2. ` … | 只感悟 | 行内前缀 `1. `、`2. ` … |
 
 解析规则（每一条都要有单测）：
 
 1. 标记必须**成对**且**不跨行**。
 2. 不嵌套：`==**x**==` 按字面显示（v1 不解析嵌套）。
 3. 未闭合的标记按字面显示，**不吞字**。
-4. 摘录原文栏（scope=quote）只解析 `==`；`**`、`- `、`1. ` 全部原样显示。
+4. 摘录原文栏（scope=quote）只解析 `==`；`**` 全部原样显示。
+5. 不做列表：行首 `- ` / `1. ` / `2. ` 等一律当普通文字，不换前缀、不产生 `ul` / `ol`。
 
-## 4. 数据格式：仍是 TEXT 列，存标记文本
+## 4. 数据格式：标记文本 + 两个可选颜色字段
 
-不新增列、不迁 schema。现有四条数据链路全部按纯文本假设，选「标记文本」后它们一行都不用改：
+`text` / `thought` 仍是 TEXT，存标记文本；颜色是每条摘录自己的数据，各加一个可空 TEXT 列：
 
-- 云同步：`src/app/supabase/sync.ts:55`、`:105`（`text` / `thought` 直接当字符串传）
+- `quotes.text_mark_color` → `Quote.textMarkColor`：摘录原文高亮色
+- `quotes.thought_mark_color` → `Quote.thoughtMarkColor`：感悟高亮色
+- 值只存 `#RRGGBB`；空 = 主题默认。分类色 `quote.color` 仍只用于卡片左边条和蒙层，两者不复用。
+- 两个字段不建索引，所以 Dexie 不需要 bump `DB_VERSION`；Supabase 已有库执行
+  `supabase_schema.sql` 里对应的几条 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`。
+
+标记文本本身仍让现有四条链路按纯文本工作：
+
+- 云同步：`src/app/supabase/sync.ts`（`text` / `thought` 与两个颜色字段一起传）
 - JSON 备份与导入：`src/app/db/prepare.ts`
 - markdown 导出：`src/app/db/index.ts:377`（`> ${q.text}`）
 - 搜索：`src/app/db/index.ts:259`（`haystack` 拼接）
 
-附带好处：导出的 `.md` 天然带样式（`**` 是标准 md，`==` 是常见扩展）。旧数据（纯文本）就是合法输入，
-不需要迁移。若改存 HTML 或 delta：搜索与 md 导出会被标签/结构污染，每个渲染面都要加 sanitize，
-schema 与同步还得兼容两套格式。
+附带好处：导出的 `.md` 天然带样式（`**` 是标准 md，`==` 是常见扩展）。旧数据（纯文本、没有颜色字段）
+就是合法输入，不需要迁移。若改存 HTML 或 delta：搜索与 md 导出会被标签/结构污染，每个渲染面都要加
+sanitize，schema 与同步还得兼容两套格式。
 
 ## 5. 解析与渲染
 
@@ -86,48 +96,50 @@ schema 与同步还得兼容两套格式。
 ```ts
 export type RichScope = 'quote' | 'thought';
 export type Inline = { kind: 'text' | 'strong' | 'mark'; text: string };
-export type LineBlock = { kind: 'p' | 'ul' | 'ol'; marker: string; inlines: Inline[] };
 
-export function parseRichText(text: string, scope: RichScope): LineBlock[];
+export function parseRichText(text: string, scope: RichScope): Inline[][];
 export function stripRichText(text: string, scope: RichScope): string;
 ```
 
-- 逐行解析：行首列表符号决定该行是列表项（`marker` 给 `· ` 或 `1. `），行内再按标记切分。
-- `kind` 只描述「这一行是普通段落还是列表项、缩进用哪种前缀」，**渲染层不据此生成 `ul` / `ol` 元素**（见 §5.2）。
+- 逐行解析：返回「每行的行内片段」，行间由渲染层补 `\n`；不识别行首列表符号。
 - 行内匹配从左到右、**非贪婪**：`==a==b==` 只把 `a` 判为高亮，剩下的 `b==` 按字面显示。
-- 有序列表的数字**原样显示**，不重排、不校验连续性（从别处粘来的 `1.` / `1.` / `3.` 保持原样，不替用户改内容）。
-- `stripRichText` 只摘掉成对标记符号，**保留**行首列表前缀（信件里显示 `- 文字` 比吞掉更忠实）。
+- `stripRichText` 只摘掉成对标记符号，其余字符（包括行首的 `- ` / `1. `）原样保留。
 - 段落之间不加任何 margin，段间距仍由原文里的空行决定（沿用现在的 `white-space: pre-wrap`）。
 - 复杂度 O(n)，不做缓存：一条摘录几百字，解析发生在渲染时，量级可以忽略。
 
 ### 5.2 新增 `src/app/components/RichText.tsx`
 
 **核心约束：整段渲染成单一文本块。** 输出沿用现在的容器（`whiteSpace: 'pre-wrap'`），内部**只有行内元素**
-（`span` / `strong` / `mark`），列表项也只是「行内前缀 + 悬挂缩进」，**不产生 `ul` / `ol` / `li` / `p` 等块级子元素**。
+（`span` / `strong` / `mark`），**不产生 `ul` / `ol` / `li` / `p` 等块级子元素**。
 
 理由是仓库已经踩过两次的坑：折叠用 `-webkit-line-clamp`，它的裁剪边界是 padding box 而不是行边界
 （见 `src/app/components/CollapsibleThought.tsx:30` 的注释，以及「6px 内边距漏出 3px 字头」的实测记录）。
 引入多层块级子元素会让裁剪边界与行边界脱钩，底部出现「腰斩字」。
 
-- 悬挂缩进：`paddingLeft: 1.2em` + `textIndent: -1.2em`，不引入额外块。
-- 高亮：`background: var(--color-quote-mark-bg)`，`boxDecorationBreak: 'clone'`（跨行的 `mark` 每行都画上底色），
+- 高亮：`background` 优先用这条摘录的 `textMarkColor` / `thoughtMarkColor`，没有就回落
+  `var(--color-quote-mark-bg)`；`boxDecorationBreak: 'clone'`（跨行的 `mark` 每行都画上底色），
   字色保持 `var(--color-text)` 不变。
 - 回顾卡的探针与真卡必须用同一棵树（见 §6 表第 4 行）。
 
 ### 5.3 新增令牌
 
 `src/styles/tokens.css` 增加 `--color-quote-mark-bg`，亮/暗各一套（挨着 `--color-bg-thought` 放：
-亮色 `src/styles/tokens.css:16`、暗色 `:167`）。不写死颜色 —— 这个仓库专门做过「写死的浅色收进设计令牌」。
+亮色 `src/styles/tokens.css:16`、暗色 `:167`），作为「没有单独选色」时的默认。不写死颜色 ——
+这个仓库专门做过「写死的浅色收进设计令牌」。每摘录颜色由添加页的工具栏选择，不设全局阅读设置。
+
+回顾卡是例外：那个舞台是「一块固定纸色的实物」，配色全在 `src/app/review/rolodex/tokens.ts` 的 `COLORS` 里写死
+（`paper: '#fdfcf9'` 等），刻意不跟主题联动。所以 `COLORS` 再加一个 `highlightBg`，由 `ExcerptCard` 显式传给
+`<RichText markBackground={COLORS.highlightBg}>`，而不是让它去读 CSS 变量。
 
 ## 6. 接入点
 
 | # | 文件 | 现状 | 改法 |
 |---|---|---|---|
-| 1 | `src/app/components/sheets/AddQuoteSheet.tsx:174`、`:278` | 两个 autoResize 的 `<textarea>` | 各加一行工具栏（见 §6.1）；摘录栏只给「高亮」，感悟栏给全套四样 |
+| 1 | `src/app/components/sheets/AddQuoteSheet.tsx` | 两个 autoResize 的 `<textarea>` | 各加一行工具栏（见 §6.1）；摘录栏只给「高亮」，感悟栏给「加粗 / 高亮」；两栏各带一组自己的高亮色（预设 + 自定义） |
 | 2 | `src/app/components/CollapsibleQuoteText.tsx:119` | `{text}` | `<RichText scope="quote">` |
 | 3 | `src/app/components/CollapsibleThought.tsx:112` | `{clamped ? collapseBlankLines(thought) : thought}` | 折叠与展开都过 `<RichText scope="thought">`；`collapseBlankLines` 先跑（它只动空行，与标记无关） |
 | 4 | `src/app/review/rolodex/ExcerptCard.tsx:157` 与探针 `:175` | 两处 `{quote.text}` | 两处都换 `<RichText scope="quote">`，**必须同树** |
-| 5 | `src/app/components/sheets/ShareCard.tsx:109` 与感悟 `:142` | 两处朴素文本（感悟走系统字体，见 `:49`） | 分别换 `<RichText scope="quote">` / `<RichText scope="thought">` |
+| 5 | `src/app/components/sheets/ShareCard.tsx:109` 与感悟 `:142` | 两处朴素文本（感悟走系统字体，见 `:49`） | 保持纯文本：两处先 `stripRichText`，字号分档也按 strip 后的长度算（原因见 §2.3） |
 | 6 | `src/app/components/sheets/ShareSheet.tsx:221`、`:314` | `collectCardText(quote.text)` | 传 `stripRichText(quote.text, 'quote')`：子集里不该混进 `=` 字形（`collectCardText` 只收正文，不含感悟） |
 | 7 | `src/app/review/ReviewPage.tsx:341` | `{quote.text}` | `<RichText scope="quote">` |
 | 8 | `src/app/mailbox/letterLogic.ts:94` | `buildLetter(..., quote.text, ...)` | 传 strip 后的文本 |
@@ -140,6 +152,9 @@ export function stripRichText(text: string, scope: RichScope): string;
 - 有选区：把标记包在选区外；无选区：在光标处插一对标记并把光标放到中间。
 - 插入后必须还原焦点与光标（`setSelectionRange`），否则连点两次就跳走。
 - 已有同种标记的选区再点一次 = 去掉标记（toggle）。
+- 每栏工具栏带「清除」：一次去掉本栏所有成对 `==`，保留文字与 `**加粗**`；
+  本栏没有高亮时禁用。清除只作用于标记，不改已选高亮色，之后继续加高亮仍沿用当前颜色。
+- 高亮色是每条摘录自己的字段，两栏各选一个；默认项不写值，交给亮/暗主题。
 - 保留 `autoResize`（`AddQuoteSheet.tsx:30`）与 OCR 追加路径（`:237`）不变 —— OCR 只往 `text` 追加纯文本。
 - 不换 contenteditable 的理由：要连自动增高、OCR 插入、光标恢复、中文输入法组合态一起处理，
   且富文本编辑器（tiptap/lexical）会给主包加 100KB+，而这四样标记用「选区包裹」就能覆盖。
@@ -151,7 +166,7 @@ export function stripRichText(text: string, scope: RichScope): string;
 
 ## 7. 兼容与回滚
 
-- 无 schema 变更、无同步协议变更，旧数据即合法输入。
+- 只增加两个可空颜色列；旧数据没有颜色字段时合法，渲染回落到主题默认。
 - 实现前先扫一遍真库，统计 `text` / `thought` 里已存在的成对 `==` 条数（理论上为 0；若有，那些条目会被当作高亮）。
 - 回滚：渲染层关掉标记分支即回到纯文本；或用 `stripRichText` 批量清洗。
 
@@ -159,18 +174,21 @@ export function stripRichText(text: string, scope: RichScope): string;
 
 | 文件 | 覆盖 |
 |---|---|
-| `src/app/__tests__/richText.test.ts`（新） | 成对 / 未闭合 / 跨行 / 嵌套 / scope 限制 / 列表前缀 / strip 等价性 |
+| `src/app/__tests__/richText.test.ts`（新） | 成对 / 未闭合 / 跨行 / 嵌套 / scope 限制 / 行首符号按普通文字 / strip 等价性 |
 | `src/app/components/__tests__/CollapsibleQuoteText.test.tsx` | 带标记的正文渲染出 `mark`；折叠行数与按钮行为不变 |
-| `src/app/components/__tests__/CollapsibleThought.test.tsx` | 带加粗与列表的感悟；断言输出是单一文本块 |
-| `src/app/components/__tests__/AddQuoteSheet.test.tsx` | 工具栏在选区/光标处插入、toggle 去标记、OCR 追加不受影响 |
+| `src/app/components/__tests__/CollapsibleThought.test.tsx` | 带加粗的感悟；行首符号原样保留；断言输出是单一文本块 |
+| `src/app/components/__tests__/AddQuoteSheet.test.tsx` | 工具栏在选区/光标处插入、toggle 去标记、一键清除本栏高亮（保留文字/加粗与另一栏）、OCR 追加不受影响 |
+| `src/app/__tests__/quoteMarkColors.test.ts`（新） | 只接受 `#RRGGBB`；非法值回落；默认项为空 |
+| `CollapsibleQuoteText` / `CollapsibleThought` / `ExcerptCard` 用例 | 每摘录颜色优先；回顾卡正文与探针共用同一底色 |
 | `src/app/review/__tests__/cardFit.test.ts` | 探针与真卡渲染同一棵树 |
 | 搜索用例 | `==` 标记不影响命中；搜 `==` 不误命中 |
 
 ## 9. 已知边界
 
-- 列表没有 `ul` 语义（无障碍少一层 list role），这是为折叠裁剪边界稳定做的取舍。
+- 不做列表：用户手打的 `- ` / `1. ` 只是普通文字，没有 `ul` / `ol` 语义（A 档已移除列表）。
 - 不支持嵌套与跨行标记；`==**x**==` 会按字面显示。
-- 编辑态没有实时预览：保存后在卡片、回顾页、分享图里才看到样式。
+- 编辑态没有实时预览：保存后在详情卡、回顾卡、回顾页里才看到样式。
+- 分享图只导出纯文本（strip 掉标记），不带高亮与加粗（原因见 §2.3）。
 - 手打成对 `==` 的旧数据会被识别为高亮（§7 会先扫库确认）。
 - 时光信箱里看不到任何样式（只做 strip）。
 

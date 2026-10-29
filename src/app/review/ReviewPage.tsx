@@ -24,6 +24,8 @@ import {
   STAGE_PAD_TOP,
   STAGE_W,
 } from './rolodex/tokens';
+import RichText from '../components/RichText';
+import { normalizeMarkColor } from '../quoteMarkColors';
 import {
   buildRound,
   isAtRoundEnd,
@@ -338,7 +340,11 @@ function FullTextSheet({ quote, book, onClose }: { quote: Quote; book: Book | nu
             wordBreak: 'break-word',
           }}
         >
-          {quote.text}
+          <RichText
+            text={quote.text}
+            scope="quote"
+            markBackground={normalizeMarkColor(quote.textMarkColor)}
+          />
         </div>
         <div style={{ marginTop: 18, fontFamily: HAND_STACK, fontSize: 21, color: COLORS.ink }}>
           {book?.title || '未知书目'}
