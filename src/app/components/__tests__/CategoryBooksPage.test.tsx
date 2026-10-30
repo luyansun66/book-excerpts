@@ -89,6 +89,29 @@ describe('分类书籍网格页', () => {
     expect(container.textContent).not.toContain('存在与时间');
   });
 
+  /**
+   * 三列必须严格等宽 —— 书架首页点进来时每本书都该一样大。
+   *
+   * jsdom 不排版、量不出宽度，所以这里钉的是「能保证等宽的那两条声明」，不是像素：
+   * 轨道写 `minmax(0, 1fr)`（裸的 `1fr` 等于 `minmax(auto, 1fr)`，会被格子里
+   * 内容的**最小宽度**撑开），格子再写 `min-width: 0`。
+   *
+   * 作者那一行是 `white-space: nowrap` 配省略号的，内容最小宽度 = 整个作者名的
+   * 宽度，所以作者名一长就会把它所在那一列撑宽、另外两列被挤窄。真实浏览器里量过
+   * （430px 视口、作者名 12 个字）：改之前是 118.78 / 105.61 / 105.61，改之后
+   * 三列都是 110。少了这两条声明，本用例会红。
+   */
+  it('三列等宽：网格轨道用 minmax(0, 1fr)，每格用 min-width: 0', () => {
+    const { container } = open();
+    const grid = cells(container)[0].parentElement as HTMLElement;
+    expect(grid.style.display).toBe('grid');
+    expect(grid.style.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+    for (const cell of cells(container)) {
+      // React 的数值 0 经 jsdom 归一化成 '0px'
+      expect(cell.style.minWidth).toBe('0px');
+    }
+  });
+
   it('标题栏只显示分类名，不再挂书籍数量', () => {
     const { container } = open();
     expect(container.textContent).toContain('文学');

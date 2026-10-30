@@ -273,7 +273,18 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
               ref={gridRef}
               style={{
                 display: 'grid',
-                gridTemplateColumns: `repeat(${CATEGORY_GRID_COLUMNS}, 1fr)`,
+                /**
+                 * 列宽必须写 `minmax(0, 1fr)`，不能写裸的 `1fr`。
+                 *
+                 * `1fr` 展开是 `minmax(auto, 1fr)`：`auto` 那一段取的是格子的
+                 * **内容最小宽度**，也就是格子里最长的那行不可断行文字。作者那一行
+                 * 是 `white-space: nowrap`（配省略号），最小宽度就是一整个作者名的
+                 * 宽度 —— 作者名一长（超过一列 110px），它所在的那一列就被撑宽，
+                 * 另外两列跟着被挤窄，看起来就是「第一列的书比后两列大一圈」。
+                 * 改成 `minmax(0, 1fr)` 之后三列严格等宽，内容超出由各自的
+                 * `overflow: hidden` 兜底。
+                 */
+                gridTemplateColumns: `repeat(${CATEGORY_GRID_COLUMNS}, minmax(0, 1fr))`,
                 gap: `22px ${GRID_GAP}px`,
                 padding: `2px ${GRID_PADDING}px 0`,
               }}
@@ -289,6 +300,8 @@ export function CategoryBooksPage({ categoryId, onBack }: CategoryBooksPageProps
                     flexDirection: 'column',
                     gap: 7,
                     width: '100%',
+                    /* 同上：不写 0 的话，格子仍按内容最小宽度撑开、溢出自己的列 */
+                    minWidth: 0,
                     padding: 0,
                     border: 'none',
                     background: 'none',
