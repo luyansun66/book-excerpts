@@ -470,11 +470,11 @@ function QuoteCard({
           &#x201C;
         </span>
         {/* 正文可能是一整页复制进来的，超过半屏就折起来（见 CollapsibleQuoteText） */}
-        <CollapsibleQuoteText text={quote.text} />
+        <CollapsibleQuoteText text={quote.text} markColor={quote.textMarkColor} />
       </div>
 
       {/* 感悟长度不受控，超长时折叠（见 CollapsibleThought），不然一张卡片能占好几屏 */}
-      {quote.thought && <CollapsibleThought thought={quote.thought} />}
+      {quote.thought && <CollapsibleThought thought={quote.thought} markColor={quote.thoughtMarkColor} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 13 }}>
         <span style={{ fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif', fontSize: 9.5, color: 'var(--color-text-muted)', letterSpacing: 0.15 }}>
@@ -604,7 +604,15 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   }, [book.id]);
 
   // ─── Add quote (direct DB write + optimistic local update) ──────────────
-  const handleAddQuote = async (data: { text: string; thought: string; page: string | null; date: string; color?: string }) => {
+  const handleAddQuote = async (data: {
+    text: string;
+    thought: string;
+    page: string | null;
+    date: string;
+    color?: string;
+    textMarkColor?: string;
+    thoughtMarkColor?: string;
+  }) => {
     try {
       const newQuote = await dbAddQuote({
         bookId: book.id,
@@ -613,6 +621,8 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         page: data.page,
         date: data.date,
         color: data.color,
+        textMarkColor: data.textMarkColor,
+        thoughtMarkColor: data.thoughtMarkColor,
       });
       if (isMounted.current) {
         setQuotes(prev => [newQuote, ...prev]);
@@ -627,7 +637,15 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
   };
 
   // ─── Edit quote ─────────────────────────────────────────────────────────
-  const handleEditQuote = async (data: { text: string; thought: string; page: string | null; date: string; color?: string }) => {
+  const handleEditQuote = async (data: {
+    text: string;
+    thought: string;
+    page: string | null;
+    date: string;
+    color?: string;
+    textMarkColor?: string;
+    thoughtMarkColor?: string;
+  }) => {
     if (!editQuote) return;
     try {
       await dbUpdateQuote(editQuote.id, {
@@ -636,10 +654,22 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         page: data.page,
         date: data.date,
         color: data.color,
+        textMarkColor: data.textMarkColor,
+        thoughtMarkColor: data.thoughtMarkColor,
       });
       if (isMounted.current) {
         setQuotes(prev => prev.map(q =>
-          q.id === editQuote.id ? { ...q, text: data.text, thought: data.thought, page: data.page, date: data.date, color: data.color, updatedAt: new Date().toISOString() } : q,
+          q.id === editQuote.id ? {
+            ...q,
+            text: data.text,
+            thought: data.thought,
+            page: data.page,
+            date: data.date,
+            color: data.color,
+            textMarkColor: data.textMarkColor,
+            thoughtMarkColor: data.thoughtMarkColor,
+            updatedAt: new Date().toISOString(),
+          } : q,
         ));
         setEditQuote(null);
       }

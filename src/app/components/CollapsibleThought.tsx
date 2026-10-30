@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
 import { canSkipMeasurement, useClampCollapse } from '../hooks/useClampCollapse';
+import RichText from './RichText';
+import { normalizeMarkColor } from '../quoteMarkColors';
 
 // ─── 摘录下方的感悟：过长时折叠 ────────────────────────────────────────────────
 //
@@ -79,13 +81,17 @@ const TOGGLE_STYLE: CSSProperties = {
 interface CollapsibleThoughtProps {
   thought: string;
   maxLines?: number;
+  /** 这条摘录感悟高亮的底色；空 = 主题默认 */
+  markColor?: string;
 }
 
 export default function CollapsibleThought({
   thought,
   maxLines = THOUGHT_MAX_LINES,
+  markColor,
 }: CollapsibleThoughtProps) {
   const skippable = canSkipMeasurement(thought, maxLines);
+  const markBackground = normalizeMarkColor(markColor);
   const { clamped, truncated, expanded, toggle, measureRef } =
     useClampCollapse<HTMLParagraphElement>({ contentKey: thought, skippable });
 
@@ -109,7 +115,11 @@ export default function CollapsibleThought({
                 : TEXT_STYLE
             }
           >
-            {clamped ? collapseBlankLines(thought) : thought}
+            <RichText
+              text={clamped ? collapseBlankLines(thought) : thought}
+              scope="thought"
+              markBackground={markBackground}
+            />
           </p>
         </div>
         {truncated === true && (

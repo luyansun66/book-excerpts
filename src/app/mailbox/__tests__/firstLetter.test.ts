@@ -65,3 +65,13 @@ describe('第一封信的内置文案', () => {
     expect(attrs[0].y - lastQuoteBaseline - 0.22 * sizes[0] - 0.85 * 34).toBeGreaterThanOrEqual(85 - 0.5);
   });
 });
+
+// 信件是 SVG 纯文本排版，标记符号会被原样画出来。这条守的是 letterLogic
+// 在进 buildLetter 前必须 strip —— 以后谁把那两行删了，信里就会印出 == 和 **。
+describe('信件入口的纯文本约定', () => {
+  it('进信件排版前，标记会被洗干净', async () => {
+    const { stripRichText } = await import('../../richText');
+    expect(stripRichText('他说==要活下去==。', 'quote')).toBe('他说要活下去。');
+    expect(stripRichText('- **第一点**', 'thought')).toBe('- 第一点');
+  });
+});

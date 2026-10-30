@@ -1,14 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { X, Camera } from 'lucide-react';
 import { recognizeText, compressImage } from '../../ocr';
 import type { Quote } from '../../types';
 import ImageCropper from '../ImageCropper';
 import { overlayPortal } from '../overlayPortal';
+import FormatToolbar, { type FormatCommand } from '../FormatToolbar';
+import { stripHighlightMarkers, toggleInlineMarker } from '../../richText';
+import { normalizeMarkColor } from '../../quoteMarkColors';
 
 interface AddQuoteSheetProps {
   open: boolean;
   onClose: () => void;
-  onSave: (data: { text: string; thought: string; page: string | null; date: string; color?: string }) => Promise<void>;
+  onSave: (data: {
+    text: string;
+    thought: string;
+    page: string | null;
+    date: string;
+    color?: string;
+    textMarkColor?: string;
+    thoughtMarkColor?: string;
+  }) => Promise<void>;
   editQuote?: Quote | null; // if provided, we're editing
   onCroppingChange?: (cropping: boolean) => void;
 }
@@ -19,6 +30,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
   const [page, setPage] = useState(editQuote?.page?.toString() ?? '');
   const [date, setDate] = useState(editQuote?.date ?? new Date().toISOString().slice(0, 10));
   const [color, setColor] = useState(editQuote?.color ?? '');
+  const [textMarkColor, setTextMarkColor] = useState(editQuote?.textMarkColor ?? '');
+  const [thoughtMarkColor, setThoughtMarkColor] = useState(editQuote?.thoughtMarkColor ?? '');
   const [colorNames, setColorNames] = useState<Record<string, string>>(() => {
     try {
       const saved = localStorage.getItem('quoteColorNames');
@@ -32,6 +45,31 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
 
   const textRef = useRef<HTMLTextAreaElement | null>(null);
   const thoughtRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /** 插入标记后要还原的选区。等这次 setState 渲染完再落，直接同步设会被旧 value 覆盖。 */
+  const pendingSel = useRef<{ el: HTMLTextAreaElement; start: number; end: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const pending = pendingSel.current;
+    if (!pending) return;
+    pendingSel.current = null;
+    pending.el.focus();
+    pending.el.setSelectionRange(pending.start, pending.end);
+  });
+
+  const applyFormat = (
+    el: HTMLTextAreaElement | null,
+    value: string,
+    setValue: (next: string) => void,
+    cmd: FormatCommand,
+  ) => {
+    if (!el) return;
+    const start = el.selectionStart ?? value.length;
+    const end = el.selectionEnd ?? start;
+    const result = toggleInlineMarker(value, start, end, cmd === 'bold' ? '**' : '==');
+    setValue(result.next);
+    pendingSel.current = { el, start: result.selStart, end: result.selEnd };
+  };
 
   const autoResize = (el: HTMLTextAreaElement | null) => {
     if (!el) return;
@@ -55,6 +93,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
       setPage(editQuote.page?.toString() ?? '');
       setDate(editQuote.date);
       setColor(editQuote.color ?? '');
+      setTextMarkColor(editQuote.textMarkColor ?? '');
+      setThoughtMarkColor(editQuote.thoughtMarkColor ?? '');
     }
   }, [editQuote]);
 
@@ -70,6 +110,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
       setPage('');
       setDate(new Date().toISOString().slice(0, 10));
       setColor('');
+      setTextMarkColor('');
+      setThoughtMarkColor('');
     }
   };
 
@@ -84,6 +126,8 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
         page: page.trim() || null,
         date,
         color: color || undefined,
+        textMarkColor: normalizeMarkColor(textMarkColor),
+        thoughtMarkColor: normalizeMarkColor(thoughtMarkColor),
       });
       reset();
       onClose();
@@ -96,7 +140,17 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
     }
   };
 
+  const clearTextHighlights = () => {
+    setText((current) => stripHighlightMarkers(current));
+  };
+
+  const clearThoughtHighlights = () => {
+    setThought((current) => stripHighlightMarkers(current));
+  };
+
   const isValid = text.trim();
+  const textHasHighlights = stripHighlightMarkers(text) !== text;
+  const thoughtHasHighlights = stripHighlightMarkers(thought) !== thought;
 
   if (!open) return null;
 
@@ -170,6 +224,14 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
             <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
               摘录原文 *
             </label>
+            <FormatToolbar
+              scope="quote"
+              onCommand={(cmd) => applyFormat(textRef.current, text, setText, cmd)}
+              markColor={textMarkColor}
+              onMarkColorChange={setTextMarkColor}
+              hasHighlights={textHasHighlights}
+              onClearHighlights={clearTextHighlights}
+            />
             <textarea
               ref={textRef}
               placeholder="输入引用的原文段落…"
@@ -274,6 +336,14 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
             <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
               我的感悟
             </label>
+            <FormatToolbar
+              scope="thought"
+              onCommand={(cmd) => applyFormat(thoughtRef.current, thought, setThought, cmd)}
+              markColor={thoughtMarkColor}
+              onMarkColorChange={setThoughtMarkColor}
+              hasHighlights={thoughtHasHighlights}
+              onClearHighlights={clearThoughtHighlights}
+            />
             <textarea
               ref={thoughtRef}
               placeholder="输入你对这段话的想法…"

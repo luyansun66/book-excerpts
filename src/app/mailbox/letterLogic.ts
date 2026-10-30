@@ -7,6 +7,7 @@ import { getBook, getLetterBox, getQuote, getRandomQuote, LETTER_BOX_KEY, saveLe
 import type { LetterBox } from '../types';
 import { beijingDateCN, beijingDateEN, beijingDateKey } from './dates';
 import { generateLetterSvg } from './svgGenerator';
+import { stripRichText } from '../richText';
 
 // ─── 第一封信的内置文案 ────────────────────────────────────────────────────────
 // 新用户一条摘录都还没有时，不弹「还没有摘录」的空状态，而是把这段话当成开箱礼送出。
@@ -60,7 +61,7 @@ export async function obtainLetter(): Promise<LetterResult> {
       return buildLetter(state.receivedCount, FIRST_LETTER.quoteText, FIRST_LETTER.bookTitle, FIRST_LETTER.bookAuthor);
     }
     const quote = state.quoteId ? await getQuote(state.quoteId) : null;
-    const text = quote?.text ?? '';
+    const text = stripRichText(quote?.text ?? '', 'quote');
     const bookTitle = quote ? ((await getBook(quote.bookId))?.title ?? '未知') : '未知';
     const bookAuthor = quote ? ((await getBook(quote.bookId))?.author ?? '佚名') : '佚名';
     return buildLetter(state.receivedCount, text, bookTitle, bookAuthor);
@@ -91,5 +92,5 @@ export async function obtainLetter(): Promise<LetterResult> {
   };
   await saveLetterBox(next);
 
-  return buildLetter(receivedCount, quote.text, book?.title ?? '未知', book?.author ?? '佚名');
+  return buildLetter(receivedCount, stripRichText(quote.text, 'quote'), book?.title ?? '未知', book?.author ?? '佚名');
 }

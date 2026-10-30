@@ -171,4 +171,20 @@ describe('CollapsibleThought', () => {
     expect(clampedEl.parentElement!.style.padding).toBe('6px 10px');
     expect(clampedEl.parentElement!.style.background).toContain('--color-bg-thought');
   });
+
+  it('感悟里的加粗按行内元素渲染，行首符号原样保留，不产生块级子元素', () => {
+    const { container } = render(<CollapsibleThought thought={'- **读**完了\n- 第二点'} />);
+
+    expect(container.querySelectorAll('strong')).toHaveLength(1);
+    expect(container.textContent).toContain('- 读完了');
+    expect(container.querySelector('ul,ol,li')).toBeNull();
+  });
+
+  it('感悟使用自己那条摘录选的高亮色', () => {
+    const { container } = render(
+      <CollapsibleThought thought="==记一笔==" markColor="#F3D3D8" />,
+    );
+
+    expect(container.querySelector('mark')!.style.background).toMatch(/rgb\(243, 211, 216\)|#F3D3D8/i);
+  });
 });

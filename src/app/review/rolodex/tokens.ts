@@ -40,6 +40,8 @@ export const COLORS = {
   rackEdge: '#0a0b0e',
   /** 纸张 */
   paper: '#fdfcf9',
+  /** 正文高亮底色。纸色是固定的，所以不跟主题令牌走。 */
+  highlightBg: 'rgba(212, 168, 48, 0.30)',
   /** 正文墨色 */
   ink: '#20232a',
   inkSoft: '#7d838d',

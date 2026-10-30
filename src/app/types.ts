@@ -49,6 +49,10 @@ export interface Quote {
   page: string | null;
   date: string;
   color?: string;
+  /** 本条摘录「摘录原文」里 ==高亮== 的底色；空 = 主题默认。 */
+  textMarkColor?: string;
+  /** 本条摘录「我的感悟」里 ==高亮== 的底色；空 = 主题默认。 */
+  thoughtMarkColor?: string;
   /** 最近一次在「摘录回顾」里翻过这张卡的时刻（ISO）。空 = 从没回顾过。 */
   lastReviewedAt?: string | null;
   /** 累计被翻过去过多少次。只增不减。 */

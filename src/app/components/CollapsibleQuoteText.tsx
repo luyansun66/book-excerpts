@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { canSkipMeasurement, useClampCollapse } from '../hooks/useClampCollapse';
+import RichText from './RichText';
+import { normalizeMarkColor } from '../quoteMarkColors';
 
 // ─── 摘录正文：超过半屏就折起来 ────────────────────────────────────────────────
 //
@@ -94,10 +96,18 @@ function usePageHeight(): number {
   return pageHeight;
 }
 
-export default function CollapsibleQuoteText({ text }: { text: string }) {
+export default function CollapsibleQuoteText({
+  text,
+  markColor,
+}: {
+  text: string;
+  /** 这条摘录正文高亮的底色；空 = 主题默认 */
+  markColor?: string;
+}) {
   const pageHeight = usePageHeight();
   const maxLines = quoteBodyMaxLines(pageHeight);
   const skippable = canSkipMeasurement(text, maxLines);
+  const markBackground = normalizeMarkColor(markColor);
   const { clamped, truncated, expanded, toggle, measureRef, invalidate } =
     useClampCollapse<HTMLParagraphElement>({ contentKey: text, skippable });
 
@@ -122,7 +132,7 @@ export default function CollapsibleQuoteText({ text }: { text: string }) {
             : TEXT_STYLE
         }
       >
-        {text}
+        <RichText text={text} scope="quote" markBackground={markBackground} />
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', marginTop: -4 }}>

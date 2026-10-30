@@ -57,6 +57,8 @@ export async function pushAllData(
       page: quote.page ?? null,
       date: quote.date,
       color: quote.color ?? null,
+      text_mark_color: quote.textMarkColor ?? null,
+      thought_mark_color: quote.thoughtMarkColor ?? null,
       order: 0,
     });
   }
@@ -107,6 +109,8 @@ export async function pullAllData(): Promise<{
       page: q.page || null,
       date: q.date || new Date().toISOString(),
       color: q.color || undefined,
+      textMarkColor: q.text_mark_color || undefined,
+      thoughtMarkColor: q.thought_mark_color || undefined,
       createdAt: q.date || new Date().toISOString(),
       updatedAt: q.date || new Date().toISOString(),
       order: q.order || 0,

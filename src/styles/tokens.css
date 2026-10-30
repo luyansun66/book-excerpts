@@ -14,6 +14,7 @@
   --color-bg-overlay:    rgba(28, 22, 12, 0.35);
   --color-bg-skeleton:   #EBE4D6;
   --color-bg-thought:    #F8F4EC;   /* 感悟背景条 */
+  --color-quote-mark-bg: #F6E6BC;   /* 摘录/感悟里的荧光笔底色 */
 
   /* ── 文字 ──────────────────────────────────────────────────────────────── */
   --color-text:           #1C1610;
@@ -165,6 +166,7 @@
     --color-bg-overlay:    rgba(0, 0, 0, 0.55);
     --color-bg-skeleton:   #2A2418;
     --color-bg-thought:    #2A2418;
+    --color-quote-mark-bg: #4A3C1E;
 
     --color-text:           #E8DDD0;
     --color-text-secondary: #B0A080;
