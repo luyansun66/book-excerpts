@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 27 145" width="27" height="145" role="img" aria-label="黑镜">
+  <title>黑镜</title>
+  <defs>
+    <linearGradient id="s8-round" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#000" stop-opacity=".46"/>
+      <stop offset=".07" stop-color="#000" stop-opacity=".14"/>
+      <stop offset=".16" stop-color="#fff" stop-opacity=".06"/>
+      <stop offset=".31" stop-color="#fff" stop-opacity="0.17"/>
+      <stop offset=".52" stop-color="#fff" stop-opacity=".03"/>
+      <stop offset=".80" stop-color="#000" stop-opacity=".08"/>
+      <stop offset=".93" stop-color="#000" stop-opacity=".26"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="s8-cap" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".34"/>
+      <stop offset=".035" stop-color="#000" stop-opacity=".02"/>
+      <stop offset=".93" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".46"/>
+    </linearGradient>
+    <linearGradient id="s8-glow" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity="0.12"/>
+      <stop offset=".62" stop-color="#fff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="s8-grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="13"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0"/>
+    </filter>
+  </defs>
+  <g id="art"><defs><linearGradient id="s8-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0E0E0E"/><stop offset="1" stop-color="#62625F"/></linearGradient></defs><rect width="27" height="145" fill="url(#s8-g)"/><g id="title" font-family="'PingFang SC','Noto Sans SC','Noto Sans CJK SC','Source Han Sans SC','Hiragino Sans GB',sans-serif" font-weight="500" fill="#F2F0EA" text-anchor="middle" font-size="12.42">
+    <text x="13.5" y="32.42">黑</text>
+    <text x="13.5" y="48.32">镜</text>
+  </g>
+  </g>
+  
+  <rect x="5.4" width="4.32" height="145" fill="url(#s8-glow)"/>
+  <rect width="27" height="145" fill="url(#s8-round)"/>
+  <rect width="27" height="145" fill="url(#s8-cap)"/>
+  <rect y=".35" width="27" height=".5" fill="#fff" opacity=".22"/>
+  <rect y="143.3" width="27" height=".6" fill="#000" opacity=".28"/>
+  <rect width="27" height="145" filter="url(#s8-grain)"/>
+</svg>

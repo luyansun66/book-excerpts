@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 27 145" width="27" height="145" role="img" aria-label="夜航西飞">
+  <title>夜航西飞</title>
+  <defs>
+    <linearGradient id="s2-round" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#000" stop-opacity=".46"/>
+      <stop offset=".07" stop-color="#000" stop-opacity=".14"/>
+      <stop offset=".16" stop-color="#fff" stop-opacity=".06"/>
+      <stop offset=".31" stop-color="#fff" stop-opacity="0.17"/>
+      <stop offset=".52" stop-color="#fff" stop-opacity=".03"/>
+      <stop offset=".80" stop-color="#000" stop-opacity=".08"/>
+      <stop offset=".93" stop-color="#000" stop-opacity=".26"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="s2-cap" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".34"/>
+      <stop offset=".035" stop-color="#000" stop-opacity=".02"/>
+      <stop offset=".93" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".46"/>
+    </linearGradient>
+    <linearGradient id="s2-glow" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity="0.12"/>
+      <stop offset=".62" stop-color="#fff" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="s2-grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="7"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0"/>
+    </filter>
+  </defs>
+  <g id="art"><defs><linearGradient id="s2-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0F1A33"/><stop offset="1" stop-color="#2F5768"/></linearGradient></defs><rect width="27" height="145" fill="url(#s2-g)"/><g id="title" font-family="'Songti SC','Noto Serif SC','Noto Serif CJK SC','Source Han Serif SC','STSong',serif" font-weight="500" fill="#E6EEF0" text-anchor="middle" font-size="12.42">
+    <text x="13.5" y="32.42">夜</text>
+    <text x="13.5" y="48.32">航</text>
+    <text x="13.5" y="64.22">西</text>
+    <text x="13.5" y="80.11">飞</text>
+  </g>
+  </g>
+  
+  <rect x="5.4" width="4.32" height="145" fill="url(#s2-glow)"/>
+  <rect width="27" height="145" fill="url(#s2-round)"/>
+  <rect width="27" height="145" fill="url(#s2-cap)"/>
+  <rect y=".35" width="27" height=".5" fill="#fff" opacity=".22"/>
+  <rect y="143.3" width="27" height=".6" fill="#000" opacity=".28"/>
+  <rect width="27" height="145" filter="url(#s2-grain)"/>
+</svg>

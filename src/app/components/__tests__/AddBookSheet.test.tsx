@@ -293,3 +293,34 @@ describe('添加书籍弹窗里的分类列表', () => {
     expect(deleteCategory).not.toHaveBeenCalled();
   });
 });
+
+/** 表单里的「一栏」标题：sectionTitleStyle 那种纯文字的小标题节点。 */
+function sectionTitle(container: HTMLElement, text: string) {
+  const node = Array.from(container.querySelectorAll('div')).find(
+    (d) => d.children.length === 0 && d.textContent?.trim() === text,
+  );
+  expect(node, `表单里没有「${text}」这一栏`).toBeTruthy();
+  return node as HTMLElement;
+}
+
+describe('添加书籍弹窗的区块顺序', () => {
+  it('「封面」排在「显示方式」（摆放形式 + 书脊样式）上方', () => {
+    const { container } = open();
+    const cover = sectionTitle(container, '封面');
+    const appearance = sectionTitle(container, '显示方式');
+
+    // DOCUMENT_POSITION_FOLLOWING：appearance 落在 cover 之后，就是封面在上
+    expect(
+      cover.compareDocumentPosition(appearance) & Node.DOCUMENT_POSITION_FOLLOWING,
+      '「封面」应该排在「显示方式」上方',
+    ).toBeTruthy();
+  });
+
+  it('摆放形式和书脊样式仍然跟着「显示方式」这一栏', () => {
+    const { container } = open();
+    const appearance = sectionTitle(container, '显示方式');
+
+    expect(appearance.parentElement?.textContent).toContain('摆放形式');
+    expect(appearance.parentElement?.textContent).toContain('书脊样式');
+  });
+});

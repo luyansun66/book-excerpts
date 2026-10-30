@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, Plus, ChevronDown } from 'lucide-react';
 import { useApp } from '../../store';
-import type { Book, Category } from '../../types';
+import type { Book, BookLayout, Category } from '../../types';
 import { pickMoveTargetOnDelete } from '../../db/categoryUtils';
 import ConfirmDialog from '../ConfirmDialog';
 import CategoryPicker from '../CategoryPicker';
+import BookAppearanceFields from '../BookAppearanceFields';
 import { overlayPortal } from '../overlayPortal';
 import { compressImage } from '../../imageUtils';
+import { DEFAULT_SPINE_TEMPLATE_ID } from '../../shelf/bookLayout';
 
 const SOURCE_LABEL: Record<BookCandidate['source'], string> = {
   douban: '豆瓣',
@@ -58,6 +60,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id ?? '');
+  const [layout, setLayout] = useState<BookLayout>('auto');
+  const [spineTemplate, setSpineTemplate] = useState(DEFAULT_SPINE_TEMPLATE_ID);
 
   // Fix: set default category after categories finish loading
   useEffect(() => {
@@ -125,6 +129,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
     setTitle('');
     setAuthor('');
     setCategoryId(categories[0]?.id ?? '');
+    setLayout('auto');
+    setSpineTemplate(DEFAULT_SPINE_TEMPLATE_ID);
     setCoverDataUrl(null);
     setCoverFile(null);
     setSearchResults([]);
@@ -206,6 +212,8 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
       categoryId,
       coverType,
       coverData,
+      layout,
+      spineTemplate,
     });
 
     reset();
@@ -573,7 +581,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
             </div>
           </div>
 
-          {/* ── Third Section: Cover ── */}
+          {/* ── Cover ── */}
           <div>
             <div style={sectionTitleStyle}>封面</div>
             <div style={cardStyle}>
@@ -608,6 +616,21 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                 >
                   从相册选择
                 </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Appearance ── */}
+          <div>
+            <div style={sectionTitleStyle}>显示方式</div>
+            <div style={cardStyle}>
+              <div style={{ padding: '14px 16px' }}>
+                <BookAppearanceFields
+                  layout={layout}
+                  spineTemplate={spineTemplate}
+                  onLayoutChange={setLayout}
+                  onSpineTemplateChange={setSpineTemplate}
+                />
               </div>
             </div>
           </div>

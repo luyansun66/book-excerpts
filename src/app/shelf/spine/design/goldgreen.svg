@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 27 145" width="27" height="145" role="img" aria-label="百年孤独">
+  <title>百年孤独</title>
+  <defs>
+    <linearGradient id="s1-round" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#000" stop-opacity=".46"/>
+      <stop offset=".07" stop-color="#000" stop-opacity=".14"/>
+      <stop offset=".16" stop-color="#fff" stop-opacity=".06"/>
+      <stop offset=".31" stop-color="#fff" stop-opacity="0.24"/>
+      <stop offset=".52" stop-color="#fff" stop-opacity=".03"/>
+      <stop offset=".80" stop-color="#000" stop-opacity=".08"/>
+      <stop offset=".93" stop-color="#000" stop-opacity=".26"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".55"/>
+    </linearGradient>
+    <linearGradient id="s1-cap" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity=".34"/>
+      <stop offset=".035" stop-color="#000" stop-opacity=".02"/>
+      <stop offset=".93" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".46"/>
+    </linearGradient>
+    <linearGradient id="s1-glow" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".3" stop-color="#fff" stop-opacity="0.17"/>
+      <stop offset=".62" stop-color="#fff" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="s1-grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" seed="6"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.08 0"/>
+    </filter>
+  </defs>
+  <g id="art"><defs><pattern id="s1-weave" width="2.4" height="2.4" patternUnits="userSpaceOnUse"><path d="M0,.3H2.4M.3,0V2.4" stroke="#fff" stroke-opacity="0.07" stroke-width=".4"/></pattern></defs><rect width="27" height="145" fill="#2F4A3F"/><rect width="27" height="145" fill="url(#s1-weave)"/><rect width="27" y="5" height="1.2" fill="#D4B06A"/><rect width="27" y="8.2" height="0.5" fill="#D4B06A"/><rect width="27" y="138.8" height="1.2" fill="#D4B06A"/><rect width="27" y="136.1" height="0.5" fill="#D4B06A"/><g id="title" font-family="'Songti SC','Noto Serif SC','Noto Serif CJK SC','Source Han Serif SC','STSong',serif" font-weight="700" fill="#D4B06A" text-anchor="middle" font-size="16.2">
+    <text x="13.5" y="48.6">百</text>
+    <text x="13.5" y="66.42">年</text>
+    <text x="13.5" y="84.24">孤</text>
+    <text x="13.5" y="102.06">独</text>
+  </g><path d="M13.5,128.1 L15.9,130.5 L13.5,132.9 L11.1,130.5 Z" fill="#D4B06A"/>
+  </g>
+  <g id="hinge"><rect x="2.5" y="1.8" width=".8" height="141.4" fill="#000" opacity="0.4"/><rect x="3.3" y="1.8" width=".55" height="141.4" fill="#fff" opacity="0.2"/><rect x="23.7" y="1.8" width=".8" height="141.4" fill="#000" opacity="0.4"/><rect x="23.15" y="1.8" width=".55" height="141.4" fill="#fff" opacity="0.14"/></g>
+  <rect x="5.4" width="4.32" height="145" fill="url(#s1-glow)"/>
+  <rect width="27" height="145" fill="url(#s1-round)"/>
+  <rect width="27" height="145" fill="url(#s1-cap)"/>
+  <rect y=".35" width="27" height=".5" fill="#fff" opacity=".22"/>
+  <rect y="143.3" width="27" height=".6" fill="#000" opacity=".28"/>
+  <rect width="27" height="145" filter="url(#s1-grain)"/>
+</svg>

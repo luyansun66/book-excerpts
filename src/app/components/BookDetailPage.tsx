@@ -5,15 +5,17 @@ import { getQuotesByBook, addQuote as dbAddQuote, updateQuote as dbUpdateQuote, 
 import { getBookReadingMinutes } from '../db/readingTime';
 import { formatMinutesHuman } from './timer/format';
 import AddQuoteSheet from './sheets/AddQuoteSheet';
+import BookAppearanceFields from './BookAppearanceFields';
 import CollapsibleThought from './CollapsibleThought';
 import CollapsibleQuoteText from './CollapsibleQuoteText';
 import ConfirmDialog from './ConfirmDialog';
 import { overlayPortal } from './overlayPortal';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
 import { loadShareSheet, prefetchShareSheet } from './sheets/shareSheetLoader';
-import type { Book, Quote } from '../types';
+import type { Book, Quote, BookLayout } from '../types';
 import { FINISHED_LABEL_STYLE } from '../bookLabel';
 import { compressImage } from '../imageUtils';
+import { resolveLayout, resolveSpineTemplate } from '../shelf/bookLayout';
 
 // 分享面板里带着 770KB 的贴纸 SVG，导出图片还要 197KB 的 html2canvas：静态引入会让
 // 每个打开书详情的人都先下载它们。入口在 sheets/shareSheetLoader，平时空闲预取（下面
@@ -37,6 +39,8 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
   // 封面和书名一样是「改完点保存才生效」，所以先在本地留着，别选一张就直接写库
   const [coverType, setCoverType] = useState<Book['coverType']>(book.coverType);
   const [coverData, setCoverData] = useState<string | null>(book.coverData);
+  const [layout, setLayout] = useState<BookLayout>(() => resolveLayout(book));
+  const [spineTemplate, setSpineTemplate] = useState(() => resolveSpineTemplate(book));
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -46,6 +50,8 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
     setCategoryId(book.categoryId);
     setCoverType(book.coverType);
     setCoverData(book.coverData);
+    setLayout(resolveLayout(book));
+    setSpineTemplate(resolveSpineTemplate(book));
     setShowDeleteConfirm(false);
   }, [book]);
 
@@ -72,6 +78,8 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
       // 移除封面时 coverData 已经是 null，两个字段一起归位
       coverType: coverData ? coverType : null,
       coverData,
+      layout,
+      spineTemplate,
     });
     onClose();
   };
@@ -223,6 +231,13 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
               <option key={cat.id} value={cat.id}>{cat.name}</option>
             ))}
           </select>
+
+          <BookAppearanceFields
+            layout={layout}
+            spineTemplate={spineTemplate}
+            onLayoutChange={setLayout}
+            onSpineTemplateChange={setSpineTemplate}
+          />
 
           <div style={{ display: 'flex', gap: 8 }}>
             <button

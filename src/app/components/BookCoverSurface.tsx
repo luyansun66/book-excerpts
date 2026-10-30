@@ -39,6 +39,14 @@ const PLACEHOLDER_BG = [
   '#3D2828', '#28343D',
 ];
 
+/**
+ * 占位封面的底色。书脊模版也要用同一种颜色，保证「封面朝外」和「只露书脊」
+ * 是同一本书的同一块布。只按书名长度取色，和占位封面分支保持完全一致。
+ */
+export function placeholderColorFor(book: Pick<Book, 'title'>): string {
+  return PLACEHOLDER_BG[book.title.length % PLACEHOLDER_BG.length];
+}
+
 export default function BookCoverSurface({
   book,
   style,
@@ -110,7 +118,7 @@ export default function BookCoverSurface({
     );
   }
 
-  const bg = PLACEHOLDER_BG[book.title.length % PLACEHOLDER_BG.length];
+  const bg = placeholderColorFor(book);
 
   return (
     <div

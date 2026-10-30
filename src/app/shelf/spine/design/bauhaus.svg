@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="uuid-39506f3e-8ea3-4775-b42d-a202f2e0dc46" data-name="图层 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 27.3 145">
+  <defs>
+    <style>
+      .uuid-a528a9b4-e140-492d-aa33-b791b9f84847, .uuid-f0b260cb-86d9-490b-a86e-a274bd89c817 {
+        fill: #f1ece2;
+      }
+
+      .uuid-fecd6910-1c75-4965-84bd-faee7e968c6d {
+        fill: #27449a;
+      }
+
+      .uuid-c3d24df7-29bc-4d2e-a6c1-9489b4b77444, .uuid-f0b260cb-86d9-490b-a86e-a274bd89c817 {
+        isolation: isolate;
+      }
+
+      .uuid-80e6bbf3-1598-4364-8145-f01a1d83f19f {
+        fill: #e0c542;
+      }
+
+      .uuid-0ef3f4ef-4bc1-46b4-a245-59e60debf140 {
+        fill: url(#uuid-77a33551-64fd-4df6-a382-dfdb063312d8);
+      }
+
+      .uuid-87b57144-65c4-4709-aabc-3909562c01f1 {
+        fill: url(#uuid-1bacd9a3-ca99-4b2c-9872-395c20c9835b);
+      }
+
+      .uuid-61154903-71df-4b43-b1fa-a2637d95a0ad {
+        fill: #d84a2e;
+      }
+
+      .uuid-f0b260cb-86d9-490b-a86e-a274bd89c817 {
+        font-family: FZYDCHK--GBK1-0, FZYunDongHei-B-GBK;
+        font-size: 7.9px;
+      }
+    </style>
+    <linearGradient id="uuid-77a33551-64fd-4df6-a382-dfdb063312d8" data-name="未命名的渐变 6" x1="-520.95" y1="-2425.52" x2="-520.75" y2="-2425.52" gradientTransform="translate(62516.65 2037513.5) scale(120 840)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#040000" stop-opacity=".3"/>
+      <stop offset=".1" stop-color="#040000" stop-opacity=".06"/>
+      <stop offset=".28" stop-color="#fff" stop-opacity=".16"/>
+      <stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".88" stop-color="#040000" stop-opacity=".1"/>
+      <stop offset="1" stop-color="#040000" stop-opacity=".34"/>
+    </linearGradient>
+    <linearGradient id="uuid-1bacd9a3-ca99-4b2c-9872-395c20c9835b" data-name="未命名的渐变 4" x1="-521.35" y1="2570.11" x2="-521.35" y2="2569.94" gradientTransform="translate(62576.15 2158893) scale(120 -840)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#040000" stop-opacity=".18"/>
+      <stop offset=".03" stop-color="#040000" stop-opacity="0"/>
+      <stop offset=".97" stop-color="#040000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#040000" stop-opacity=".24"/>
+    </linearGradient>
+  </defs>
+  <rect class="uuid-fecd6910-1c75-4965-84bd-faee7e968c6d" x=".15" width="27" height="145"/>
+  <g>
+    <path class="uuid-a528a9b4-e140-492d-aa33-b791b9f84847" d="M7,11.7c0-3.6,2.9-6.5,6.5-6.5s6.5,2.9,6.5,6.5H7Z"/>
+    <circle class="uuid-80e6bbf3-1598-4364-8145-f01a1d83f19f" cx="13.5" cy="16.7" r="4"/>
+    <path class="uuid-61154903-71df-4b43-b1fa-a2637d95a0ad" d="M9.5,27.6h8l-4-5.8-4,5.8Z"/>
+  </g>
+  <g id="uuid-c1b9e9ae-0a54-449a-84c6-6e6a6f279251" data-name="title">
+    <g class="uuid-c3d24df7-29bc-4d2e-a6c1-9489b4b77444">
+      <text class="uuid-f0b260cb-86d9-490b-a86e-a274bd89c817" transform="translate(9.65 61.72)"><tspan x="0" y="0">呼</tspan></text>
+    </g>
+    <g class="uuid-c3d24df7-29bc-4d2e-a6c1-9489b4b77444">
+      <text class="uuid-f0b260cb-86d9-490b-a86e-a274bd89c817" transform="translate(9.65 70.42)"><tspan x="0" y="0">吸</tspan></text>
+    </g>
+    <g class="uuid-c3d24df7-29bc-4d2e-a6c1-9489b4b77444">
+      <text class="uuid-f0b260cb-86d9-490b-a86e-a274bd89c817" transform="translate(9.65 79.12)"><tspan x="0" y="0">之</tspan></text>
+    </g>
+    <g class="uuid-c3d24df7-29bc-4d2e-a6c1-9489b4b77444">
+      <text class="uuid-f0b260cb-86d9-490b-a86e-a274bd89c817" transform="translate(9.65 87.82)"><tspan x="0" y="0">间</tspan></text>
+    </g>
+  </g>
+  <g id="uuid-5811d6d7-ac1c-4e17-872e-97404c2133ca" data-name="imprint">
+    <path class="uuid-a528a9b4-e140-492d-aa33-b791b9f84847" d="M11.9,136.4h2.1l1.1,1.1v2.1h-3.1v-3.1l-.1-.1Z"/>
+    <path class="uuid-80e6bbf3-1598-4364-8145-f01a1d83f19f" d="M14,136.4v1.1h1.1l-1.1-1.1Z"/>
+  </g>
+  <rect class="uuid-0ef3f4ef-4bc1-46b4-a245-59e60debf140" width="27.3" height="145"/>
+  <rect class="uuid-87b57144-65c4-4709-aabc-3909562c01f1" x=".15" width="27" height="145"/>
+</svg>

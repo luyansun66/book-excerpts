@@ -1,6 +1,7 @@
 import { supabase, getCurrentUser } from './client';
 import type { Category, Book, Quote } from '../types';
 
+// layout / spineTemplate 未参与同步：换设备后会回落到默认值；补齐需远端 books 表加列。
 // ─── Push local data to Supabase ──────────────────────────────────────────────
 
 export async function pushAllData(

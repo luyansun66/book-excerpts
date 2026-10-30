@@ -22,6 +22,10 @@ import SearchResults from './components/SearchResults';
 import AddBookSheet from './components/sheets/AddBookSheet';
 import LibraryBuilding from './components/LibraryBuilding';
 import BookCoverSurface from './components/BookCoverSurface';
+import CategoryHeading from './components/CategoryHeading';
+import ShelfBoard from './components/ShelfBoard';
+import ShelfRowV2 from './shelf/ShelfRowV2';
+import { useShelfTheme } from './shelf/shelfTheme';
 import { useOpenTimerSheet } from './components/timer/ReadingTimerProvider';
 import { useOpenReview } from './review/ReviewProvider';
 import ReadingTimerBar from './components/timer/ReadingTimerBar';
@@ -64,11 +68,6 @@ const prefetchPages = () => Promise.all([loadBookDetail(), loadSettings(), loadC
 
 const COVER_W = SHELF_COVER_WIDTH;
 const COVER_H = SHELF_COVER_HEIGHT;
-// 分类头那个计数胶囊的触点尺寸（视觉只有 9px 字，靠它撑出可点范围）。
-// 用 minWidth/minHeight 写死，而不是靠 padding 凑：以后改文案或字号，
-// 命中区域不会跟着缩水。
-const PILL_HIT_WIDTH = 88;
-const PILL_HIT_HEIGHT = 33;
 // 长按激活拖拽前的容差：超过这个位移就认为用户在滑书，不进入拖拽
 const DRAG_HOLD_SLOP = 8;
 // 长按时长，以及到点后的复核窗口
@@ -393,87 +392,13 @@ function ShelfRow({
 
   return (
     <div>
-      {/* Category header */}
-      <div style={{ paddingLeft: 18, paddingTop: 14, paddingBottom: 10, paddingRight: 14, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-        <span
-          style={{
-            fontSize: 11,
-            letterSpacing: 2,
-            color: 'var(--color-text-accent)',
-            fontFamily: 'var(--font-sans)',
-            textTransform: 'uppercase',
-            fontWeight: 600,
-            // 计数入口现在占得更宽，分类名过长时要能收缩，不能把它挤出去
-            minWidth: 0,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            paddingRight: 10,
-          }}
-        >
-          {name}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {/* 书名计数器同时是入口：点开就是这一类的全部书籍网格页。
-              字号/字距跟左边分类名一致，只靠颜色区分主次；负外边距把触点撑到
-              30px 高，但视觉位置不动，也不会压到底下的封面。 */}
-          <button
-            onClick={onOpenCategory}
-            disabled={!onOpenCategory}
-            aria-label={`查看「${name}」的全部 ${bookCount} 本书`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: 2,
-              fontSize: 9,
-              // 9px 的字配上 2px 字距太空，收到 1px（字之间还留着约 1.8px 空隙，
-              // 不会挨到一起）
-              letterSpacing: 1,
-              minWidth: PILL_HIT_WIDTH,
-              minHeight: PILL_HIT_HEIGHT,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              fontFamily: 'var(--font-sans)',
-              color: 'var(--color-text-muted)',
-              background: 'none',
-              border: 'none',
-              cursor: onOpenCategory ? 'pointer' : 'default',
-              // 右对齐 + minWidth：盒子被右边的 ⠿ 顶住，多出来的宽度全往左长，
-              // 文字位置一点不动
-              padding: '8px 6px',
-              margin: '-8px 0',
-              transition: 'color 0.15s',
-              WebkitTapHighlightColor: 'transparent',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-accent)'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'var(--color-text-muted)'; }}
-          >
-            {bookCount} books
-            <ChevronRight size={10} strokeWidth={2.4} style={{ marginTop: 1 }} />
-          </button>
-          {onCatDragPointerDown && (
-            <span
-              onPointerDown={onCatDragPointerDown}
-              style={{
-                cursor: 'grab',
-                userSelect: 'none',
-                fontSize: 11,
-                lineHeight: 1,
-                color: isCatDragged ? 'var(--color-text-accent)' : 'var(--color-border)',
-                padding: '2px 4px',
-                borderRadius: 4,
-                transition: 'color 0.15s, background 0.15s',
-                touchAction: 'none',
-              }}
-              onMouseEnter={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = 'var(--color-text-accent)'; }}
-              onMouseLeave={(e) => { if (!isCatDragged) (e.currentTarget as HTMLElement).style.color = 'var(--color-border)'; }}
-            >
-              ⠿
-            </span>
-          )}
-        </div>
-      </div>
+      <CategoryHeading
+        name={name}
+        bookCount={bookCount}
+        onOpenCategory={onOpenCategory}
+        onCatDragPointerDown={onCatDragPointerDown}
+        isCatDragged={isCatDragged}
+      />
 
       {/* Scrollable shelf with arrow indicators */}
       <div style={{ position: 'relative' }}>
@@ -637,7 +562,7 @@ function ShelfRow({
       </div>
 
       {/* Shelf surface */}
-      <div style={{ margin: '4px 18px 0', height: 9, borderRadius: 4, background: 'var(--shelf-surface)', boxShadow: '0px 4px 6px 0px rgba(0, 0, 0, 0.2)' }} />
+      <ShelfBoard />
     </div>
   );
 }
@@ -647,6 +572,7 @@ function ShelfRow({
 // ─── Shelf view (bookshelf page) ──────────────────────────────────────────────
 function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) => void }) {
   const { categories, books, initialLoading, selectBook, isSearching, selectBook: selectBookFromSearch, moveBookTo, moveCategoryTo, setTargetQuoteId } = useApp();
+  const [shelfTheme] = useShelfTheme();
   const [showAddBook, setShowAddBook] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [seedMsg, setSeedMsg] = useState('');
@@ -754,7 +680,7 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
           overflowY: 'auto',
           overflowX: 'hidden',
           scrollbarWidth: 'none',
-          paddingBottom: 130,
+          paddingBottom: 168,
         } as React.CSSProperties}
       >
         {/* Search bar */}
@@ -832,16 +758,28 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
                     transition: 'opacity 0.15s ease, transform 0.15s ease',
                   }}
                 >
-                  <ShelfRow
-                    name={cat.name}
-                    books={catBooks}
-                    bookCount={catBooks.length}
-                    onSelect={selectBook}
-                    onOpenCategory={() => onOpenCategory(cat.id)}
-                    onMoveBook={moveBookTo}
-                    onCatDragPointerDown={(e) => handleCatDragStart(e, origIdx)}
-                    isCatDragged={isCatDragged}
-                  />
+                  {shelfTheme === 'shelfV2' ? (
+                    <ShelfRowV2
+                      name={cat.name}
+                      books={catBooks}
+                      bookCount={catBooks.length}
+                      onSelect={selectBook}
+                      onOpenCategory={() => onOpenCategory(cat.id)}
+                      onCatDragPointerDown={(e) => handleCatDragStart(e, origIdx)}
+                      isCatDragged={isCatDragged}
+                    />
+                  ) : (
+                    <ShelfRow
+                      name={cat.name}
+                      books={catBooks}
+                      bookCount={catBooks.length}
+                      onSelect={selectBook}
+                      onOpenCategory={() => onOpenCategory(cat.id)}
+                      onMoveBook={moveBookTo}
+                      onCatDragPointerDown={(e) => handleCatDragStart(e, origIdx)}
+                      isCatDragged={isCatDragged}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -887,12 +825,18 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
         <div
           style={{
             position: 'absolute',
-            bottom: 80,
+            bottom: 0,
             left: 0,
             right: 0,
+            height: 'calc(72px + env(safe-area-inset-bottom))',
+            paddingBottom: 'env(safe-area-inset-bottom)',
+            boxSizing: 'border-box',
+            background: 'var(--color-bg)',
             display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             pointerEvents: 'none',
+            zIndex: 5,
           }}
         >
           <button

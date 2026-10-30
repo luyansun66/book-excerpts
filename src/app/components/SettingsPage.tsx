@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { ArrowLeft, Layers, ChartColumnIncreasing } from 'lucide-react';
+import { ArrowLeft, LibraryBig, ChartColumnIncreasing } from 'lucide-react';
 import CategorySection from './sections/CategorySection';
 import StatsSection from './sections/StatsSection';
 import DataBackupSection from './sections/DataBackupSection';
 import CloudSyncSection from './sections/CloudSyncSection';
+import ShelfThemeSection from './sections/ShelfThemeSection';
 
-type SegmentKey = 'stats' | 'cat';
+type SegmentKey = 'stats' | 'shelf';
 
-const SEGMENTS: { key: SegmentKey; label: string; icon: typeof Layers }[] = [
+const SEGMENTS: { key: SegmentKey; label: string; icon: typeof LibraryBig }[] = [
   { key: 'stats', label: '阅读统计', icon: ChartColumnIncreasing },
-  { key: 'cat', label: '分类管理', icon: Layers },
+  { key: 'shelf', label: '书架设置', icon: LibraryBig },
 ];
 
 interface SettingsPageProps {
@@ -140,7 +141,7 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             </div>
           </div>
         )}
-        {activeSegment === 'cat' && (
+        {activeSegment === 'shelf' && (
           <div
             style={{
               position: 'absolute',
@@ -152,6 +153,8 @@ export default function SettingsPage({ onBack }: SettingsPageProps) {
             } as React.CSSProperties}
           >
             <CategorySection />
+            <div style={{ height: 1, margin: '22px 0 18px', background: 'var(--color-border-light)' }} />
+            <ShelfThemeSection />
           </div>
         )}
       </div>

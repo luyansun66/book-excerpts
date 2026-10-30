@@ -10,6 +10,18 @@ export interface Category {
 // ─── Book ─────────────────────────────────────────────────────────────────────
 export type CoverType = 'upload' | 'url';
 
+/**
+ * 这本书在「书架 v2」主题里怎么摆。
+ *
+ * - `auto`   —— 交给书架自己安排（默认，竖放书脊为主，少数封面朝外）
+ * - `spine`  —— 竖放，露出书脊
+ * - `cover`  —— 竖放，封面朝外（新主题下带一点立体感）
+ * - `stack`  —— 横放，可以和其他横放的书摞起来
+ *
+ * 缺省（旧库/旧备份/云同步回来的书）都是 `auto`，读取侧统一走 `resolveLayout`。
+ */
+export type BookLayout = 'auto' | 'spine' | 'cover' | 'stack';
+
 export interface Book {
   id: string;
   title: string;
@@ -18,6 +30,10 @@ export interface Book {
   coverType: CoverType | null;
   coverData: string | null; // blob URL for uploads, external URL for url type
   sortOrder?: number; // for custom shelf ordering within category
+  /** 摆放形式。空 = `auto`。只在「书架 v2」主题下生效，经典主题不看它。 */
+  layout?: BookLayout;
+  /** 书脊模版 id（见 `shelf/spineTemplates.tsx`）。空 = 默认模版。 */
+  spineTemplate?: string;
   /** 手动标记读完的时刻（ISO）。空 = 正在阅读；有值 = 已读完，封面右上角画角标。 */
   finishedAt?: string | null;
   createdAt: string;
