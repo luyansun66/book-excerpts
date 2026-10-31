@@ -857,7 +857,7 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
               letterSpacing: 0.5,
               cursor: 'pointer',
               pointerEvents: 'auto',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 24px rgba(28,22,12,0.18)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
             }}
           >
             Add Books
