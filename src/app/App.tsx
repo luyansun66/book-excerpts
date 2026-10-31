@@ -831,7 +831,7 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
             height: 'calc(72px + env(safe-area-inset-bottom))',
             paddingBottom: 'env(safe-area-inset-bottom)',
             boxSizing: 'border-box',
-            background: 'var(--color-bg)',
+            background: 'transparent',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1150,7 +1150,7 @@ export default function App() {
   return (
     <div
       style={{
-        height: '100dvh',
+        height: '100%',
         width: '100%',
         background: 'var(--color-bg)',
         position: 'relative',

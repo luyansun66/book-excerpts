@@ -124,5 +124,16 @@ export default defineConfig(({ mode }) => {
 
     // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
     assetsInclude: ['**/*.svg', '**/*.csv'],
+
+    // 手机预览时 IP 会随 DHCP 变化，书签里的 http://192.168.x.x:5173 说失效就失效。
+    // 用 Bonjour 名字（<机器名>.local:5173）才稳定，但 Vite 默认只放行 localhost 和
+    // IP，.local 一律回 403 空页面（看着就像「无法访问网页」）。这里放行 .local。
+    // 只影响 dev/preview，不影响 build 产物。
+    server: {
+      allowedHosts: ['.local'],
+    },
+    preview: {
+      allowedHosts: ['.local'],
+    },
   }
 })
