@@ -825,15 +825,10 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
         <div
           style={{
             position: 'absolute',
-            bottom: 0,
+            bottom: 80,
             left: 0,
             right: 0,
-            height: 'calc(72px + env(safe-area-inset-bottom))',
-            paddingBottom: 'env(safe-area-inset-bottom)',
-            boxSizing: 'border-box',
-            background: 'transparent',
             display: 'flex',
-            alignItems: 'center',
             justifyContent: 'center',
             pointerEvents: 'none',
             zIndex: 5,
@@ -857,7 +852,7 @@ function ShelfView({ onOpenCategory }: { onOpenCategory: (categoryId: string) =>
               letterSpacing: 0.5,
               cursor: 'pointer',
               pointerEvents: 'auto',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), 0 8px 24px rgba(28,22,12,0.18)',
             }}
           >
             Add Books
