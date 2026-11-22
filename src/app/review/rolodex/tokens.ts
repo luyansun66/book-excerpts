@@ -61,7 +61,7 @@ export const HAND_STACK = '"FZBeiWeiKaiShu", "SnellRoundhand", "Segoe Script", c
  * 信息栏用的黑体：方正兰亭细黑。
  *
  * 用项目里自己带的那份 woff2，而不是系统的 Lantinghei SC —— 系统那款只有 macOS 有，
- * 且细黑是 Extralight 字重、得靠 font-weight 才挑得出来；自带这份到哪都是同一个字形，
- * 也和分享卡片里那个「兰亭细黑」选项同源（见 src/styles/fonts.css）。
+ * 且细黑是 Extralight 字重、得靠 font-weight 才挑得出来；自带这份到哪都是同一个字形。
+ * 该字体已退出分享选择器，但回顾信息栏仍使用同一份基础资源（见 src/styles/fonts.css）。
  */
 export const HEI_STACK = '"FZLanTingXiHei", "PingFang SC", sans-serif';

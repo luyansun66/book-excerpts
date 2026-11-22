@@ -14,7 +14,7 @@
  * （否则用户想滚屏却存了张图）。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import { render, fireEvent, cleanup, waitFor, screen } from '@testing-library/react';
 import ShareSheet from '../ShareSheet';
 
 vi.mock('html2canvas', () => ({
@@ -56,7 +56,7 @@ const stage = () => document.body.querySelector('.hide-scrollbar') as HTMLElemen
 /** 舞台里那张卡片 —— 点按的命中测试就是按它分的。 */
 const stageCard = () => stage().firstElementChild as HTMLElement;
 /** 全屏浮层。 */
-const fullscreen = () => document.body.querySelector('div[style*="z-index: 110"]') as HTMLElement | null;
+const fullscreen = () => document.body.querySelector('[data-share-fullscreen]') as HTMLElement | null;
 /** 全屏里那张卡片的外框（滚动区的唯一子节点）。 */
 const fullscreenCard = () => fullscreen()!.querySelector('.hide-scrollbar')!.firstElementChild as HTMLElement;
 
@@ -109,6 +109,21 @@ describe('分享面板 · 点卡片看全图', () => {
 
     expect(fullscreen()).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('分享面板 · 明确关闭入口', () => {
+  it('提供 44×44 的关闭按钮，并调用现有 onClose', () => {
+    const onClose = vi.fn();
+    renderSheet(onClose);
+
+    const closeButton = screen.getByRole('button', { name: '关闭分享编辑面板' });
+    expect(closeButton.style.width).toBe('44px');
+    expect(closeButton.style.height).toBe('44px');
+
+    fireEvent.click(closeButton);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

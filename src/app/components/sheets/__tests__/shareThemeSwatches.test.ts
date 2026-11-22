@@ -16,7 +16,7 @@ const src = readFileSync(
 );
 
 /** 主题色块那一段（从 COLOR_THEMES.map 到「字体」小节）。 */
-const swatchBlock = src.slice(src.indexOf('COLOR_THEMES.map'), src.indexOf('{/* 字体 */}'));
+const swatchBlock = src.slice(src.indexOf('themes.map'), src.indexOf('{/* 字体 */}'));
 
 describe('分享面板的主题色块', () => {
   it('色块里不写字，主题名只出现在小节标题上', () => {

@@ -4,6 +4,7 @@ import { prepareImportData } from './prepare';
 import { pickMoveTargetOnDelete } from './categoryUtils';
 import type { ExportData, ImportResult } from './prepare';
 import { quoteHaystack } from '../searchText';
+import { favoriteWriteNeeded } from '../review/excerptFeedState';
 
 export type { ExportData, ImportResult } from './prepare';
 
@@ -233,6 +234,35 @@ export async function markQuoteReviewed(
   await db.quotes.update(id, {
     lastReviewedAt: reviewedAt,
     reviewCount: (quote.reviewCount ?? 0) + 1,
+  });
+}
+
+/**
+ * 设置摘录收藏。传入目标值而不是在数据库层做 toggle，重复点击/重试不会反转两次。
+ * 收藏属于摘录状态，不更新内容时间 updatedAt。
+ */
+export async function setQuoteFavorite(id: string, desired: boolean): Promise<boolean> {
+  return db.transaction('rw', db.quotes, async () => {
+    const quote = await db.quotes.get(id);
+    if (!quote || !favoriteWriteNeeded(quote.isFavorite, desired)) return false;
+    await db.quotes.update(id, { isFavorite: desired });
+    return true;
+  });
+}
+
+/**
+ * 第一次进入全屏阅读满 2 秒时写入 viewedAt。事务内先读再写，重复调用返回 false，
+ * 也不会把「看过」时间刷新成最后一次进入的时间。
+ */
+export async function markQuoteViewed(
+  id: string,
+  viewedAt: string = new Date().toISOString(),
+): Promise<boolean> {
+  return db.transaction('rw', db.quotes, async () => {
+    const quote = await db.quotes.get(id);
+    if (!quote || quote.viewedAt) return false;
+    await db.quotes.update(id, { viewedAt });
+    return true;
   });
 }
 

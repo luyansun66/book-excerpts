@@ -1,20 +1,28 @@
 // ─── 摘录回顾页 ───────────────────────────────────────────────────────────────
 //
-// 一整页只做一件事：把摘录库随机翻成一轮，让用户在名片架上一张张过。
-// 页面负责三件架子管不着的事：把卡片数据凑齐（摘录 + 它所属的书）、把舞台缩放到
-// 屏幕里、以及一轮翻完之后重开一轮。
-//
-// 重开的那一段刻意分成两拍：先让"本轮回顾完成"的过渡卡停 ROUND_END_DWELL_MS，
-// 再淡出 → 换牌 → 淡入。直接原地换掉卡组的话，用户会以为界面出了 bug。
+// 翻页名片架与双列信息流共用同一份摘录、收藏、看过与排序状态。页面切换视图时
+// 不卸载整条业务数据，只换展示层；currentQuoteId 是两种视图之间的内容锚点。
+// 阅读弹窗作为覆盖层保留双列流的 DOM 和滚动位置，返回时无需重新计算位置。
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft } from 'lucide-react';
-import { getAllBooks, getAllQuotes, markQuoteReviewed } from '../db';
+import {
+  getAllBooks,
+  getAllQuotes,
+  markQuoteReviewed,
+  markQuoteViewed,
+  setQuoteFavorite,
+} from '../db';
 import type { Book, Quote } from '../types';
 import Rolodex, { type RolodexHandle } from './rolodex/Rolodex';
 import {
-  COLORS,
   HAND_STACK,
   MAX_STAGE_SCALE,
   SERIF_STACK,
@@ -24,19 +32,30 @@ import {
   STAGE_PAD_TOP,
   STAGE_W,
 } from './rolodex/tokens';
-import RichText from '../components/RichText';
-import { normalizeMarkColor } from '../quoteMarkColors';
 import {
-  buildRound,
   isAtRoundEnd,
-  recentQuotes,
   reviewedCount,
+  buildOrderedRound,
   type RoundState,
 } from './round';
-
-/** 一轮翻完后，过渡卡停留多久。 */
+import {
+  anchoredIndex,
+  getReviewSessionPreferences,
+  getReviewSessionRandomOrder,
+  orderFilteredQuotes,
+  randomOrderForQuotes,
+  replaceQuotesKeepingSequence,
+  setReviewSessionPreferences,
+  setReviewSessionRandomOrder,
+  type ReviewPreferences,
+} from './excerptFeedState';
+import ReviewSettingsPopover from './ReviewSettingsPopover';
+import DualColumnFeed from './DualColumnFeed';
+import ExcerptReader from './ExcerptReader';
+import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
+import { prefetchShareSheet } from '../components/sheets/shareSheetLoader';
+import ShareSheetHost from '../components/sheets/ShareSheetHost';
 const ROUND_END_DWELL_MS = 1200;
-/** 换牌时的淡出/淡入时长。 */
 const SWAP_FADE_MS = 220;
 
 const screenReaderOnly = {
@@ -52,71 +71,156 @@ const screenReaderOnly = {
 } as const;
 
 export default function ReviewPage({ onBack }: { onBack: () => void }) {
+  const [preferences, setPreferences] = useState<ReviewPreferences>(getReviewSessionPreferences);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [books, setBooks] = useState<Map<string, Book>>(() => new Map());
+  const [visibleQuotes, setVisibleQuotes] = useState<Quote[]>([]);
+  const [randomOrder, setRandomOrder] = useState<string[]>(getReviewSessionRandomOrder);
   const [round, setRound] = useState<RoundState | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [retryTrigger, setRetryTrigger] = useState(0);
   const [scale, setScale] = useState(1);
   const [fading, setFading] = useState(false);
-  const [full, setFull] = useState<Quote | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
+  const [readerQuoteId, setReaderQuoteId] = useState<string | null>(null);
+  const [shareQuoteId, setShareQuoteId] = useState<string | null>(null);
+  const [favoritePendingIds, setFavoritePendingIds] = useState<Set<string>>(() => new Set());
+  const [toast, setToast] = useState<string | null>(null);
 
   const areaRef = useRef<HTMLDivElement | null>(null);
+  const settingsAnchorRef = useRef<HTMLDivElement | null>(null);
   const rolodexRef = useRef<RolodexHandle | null>(null);
-  // 换下一轮时要用最新的摘录状态（刚翻过的那些已经带上新的回顾时间），
-  // 而定时器是在上一帧闭包里跑的，所以从 ref 读。
   const quotesRef = useRef<Quote[]>([]);
+  const visibleQuotesRef = useRef<Quote[]>([]);
+  const preferencesRef = useRef(preferences);
+  const currentQuoteIdRef = useRef<string | null>(null);
+  const readerQuoteIdRef = useRef<string | null>(null);
+  const shareQuoteIdRef = useRef<string | null>(null);
+  const readerFocusRef = useRef<HTMLElement | null>(null);
+  const forceFirstAnchorRef = useRef(false);
+  const favoritePendingRef = useRef(new Set<string>());
+  const toastTimerRef = useRef<number | undefined>(undefined);
 
-  useEffect(() => {
-    quotesRef.current = quotes;
-  }, [quotes]);
+  usePrefetchOnIdle(prefetchShareSheet);
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 2400);
+  }, []);
+
+  useEffect(() => () => window.clearTimeout(toastTimerRef.current), []);
+  useEffect(() => { quotesRef.current = quotes; }, [quotes]);
+  useEffect(() => { visibleQuotesRef.current = visibleQuotes; }, [visibleQuotes]);
+  useEffect(() => { preferencesRef.current = preferences; }, [preferences]);
+  useEffect(() => { currentQuoteIdRef.current = currentQuoteId; }, [currentQuoteId]);
+  useEffect(() => { readerQuoteIdRef.current = readerQuoteId; }, [readerQuoteId]);
+  useEffect(() => { shareQuoteIdRef.current = shareQuoteId; }, [shareQuoteId]);
 
   useEffect(() => {
     let alive = true;
+    setLoaded(false);
+    setLoadError('');
     Promise.all([getAllQuotes(), getAllBooks()])
       .then(([allQuotes, allBooks]) => {
         if (!alive) return;
+        const prefs = preferencesRef.current;
+        const sessionOrder = getReviewSessionRandomOrder();
+        const order = prefs.sortMode === 'random'
+          ? (sessionOrder.length > 0 ? sessionOrder : randomOrderForQuotes(allQuotes))
+          : [];
+        if (prefs.sortMode === 'random') setReviewSessionRandomOrder(order);
+        const next = orderFilteredQuotes(allQuotes, prefs, order);
+        const anchor = prefs.viewMode === 'feed' ? null : currentQuoteIdRef.current;
+        const deck = buildOrderedRound(next, anchor);
+        const activeId = next[anchoredIndex(next.map((quote) => quote.id), anchor)]?.id ?? null;
         setQuotes(allQuotes);
-        setBooks(new Map(allBooks.map((b) => [b.id, b])));
-        setRound(buildRound(allQuotes, []));
+        setBooks(new Map(allBooks.map((book) => [book.id, book])));
+        setRandomOrder(order);
+        setVisibleQuotes(next);
+        setRound(deck);
+        setCurrentQuoteId(activeId);
         setLoaded(true);
       })
-      .catch((e) => {
-        console.error('[Review] 读取摘录失败:', e);
-        if (alive) setLoaded(true);
+      .catch((error) => {
+        console.error('[Review] 读取摘录失败:', error);
+        if (!alive) return;
+        setLoadError('回顾内容加载失败，请检查本地数据后重试。');
+        setLoaded(true);
       });
-    return () => {
-      alive = false;
-    };
-  }, []);
+    return () => { alive = false; };
+  }, [retryTrigger]);
 
-  // 舞台是一整块固定尺寸的实物，只整体缩放去适配。缩放写在中间这层，
-  // 它跟加载态无关，所以观察器一次挂上就够。
   useLayoutEffect(() => {
-    const el = areaRef.current;
-    if (!el) return;
+    const element = areaRef.current;
+    if (!element) return;
     const measure = () => {
-      const rect = el.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
-      // 分母用"真正画了东西的高度"而不是整块舞台框：框上下各有一截透明留白，算进去装置就小了。
-      setScale(Math.max(0.35, Math.min(rect.width / STAGE_W, rect.height / STAGE_INK_H, MAX_STAGE_SCALE)));
+      setScale(Math.max(0.35, Math.min(
+        rect.width / STAGE_W,
+        rect.height / STAGE_INK_H,
+        MAX_STAGE_SCALE,
+      )));
     };
     measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure);
+      return () => window.removeEventListener('resize', measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!loaded || loadError) return;
+    const order = preferences.sortMode === 'random'
+      ? (randomOrder.length ? randomOrder : randomOrderForQuotes(quotesRef.current))
+      : [];
+    if (preferences.sortMode === 'random' && order !== randomOrder) {
+      setReviewSessionRandomOrder(order);
+      setRandomOrder(order);
+    }
+    const next = orderFilteredQuotes(quotesRef.current, preferences, order);
+    const forcedFirst = forceFirstAnchorRef.current;
+    forceFirstAnchorRef.current = false;
+    const anchor = forcedFirst ? null : currentQuoteIdRef.current;
+    const activeId = next[anchoredIndex(next.map((quote) => quote.id), anchor)]?.id ?? null;
+    setVisibleQuotes(next);
+    setRound(buildOrderedRound(next, activeId));
+    setCurrentQuoteId(activeId);
+  }, [
+    loaded,
+    loadError,
+    preferences.viewMode,
+    preferences.readFilter,
+    preferences.favoritesOnly,
+    preferences.sortMode,
+    randomOrder,
+  ]);
 
   const handleReviewed = useCallback((quote: Quote) => {
     const at = new Date().toISOString();
-    // 内存里也要跟着走：下一轮选卡读的是这份数据，不回写就会一直把刚看过的当"很久没看"。
-    setQuotes((prev) =>
-      prev.map((q) => (q.id === quote.id ? { ...q, lastReviewedAt: at, reviewCount: (q.reviewCount ?? 0) + 1 } : q)),
+    setQuotes((previous) =>
+      previous.map((item) => item.id === quote.id
+        ? { ...item, lastReviewedAt: at, reviewCount: (item.reviewCount ?? 0) + 1 }
+        : item),
     );
-    markQuoteReviewed(quote.id, at).catch((e) => console.warn('[Review] 记录回顾失败:', e));
+    markQuoteReviewed(quote.id, at).catch((error) => {
+      console.warn('[Review] 记录回顾失败:', error);
+    });
   }, []);
 
-  const handleIndexChange = useCallback((next: number) => {
-    setRound((prev) => (prev ? { ...prev, index: next } : prev));
+  const handleIndexChange = useCallback((nextIndex: number) => {
+    setRound((previous) => {
+      if (!previous) return previous;
+      const entry = previous.deck[nextIndex];
+      if (entry?.kind === 'excerpt') setCurrentQuoteId(entry.quote.id);
+      return { ...previous, index: nextIndex };
+    });
   }, []);
 
   const atRoundEnd = round !== null && isAtRoundEnd(round);
@@ -127,7 +231,12 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
     const outer = window.setTimeout(() => {
       setFading(true);
       inner = window.setTimeout(() => {
-        setRound((prev) => (prev ? buildRound(quotesRef.current, recentQuotes(prev)) : prev));
+        setRound((previous) => {
+          if (!previous) return previous;
+          const entry = previous.deck[0];
+          if (entry?.kind === 'excerpt') setCurrentQuoteId(entry.quote.id);
+          return { ...previous, index: 0 };
+        });
         setFading(false);
       }, SWAP_FADE_MS);
     }, ROUND_END_DWELL_MS);
@@ -137,32 +246,196 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
     };
   }, [atRoundEnd, round]);
 
+  const openReader = useCallback((quote: Quote) => {
+    readerFocusRef.current = document.activeElement as HTMLElement | null;
+    currentQuoteIdRef.current = quote.id;
+    setCurrentQuoteId(quote.id);
+    setSettingsOpen(false);
+    readerQuoteIdRef.current = quote.id;
+    setReaderQuoteId(quote.id);
+    try {
+      const previousState = { ...(window.history.state || {}) };
+      delete previousState.reviewSettings;
+      window.history.replaceState(previousState, '');
+      window.history.pushState({ ...previousState, reviewReader: true }, '');
+    } catch {
+      // 某些嵌入式 WebView 禁用 history，文本内仍有关闭按钮和 Esc。
+    }
+  }, []);
+
+  const closeReader = useCallback(() => {
+    readerQuoteIdRef.current = null;
+    setReaderQuoteId(null);
+    setShareQuoteId(null);
+    const focusTarget = readerFocusRef.current;
+    readerFocusRef.current = null;
+    window.setTimeout(() => focusTarget?.focus?.(), 0);
+    try {
+      if (window.history.state?.reviewReader) window.history.back();
+    } catch {
+      // 没有 history 时直接关闭。
+    }
+  }, []);
+
+  const openShare = useCallback((quote: Quote) => {
+    shareQuoteIdRef.current = quote.id;
+    setShareQuoteId(quote.id);
+    try {
+      window.history.pushState({ ...(window.history.state || {}), reviewShare: true }, '');
+    } catch {
+      // 无 history 时仍可用编辑器自己的关闭按钮返回。
+    }
+  }, []);
+
+  const closeShare = useCallback(() => {
+    shareQuoteIdRef.current = null;
+    setShareQuoteId(null);
+    try {
+      if (window.history.state?.reviewShare) window.history.back();
+    } catch {
+      // 没有 history 时已经完成关闭。
+    }
+  }, []);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (full) setFull(null);
-        else onBack();
+    const onPopState = () => {
+      if (shareQuoteIdRef.current) {
+        shareQuoteIdRef.current = null;
+        setShareQuoteId(null);
         return;
       }
-      if (full) return;
-      // ↑ / → 往上翻（下一张），↓ / ← 往回翻。和手指在架子上滑的方向一致。
-      if (e.key === 'ArrowUp' || e.key === 'ArrowRight') {
-        e.preventDefault();
+      if (!readerQuoteIdRef.current) return;
+      const focusTarget = readerFocusRef.current;
+      readerFocusRef.current = null;
+      readerQuoteIdRef.current = null;
+      setReaderQuoteId(null);
+      window.setTimeout(() => focusTarget?.focus?.(), 0);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (shareQuoteId) {
+          event.preventDefault();
+          closeShare();
+          return;
+        }
+        if (readerQuoteId) {
+          event.preventDefault();
+          closeReader();
+          return;
+        }
+        if (settingsOpen) return; // 浮层自己的 capture listener 先处理并恢复焦点。
+        event.preventDefault();
+        onBack();
+        return;
+      }
+      if (readerQuoteId || settingsOpen) return;
+      if (preferences.viewMode !== 'flip') return;
+      if (event.key === 'ArrowUp' || event.key === 'ArrowRight') {
+        event.preventDefault();
         rolodexRef.current?.go(1);
-      } else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') {
-        e.preventDefault();
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowLeft') {
+        event.preventDefault();
         rolodexRef.current?.go(-1);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [full, onBack]);
+  }, [closeReader, closeShare, onBack, preferences.viewMode, readerQuoteId, settingsOpen, shareQuoteId]);
+
+  const handlePreferencesChange = useCallback((next: ReviewPreferences) => {
+    if (
+      next.sortMode === 'random'
+      && preferencesRef.current.sortMode !== 'random'
+      && randomOrder.length === 0
+    ) {
+      const nextOrder = randomOrderForQuotes(quotesRef.current);
+      setReviewSessionRandomOrder(nextOrder);
+      setRandomOrder(nextOrder);
+    }
+    preferencesRef.current = next;
+    setPreferences(next);
+    setReviewSessionPreferences(next);
+  }, [randomOrder.length]);
+
+  const handleShuffle = useCallback(() => {
+    forceFirstAnchorRef.current = true;
+    setCurrentQuoteId(null);
+    const nextOrder = randomOrderForQuotes(quotesRef.current);
+    setReviewSessionRandomOrder(nextOrder);
+    setRandomOrder(nextOrder);
+  }, []);
+
+  const handleToggleFavorite = useCallback(async (quote: Quote) => {
+    if (favoritePendingRef.current.has(quote.id)) return;
+    favoritePendingRef.current.add(quote.id);
+    const live = quotesRef.current.find((item) => item.id === quote.id) ?? quote;
+    const previous = Boolean(live.isFavorite);
+    const desired = !previous;
+    setFavoritePendingIds((current) => new Set(current).add(quote.id));
+    setQuotes((current) => current.map((item) =>
+      item.id === quote.id ? { ...item, isFavorite: desired } : item
+    ));
+    setVisibleQuotes((current) => current.map((item) =>
+      item.id === quote.id ? { ...item, isFavorite: desired } : item
+    ));
+    try {
+      await setQuoteFavorite(quote.id, desired);
+    } catch (error) {
+      console.error('[Review] 收藏写入失败:', error);
+      setQuotes((current) => current.map((item) =>
+        item.id === quote.id ? { ...item, isFavorite: previous } : item
+      ));
+      setVisibleQuotes((current) => current.map((item) =>
+        item.id === quote.id ? { ...item, isFavorite: previous } : item
+      ));
+      showToast('收藏失败，已恢复原来的状态');
+    } finally {
+      favoritePendingRef.current.delete(quote.id);
+      setFavoritePendingIds((current) => {
+        const next = new Set(current);
+        next.delete(quote.id);
+        return next;
+      });
+    }
+  }, [showToast]);
+
+  const handleViewed = useCallback(async (quote: Quote) => {
+    const live = quotesRef.current.find((item) => item.id === quote.id) ?? quote;
+    if (live.viewedAt) return;
+    const viewedAt = new Date().toISOString();
+    // 只替换对象，不重建 visibleQuotes：返回双列后圆点更新，但当前顺序和位置不变。
+    setVisibleQuotes((current) => replaceQuotesKeepingSequence(current, [
+      { ...live, viewedAt },
+    ]));
+    setQuotes((current) => current.map((item) =>
+      item.id === quote.id ? { ...item, viewedAt } : item
+    ));
+    try {
+      await markQuoteViewed(quote.id, viewedAt);
+    } catch (error) {
+      console.error('[Review] 记录看过失败:', error);
+      setQuotes((current) => current.map((item) =>
+        item.id === quote.id ? { ...item, viewedAt: undefined } : item
+      ));
+      showToast('记录“看过”失败，请稍后重试');
+    }
+  }, [showToast]);
 
   const current = round ? round.deck[round.index] : undefined;
-  const currentQuote = current?.kind === 'excerpt' ? current.quote : null;
+  const currentQuote = current?.kind === 'excerpt'
+    ? quotes.find((quote) => quote.id === current.quote.id) ?? current.quote
+    : null;
   const reviewed = round ? reviewedCount(round) : 0;
   const bookOf = useCallback((bookId: string) => books.get(bookId) ?? null, [books]);
+  const readerQuote = readerQuoteId ? quotes.find((quote) => quote.id === readerQuoteId) ?? null : null;
+  const shareQuote = shareQuoteId ? quotes.find((quote) => quote.id === shareQuoteId) ?? null : null;
+  const sourceBook = readerQuote ? books.get(readerQuote.bookId) ?? null : null;
+  const shareBook = shareQuote ? books.get(shareQuote.bookId) ?? null : null;
 
   return (
     <div
@@ -171,25 +444,35 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
         inset: 0,
         display: 'flex',
         flexDirection: 'column',
-        // 回顾页是盖在书架上的整页浮层，底色必须和 App 主题一致，否则进出会看到明显的
-        // 色块跳变；写死颜色在深色模式下也会一直停在浅色。
         background: 'var(--color-bg)',
         overflow: 'hidden',
       }}
     >
-      {/* 顶部只剩一个返回键：标题、进度小字和右上角的关闭在进页面时都是重复信息，
-          全撤掉，省下的高度归中间那台装置 —— 舞台是按可用高度整体缩放的。 */}
       <header
         style={{
+          flex: '0 0 auto',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           padding: 'calc(6px + env(safe-area-inset-top)) 14px 0',
-          flex: '0 0 auto',
         }}
       >
-        <button type="button" onClick={onBack} aria-label="返回" style={iconButtonStyle}>
+        <button
+          type="button"
+          onClick={() => { if (!settingsOpen) onBack(); }}
+          aria-label="返回"
+          style={iconButtonStyle}
+        >
           <ChevronLeft size={19} strokeWidth={1.9} />
         </button>
+        <ReviewSettingsPopover
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          anchorRef={settingsAnchorRef}
+          preferences={preferences}
+          onChange={handlePreferencesChange}
+          onShuffle={handleShuffle}
+        />
       </header>
 
       <div
@@ -205,10 +488,35 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
         }}
       >
         {!loaded && <Spinner label="正在取摘录…" />}
-        {loaded && quotes.length === 0 && (
-          <EmptyState message="还没有摘录可以回顾" hint="去书里划几段喜欢的句子吧" />
+        {loaded && loadError && (
+          <EmptyState
+            message="暂时打不开回顾"
+            hint={loadError}
+            action={{ label: '重试', onClick: () => setRetryTrigger((value) => value + 1) }}
+          />
         )}
-        {loaded && round && quotes.length > 0 && (
+        {loaded && !loadError && visibleQuotes.length === 0 && (
+          <EmptyState
+            message="当前筛选下没有摘录"
+            hint={quotes.length === 0 ? '去书里划几段喜欢的句子吧' : '调整筛选条件后再看看'}
+          />
+        )}
+
+        {loaded && !loadError && visibleQuotes.length > 0 && preferences.viewMode === 'feed' && (
+          <DualColumnFeed
+            quotes={visibleQuotes}
+            books={books}
+            preferences={preferences}
+            randomOrder={randomOrder}
+            initialQuoteId={currentQuoteId}
+            favoritePendingIds={favoritePendingIds}
+            onOpenQuote={openReader}
+            onToggleFavorite={handleToggleFavorite}
+            onCurrentQuoteChange={setCurrentQuoteId}
+          />
+        )}
+
+        {loaded && !loadError && visibleQuotes.length > 0 && preferences.viewMode === 'flip' && round && (
           <motion.div
             animate={{ opacity: fading ? 0 : 1 }}
             transition={{ duration: SWAP_FADE_MS / 1000, ease: 'easeInOut' }}
@@ -216,8 +524,6 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
               width: STAGE_W,
               height: STAGE_H,
               flex: '0 0 auto',
-              // 舞台框比画面内容高，缩放后上下留白不一样宽，把框往下挪回半格差值让内容正中对齐，
-              // 免得上面那截留白不够、纸边被容器切掉一条。
               transform: `translateY(${((STAGE_PAD_BOTTOM - STAGE_PAD_TOP) / 2) * scale}px) scale(${scale})`,
               transformOrigin: 'center center',
             }}
@@ -230,47 +536,68 @@ export default function ReviewPage({ onBack }: { onBack: () => void }) {
               bookOf={bookOf}
               onReviewed={handleReviewed}
               onIndexChange={handleIndexChange}
-              onOpenFull={setFull}
+              onOpenFull={openReader}
             />
           </motion.div>
         )}
       </div>
 
-      {/* 翻页按钮撤掉后翻页只靠手势（和键盘方向键）。这里不能不留：舞台量的是 header
-          和这里之间的高度，留白不占位的话卡片会一路压到 Home 指示条下面去。 */}
-      <div style={{ flex: '0 0 auto', height: 'calc(4px + env(safe-area-inset-bottom))' }} />
+      {preferences.viewMode === 'flip' && (
+        <div style={{ flex: '0 0 auto', height: 'calc(4px + env(safe-area-inset-bottom))' }} />
+      )}
 
-      {/* 屏幕阅读器靠这一段知道翻到了哪张；视觉上完全不可见。 */}
       <p aria-live="polite" style={screenReaderOnly}>
-        {round && round.count > 0
-          ? `第 ${reviewed} 张，共 ${round.count} 张。${currentQuote ? currentQuote.text.slice(0, 80) : '本轮回顾完成'}`
-          : ''}
+        {preferences.viewMode === 'feed'
+          ? `双列流，共 ${visibleQuotes.length} 条摘录`
+          : round && round.count > 0
+            ? `第 ${reviewed + 1} 张，共 ${round.count} 张。${currentQuote?.text.slice(0, 80) ?? ''}`
+            : ''}
       </p>
 
       <AnimatePresence>
-        {full && (
-          <FullTextSheet
-            quote={full}
-            book={books.get(full.bookId) ?? null}
-            onClose={() => setFull(null)}
+        {readerQuote && (
+          <ExcerptReader
+            key={readerQuote.id}
+            quote={readerQuote}
+            book={sourceBook}
+            favoritePending={favoritePendingIds.has(readerQuote.id)}
+            shareOpen={shareQuoteId !== null}
+            onBack={closeReader}
+            onToggleFavorite={handleToggleFavorite}
+            onShare={openShare}
+            onViewed={handleViewed}
           />
         )}
       </AnimatePresence>
+
+      {shareQuote && (
+        <ShareSheetHost
+          open
+          onClose={closeShare}
+          quote={shareQuote}
+          bookTitle={shareBook?.title || '未知书目'}
+          bookAuthor={shareBook?.author || '作者未知'}
+          initialTemplate="calendar"
+        />
+      )}
+
+      {toast && <div className="review-toast" role="status" aria-live="polite">{toast}</div>}
     </div>
   );
 }
 
 const iconButtonStyle = {
-  width: 34,
-  height: 34,
+  width: 44,
+  height: 44,
   flex: '0 0 auto',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+  padding: 0,
   borderRadius: '50%',
-  border: '1px solid rgba(32,35,42,0.14)',
-  background: 'rgba(255,255,255,0.72)',
-  color: COLORS.ink,
+  border: 0,
+  background: 'transparent',
+  color: 'rgba(55,51,46,0.58)',
   cursor: 'pointer',
 } as const;
 
@@ -283,95 +610,28 @@ function Spinner({ label }: { label: string }) {
   );
 }
 
-function EmptyState({ message, hint }: { message: string; hint: string }) {
+function EmptyState({
+  message,
+  hint,
+  action,
+}: {
+  message: string;
+  hint: string;
+  action?: { label: string; onClick: () => void };
+}) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: 24, textAlign: 'center' }}>
       <div style={{ fontFamily: HAND_STACK, fontSize: 26, color: 'var(--color-text)' }}>{message}</div>
-      <div style={{ fontFamily: SERIF_STACK, fontSize: 13, letterSpacing: 1.5, color: 'var(--color-text-secondary)' }}>{hint}</div>
-    </div>
-  );
-}
-
-function FullTextSheet({ quote, book, onClose }: { quote: Quote; book: Book | null; onClose: () => void }) {
-  const meta = [book?.author, quote.page == null ? '' : /^\d+$/.test(quote.page) ? `p.${quote.page}` : quote.page]
-    .filter(Boolean)
-    .join(' · ');
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.18 }}
-      onClick={onClose}
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 30,
-        display: 'flex',
-        alignItems: 'flex-end',
-        background: 'rgba(20,18,14,0.42)',
-      }}
-    >
-      <motion.div
-        initial={{ y: 44 }}
-        animate={{ y: 0 }}
-        exit={{ y: 44 }}
-        transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxHeight: '78%',
-          overflowY: 'auto',
-          background: COLORS.paper,
-          borderRadius: '18px 18px 0 0',
-          padding: `22px 22px calc(26px + env(safe-area-inset-bottom))`,
-          boxShadow: '0 -18px 40px rgba(18,20,26,0.28)',
-        }}
-      >
-        <div
-          style={{
-            fontFamily: SERIF_STACK,
-            fontSize: 16.5,
-            lineHeight: 1.85,
-            letterSpacing: 0.4,
-            color: COLORS.ink,
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          <RichText
-            text={quote.text}
-            scope="quote"
-            markBackground={normalizeMarkColor(quote.textMarkColor)}
-          />
-        </div>
-        <div style={{ marginTop: 18, fontFamily: HAND_STACK, fontSize: 21, color: COLORS.ink }}>
-          {book?.title || '未知书目'}
-        </div>
-        {meta && (
-          <div style={{ marginTop: 4, fontFamily: HAND_STACK, fontSize: 15, color: COLORS.inkSoft }}>{meta}</div>
-        )}
+      <div style={{ fontFamily: SERIF_STACK, fontSize: 13, lineHeight: 1.7, letterSpacing: 0.7, color: 'var(--color-text-secondary)' }}>{hint}</div>
+      {action && (
         <button
           type="button"
-          onClick={onClose}
-          style={{
-            marginTop: 20,
-            width: '100%',
-            padding: '11px 0',
-            borderRadius: 999,
-            border: '1px solid rgba(32,35,42,0.16)',
-            background: 'rgba(32,35,42,0.05)',
-            color: COLORS.ink,
-            fontFamily: SERIF_STACK,
-            fontSize: 13.5,
-            letterSpacing: 3,
-            cursor: 'pointer',
-          }}
+          onClick={action.onClick}
+          style={{ marginTop: 8, padding: '8px 18px', borderRadius: 999, border: '1px solid rgba(32,35,42,0.18)', background: 'var(--color-bg-card)', color: 'var(--color-text)', cursor: 'pointer' }}
         >
-          收起
+          {action.label}
         </button>
-      </motion.div>
-    </motion.div>
+      )}
+    </div>
   );
 }

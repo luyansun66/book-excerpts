@@ -47,6 +47,8 @@ export interface Quote {
   text: string;
   thought: string;
   page: string | null;
+  /** 章节/位置。旧数据可能只有 page，读取侧会兼容回退。 */
+  chapter?: string | null;
   date: string;
   color?: string;
   /** 本条摘录「摘录原文」里 ==高亮== 的底色；空 = 主题默认。 */
@@ -57,6 +59,10 @@ export interface Quote {
   lastReviewedAt?: string | null;
   /** 累计被翻过去过多少次。只增不减。 */
   reviewCount?: number;
+  /** 全屏阅读页持续可见满 2 秒后写入；用于「未看 / 看过」筛选。 */
+  viewedAt?: string | null;
+  /** 摘录级收藏，独立于书籍收藏与「收录于我的书」。 */
+  isFavorite?: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -15,6 +15,7 @@ import {
   clearSubsetFont,
   collectCardText,
   ensureFontReady,
+  ensureTemplateFonts,
   fetchSubsetFont,
   preloadFont,
   subsetFamily,
@@ -45,11 +46,11 @@ describe('ensureFontReady — 只等卡片要用的那一款字体', () => {
     const load = vi.fn(() => Promise.resolve([]));
     stubFonts(load);
 
-    await expect(ensureFontReady('FZXiaoZhuan', ['正文', '正文', '小篆体'])).resolves.toBe(true);
+    await expect(ensureFontReady('TsangerJinKai02', ['正文', '正文', '仓耳今楷02'])).resolves.toBe(true);
 
     expect(load.mock.calls).toEqual([
-      ['14px "FZXiaoZhuan"', '正文'],
-      ['14px "FZXiaoZhuan"', '小篆体'],
+      ['14px "TsangerJinKai02"', '正文'],
+      ['14px "TsangerJinKai02"', '仓耳今楷02'],
     ]);
   });
 
@@ -137,12 +138,27 @@ describe('FONTS 与标签字体子集保持一致', () => {
     text: m[2],
   }));
 
-  it('选择器按钮一律指向子集，不指向整套字体（整套七款约 22MB）', () => {
+  it('选择器按钮一律指向子集，不指向整套字体', () => {
     for (const font of FONTS) {
       if (font.id === 'system') continue;
       expect(font.labelFamily).not.toBe(font.family);
       expect(font.labelFamily).toContain('Label');
     }
+  });
+
+  it('分享字体清单移除兰亭细黑和小篆体，并加入三款仓耳字体', () => {
+    const ids = FONTS.map((font) => font.id);
+    expect(ids).not.toContain('lanting');
+    expect(ids).not.toContain('xiaozhuan');
+    expect(FONTS.filter((font) => font.id.startsWith('tsanger-')).map((font) => ({
+      id: font.id,
+      name: font.name,
+      face: font.face,
+    }))).toEqual([
+      { id: 'tsanger-jinkai', name: '仓耳今楷', face: 'TsangerJinKai02' },
+      { id: 'tsanger-xuansan', name: '仓耳玄三', face: 'TsangerXuanSan02' },
+      { id: 'tsanger-yunhei', name: '仓耳云黑', face: 'TsangerYunHei' },
+    ]);
   });
 
   it('每款字体的标签子集都有 @font-face 声明和真实文件', () => {
@@ -162,7 +178,7 @@ describe('FONTS 与标签字体子集保持一致', () => {
 });
 
 // ─── 子集字体 ────────────────────────────────────────────────────────────────
-// 首访要下的是这几十 KB，而不是整套 7.4MB —— 这条路径错了，首访就还是几十秒。
+// 首访要下的是这几十 KB，而不是整套字体 —— 这条路径错了，首访就还是几十秒。
 
 describe('collectCardText / subsetFamily', () => {
   it('卡片里用所选字体渲染的每个字都进请求：正文 + 前后引号', () => {
@@ -176,7 +192,7 @@ describe('collectCardText / subsetFamily', () => {
 });
 
 describe('FONTS 的字体栈：点选字体不该顺手下整套字体', () => {
-  it('fallbackFamily 不含整款字体族名（含了就等于首访下 7.4MB）', () => {
+  it('fallbackFamily 不含整款字体族名（含了就等于首访下载整套字体）', () => {
     for (const font of FONTS) {
       if (font.id === 'system') continue;
       expect(font.fallbackFamily, `${font.name} 的兜底栈里还有整款字体`).not.toContain(`"${font.face}"`);
@@ -223,8 +239,8 @@ describe('fetchSubsetFont — 拿不到就必须返回 null，交给调用方降
 
   it('拿到子集：族名、字节、format 都跟着服务端走', async () => {
     stubFetch(async () => fontResponse('font/otf', 128));
-    await expect(fetchSubsetFont('SourceHanSerifCN', '正文')).resolves.toMatchObject({
-      family: 'ShareSub-SourceHanSerifCN',
+    await expect(fetchSubsetFont('FZSongHei', '正文')).resolves.toMatchObject({
+      family: 'ShareSub-FZSongHei',
       format: 'opentype',
     });
   });
@@ -356,5 +372,51 @@ describe('applyCloneSafeColors — 给克隆文档一个 html2canvas 解析得�
       'utf8',
     );
     expect(sheetSrc).toContain('applyCloneSafeColors(doc, color.textColor)');
+  });
+});
+
+describe('日历书摘模板字体角色', () => {
+  it('导出前等待思源宋体三档字重和日期所需字体', async () => {
+    const calls: Array<[string, string | undefined]> = [];
+    stubFonts(async (font, text) => { calls.push([font, text]); return []; });
+
+    await ensureTemplateFonts({
+      serif: ['《东京八平米》', '吉井忍', '折角 · Dogear'],
+      weekday: ['星期五'],
+      date: ['20', 'NOVEMBER 2026'],
+    });
+
+    for (const weight of ['300', '500', '700']) {
+      expect(calls.some(([font, text]) => font.startsWith(`${weight} `) && font.includes('NotoSerifSC') && text === '《东京八平米》')).toBe(true);
+    }
+    expect(calls.some(([font, text]) => font.includes('SourceHanSansCN') && text === '星期五')).toBe(true);
+    expect(calls.some(([font, text]) => font.startsWith('700 ') && font.includes('SourceHanSansCN') && text === 'NOVEMBER 2026')).toBe(true);
+    expect(calls).toHaveLength(12);
+  });
+
+  it('星期与日期字体子集都真实存在，不再依赖设备本地字体', () => {
+    const weekdayPath = path.resolve(process.cwd(), 'public/fonts/SourceHanSansCN-Weekday.woff2');
+    const calendarDatePath = path.resolve(process.cwd(), 'public/fonts/SourceHanSansCN-Calendar-Bold.woff2');
+    const fontsCss = readFileSync(path.resolve(process.cwd(), 'src/styles/fonts.css'), 'utf8');
+    expect(existsSync(weekdayPath)).toBe(true);
+    expect(existsSync(calendarDatePath)).toBe(true);
+    expect(fontsCss).toContain("font-family: 'SourceHanSansCN'");
+    expect(fontsCss).toContain("url('/fonts/SourceHanSansCN-Weekday.woff2')");
+    expect(fontsCss).toContain("url('/fonts/SourceHanSansCN-Calendar-Bold.woff2')");
+    expect(fontsCss).toContain('font-weight: 700');
+  });
+
+  it('日历模板使用自己的字体等待分支，原版模板继续等待子集字体与贴纸', () => {
+    const sheetSrc = readFileSync(
+      path.resolve(process.cwd(), 'src/app/components/sheets/ShareSheet.tsx'),
+      'utf8',
+    );
+    expect(sheetSrc).toContain("initialTemplate = 'original'");
+    expect(sheetSrc).toContain("template === 'calendar' ? CALENDAR_CARD_WIDTH : CARD_WIDTH");
+    expect(sheetSrc).toContain('isCalendar ? Promise.resolve(null) : resolveStickerSvg()');
+    expect(sheetSrc).toContain('? ensureTemplateFonts({');
+    expect(sheetSrc).toContain("serif: [");
+    expect(sheetSrc).not.toContain(['Source','Han','Serif'].join(''));
+    expect(sheetSrc).toContain('if (!isCalendar) applyCardSticker(doc, stickerMarkup, color.textColor)');
   });
 });

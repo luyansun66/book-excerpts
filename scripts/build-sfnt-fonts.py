@@ -25,13 +25,15 @@ OUT_DIR = os.path.join('public', 'fonts', 'sfnt')
 
 # face id → 源 woff2（相对 FONT_DIR）
 FONTS = {
-    'SourceHanSerifCN': 'SourceHanSerifCN-SemiBold.woff2',
-    'FZLanTingXiHei': 'FZLanTingXiHei.woff2',
+    # 分享正文按 Medium 现场子集化；整套三档仍由 fonts.css 的 @font-face 提供。
+    'NotoSerifSC': 'NotoSerifSC-Medium.woff2',
     'FZBeiWeiKaiShu': '方正北魏楷书简体.woff2',
     'FZSongHei': 'FZSongHei.woff2',
-    'FZXiaoZhuan': 'FZXiaoZhuan.woff2',
     'FZZhengXianHei': 'FZZhengXianHei.woff2',
     'HuiWenMingChao': 'HuiWenMingChao.woff2',
+    'TsangerJinKai02': 'TsangerJinKai02.woff2',
+    'TsangerXuanSan02': 'TsangerXuanSan02.woff2',
+    'TsangerYunHei': 'TsangerYunHei.woff2',
 }
 
 

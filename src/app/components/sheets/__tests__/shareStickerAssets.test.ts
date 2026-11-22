@@ -3,7 +3,7 @@
 //
 // 背景：20 张贴纸的 SVG 合计 768KB，原先全被打进 ShareSheet chunk —— 首访点「分享」
 // 的人必须先下完它们，哪怕卡片上只用得到一张（这正是首访导出慢的一大块）。现在
-// 只有默认那张是静态的，其余各是一个独立 chunk；选择器只吃 48×48 的 PNG 蒙版。
+// 只有 kitty 是静态的，其余各是一个独立 chunk；日历模板默认不贴纸，选择器只吃 48×48 的 PNG 蒙版。
 // 这几个断言钉住的就是「别再把 SVG 塞回主 chunk」。
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -24,9 +24,13 @@ describe('贴纸资源按需加载', () => {
     expect(eager).toEqual(['kitty']);
   });
 
-  it('分享面板默认选中的正是那张静态贴纸，卡片首帧不用等 chunk', () => {
+  it('原版保留 Kitty 默认贴纸，日历模板不显示也不渲染贴纸', () => {
     expect(STICKERS[0].id).toBe('kitty');
-    expect(sheetSrc).toMatch(/const \[stickerIndex, setStickerIndex\] = useState\(1\)/);
+    expect(sheetSrc).toContain('stickerIndex: 1');
+    expect(sheetSrc).toContain("{template === 'original' && (");
+    const calendarSrc = readFileSync(path.join(sheetsDir, 'CalendarShareCard.tsx'), 'utf8');
+    expect(calendarSrc).not.toContain('data-share-sticker');
+    expect(calendarSrc).not.toContain('stickerSvg');
   });
 
   it('生成物里恰好 1 次静态 ?raw 引入，另外 18 次都是 import()', () => {
@@ -77,8 +81,8 @@ describe('选择器用 PNG 蒙版，卡片才用真 SVG', () => {
 });
 
 describe('导出路径必须先拿到贴纸再截图', () => {
-  it('贴纸和字体子集并行 await，首访不叠加等待', () => {
-    expect(sheetSrc).toContain('Promise.all([resolveCardFont(), resolveStickerSvg()])');
+  it('原版让贴纸和字体子集并行等待，日历分支跳过贴纸', () => {
+    expect(sheetSrc).toContain('isCalendar ? Promise.resolve(null) : resolveStickerSvg()');
     expect(sheetSrc).toContain('await Promise.all');
   });
 

@@ -12,20 +12,20 @@ export interface FontOption {
   /**
    * 降级字体栈：**含整款字体族名**。
    * 只在「子集还没拿到 / 拿不到」时用 —— 也就是修复前的行为：
-   * 老老实实下载整套字体（最大 7.4MB，慢网下 41s），但一定出图。
+   * 老老实实下载整套字体（字体文件通常有数 MB，慢网下会很慢），但一定出图。
    */
   family: string;
   /**
    * 子集就位后的兜底栈：**故意不含整款字体族名**。
    * 子集缺字时逐级退到这里的系统字体；因为不点名整款字体，
-   * 「点选字体」这个动作不会再顺手把整套字体拉下来（首访 41s 的起点之一）。
+   * 「点选字体」这个动作不会再顺手把整套字体拉下来（首访长时间等待的起点之一）。
    */
   fallbackFamily: string;
   /**
    * 选择器按钮上「字体名」的字体栈。
    * 只指向 /fonts/labels 下的名字子集（每个约 1KB），绝不指向整套字体 ——
-   * 按钮用整套字体渲染的话，一打开面板就要下七款字体（约 22MB），
-   * 慢网下就是几分钟的「字体加载」。子集缺字时退回系统字体，
+   * 按钮用整套字体渲染的话，一打开面板就要下载多款大字库，
+   * 慢网下可能要等待数分钟。子集缺字时退回系统字体，
    * 不会再触发整套字体的下载（见 scripts/subset-label-fonts.sh）。
    */
   labelFamily: string;
@@ -45,18 +45,34 @@ export const FONTS: FontOption[] = [
   {
     id: 'siyuan',
     name: '思源宋体',
-    family: '"SourceHanSerifCN", "Noto Serif SC", Georgia, serif',
-    fallbackFamily: '"Noto Serif SC", Georgia, serif',
-    labelFamily: '"SourceHanSerifCNLabel", "Songti SC", serif',
-    face: 'SourceHanSerifCN',
+    family: '"NotoSerifSC", "Noto Serif SC", "Songti SC", serif',
+    fallbackFamily: '"Noto Serif SC", "Songti SC", serif',
+    labelFamily: '"NotoSerifSCLabel", "Songti SC", serif',
+    face: 'NotoSerifSC',
   },
   {
-    id: 'lanting',
-    name: '兰亭细黑',
-    family: '"FZLanTingXiHei", "PingFang SC", sans-serif',
+    id: 'tsanger-jinkai',
+    name: '仓耳今楷',
+    family: '"TsangerJinKai02", "Kaiti SC", "KaiTi", serif',
+    fallbackFamily: '"Kaiti SC", "KaiTi", serif',
+    labelFamily: '"TsangerJinKai02Label", "Kaiti SC", serif',
+    face: 'TsangerJinKai02',
+  },
+  {
+    id: 'tsanger-xuansan',
+    name: '仓耳玄三',
+    family: '"TsangerXuanSan02", "Kaiti SC", "KaiTi", serif',
+    fallbackFamily: '"Kaiti SC", "KaiTi", serif',
+    labelFamily: '"TsangerXuanSan02Label", "Kaiti SC", serif',
+    face: 'TsangerXuanSan02',
+  },
+  {
+    id: 'tsanger-yunhei',
+    name: '仓耳云黑',
+    family: '"TsangerYunHei", "PingFang SC", sans-serif',
     fallbackFamily: '"PingFang SC", sans-serif',
-    labelFamily: '"FZLanTingXiHeiLabel", "PingFang SC", sans-serif',
-    face: 'FZLanTingXiHei',
+    labelFamily: '"TsangerYunHeiLabel", "PingFang SC", sans-serif',
+    face: 'TsangerYunHei',
   },
   {
     id: 'beiwei',
@@ -73,14 +89,6 @@ export const FONTS: FontOption[] = [
     fallbackFamily: '"PingFang SC", sans-serif',
     labelFamily: '"FZSongHeiLabel", "PingFang SC", sans-serif',
     face: 'FZSongHei',
-  },
-  {
-    id: 'xiaozhuan',
-    name: '小篆体',
-    family: '"FZXiaoZhuan", serif',
-    fallbackFamily: 'serif',
-    labelFamily: '"FZXiaoZhuanLabel", "Songti SC", serif',
-    face: 'FZXiaoZhuan',
   },
   {
     id: 'zhengxian',
@@ -132,13 +140,17 @@ export async function ensureFontReady(
   face: string,
   texts: string[],
   timeoutMs: number = FONT_WAIT_TIMEOUT_MS,
+  weight?: number,
 ): Promise<boolean> {
   if (face === 'system') return true;
   const fonts = documentFonts();
   if (!fonts || typeof fonts.load !== 'function') return true;
 
+  const descriptor = weight === undefined
+    ? `${PROBE_SIZE} "${face}"`
+    : `${weight} ${PROBE_SIZE} "${face}"`;
   const loaded = Promise.all(
-    uniqueTexts(texts).map((text) => fonts.load(`${PROBE_SIZE} "${face}"`, text)),
+    uniqueTexts(texts).map((text) => fonts.load(descriptor, text)),
   ).then(
     () => true,
     () => false,
@@ -157,6 +169,34 @@ export async function ensureFontReady(
   }
 }
 
+export interface TemplateFontTexts {
+  /** 固定宋体角色需要覆盖 Light、Medium、Bold 三档。 */
+  serif: string[];
+  /** 星期固定使用思源黑体。 */
+  weekday: string[];
+  /** 日期数字与英文月年使用随应用发布的思源黑体粗体子集。 */
+  date: string[];
+}
+
+/**
+ * 等日历模板中的思源宋体和思源黑体角色全部就绪。
+ *
+ * 思源宋体使用 Light / Medium / Bold 三档；星期与日期使用同一族思源黑体的
+ * 不同字重子集。字体加载失败仍让导出继续，最终由卡片字体栈逐级兜底。
+ */
+export async function ensureTemplateFonts(
+  texts: TemplateFontTexts,
+  timeoutMs: number = FONT_WAIT_TIMEOUT_MS,
+): Promise<boolean[]> {
+  return Promise.all([
+    ensureFontReady('NotoSerifSC', texts.serif, timeoutMs, 300),
+    ensureFontReady('NotoSerifSC', texts.serif, timeoutMs, 500),
+    ensureFontReady('NotoSerifSC', texts.serif, timeoutMs, 700),
+    ensureFontReady('SourceHanSansCN', texts.weekday, timeoutMs, 400),
+    ensureFontReady('SourceHanSansCN', texts.date, timeoutMs, 700),
+  ]);
+}
+
 /**
  * html2canvas 的 ignoreElements：只留卡片本身。
  * 它默认把整个 <html> 克隆进隐藏 iframe，于是书架上的封面图要在克隆里重新加载
@@ -173,7 +213,7 @@ export function buildIgnoreElements(card: Element | null): (element: Element) =>
 }
 
 // ─── 按摘录文字做字体子集化 ───────────────────────────────────────────────────
-// 首访慢的根子是「下载整套字体」：最大的一款 7.4MB，按实测慢网 180KB/s 就是 41s。
+// 首访慢的根子是「下载整套字体」：单款大字库通常有数 MB，慢网下会显著阻塞。
 // 服务端（functions/api/fonts/subset.ts）只按这段摘录用到的字返回子集
 // （十几~几十 KB），客户端把它包成 @font-face 注入。
 // 任何一环失败都返回 null，调用方退回整套字体 —— 失败必须是「跟修复前一样」，不是报错。

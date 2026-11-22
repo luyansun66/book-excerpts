@@ -34,10 +34,70 @@
 
 /* ─── Share card fonts ───────────────────────────────────────────────────────── */
 
+/* 思源宋体：随 PWA 发布的三档真实字重。Medium 是正文基准，Bold 供标题，Light 供辅助层级。 */
 @font-face {
-  font-family: 'SourceHanSerifCN';
-  src: url('/fonts/SourceHanSerifCN-SemiBold.woff2') format('woff2');
-  font-weight: normal;
+  font-family: 'NotoSerifSC';
+  src: url('/fonts/NotoSerifSC-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NotoSerifSC';
+  src: url('/fonts/NotoSerifSC-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'NotoSerifSC';
+  src: url('/fonts/NotoSerifSC-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Calendar share template: weekday uses a tiny Source Han Sans subset. */
+@font-face {
+  font-family: 'SourceHanSansCN';
+  src: url('/fonts/SourceHanSansCN-Weekday.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 日期层必须与星期共用一套随应用发布的字体度量，避免设备字体回退改变行框。 */
+@font-face {
+  font-family: 'SourceHanSansCN';
+  src: url('/fonts/SourceHanSansCN-Calendar-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* 仓耳今楷 02 / 玄三 02 / 云黑：随 PWA 发布的 W03 常规字重。 */
+@font-face {
+  font-family: 'TsangerJinKai02';
+  src: url('/fonts/TsangerJinKai02.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TsangerXuanSan02';
+  src: url('/fonts/TsangerXuanSan02.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TsangerYunHei';
+  src: url('/fonts/TsangerYunHei.woff2') format('woff2');
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
@@ -67,14 +127,6 @@
 }
 
 @font-face {
-  font-family: 'FZXiaoZhuan';
-  src: url('/fonts/FZXiaoZhuan.woff2') format('woff2');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
   font-family: 'FZZhengXianHei';
   src: url('/fonts/FZZhengXianHei.woff2') format('woff2');
   font-weight: normal;
@@ -92,21 +144,37 @@
 
 /* ─── 分享卡片：字体选择器的「字体名」预览 ──────────────────────────────────
    选择器按钮用该字体自己的字形写出字体名，但整套中文字体是 MB 级的
-   （七款合计约 22MB）。按钮若指向整套字体，打开面板就会静默下载全部字体，
+   （多款 CJK 字体合计可达数十 MB）。按钮若指向整套字体，打开面板就会静默下载全部字体，
    慢网下要等几分钟。这里单独引一份只含该字体名的子集（见
    scripts/subset-label-fonts.sh），卡片正文仍然用上面整套字体。 */
 
 @font-face {
-  font-family: 'SourceHanSerifCNLabel';
-  src: url('/fonts/labels/SourceHanSerifCNLabel.woff2') format('woff2');
+  font-family: 'NotoSerifSCLabel';
+  src: url('/fonts/labels/NotoSerifSCLabel.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'FZLanTingXiHeiLabel';
-  src: url('/fonts/labels/FZLanTingXiHeiLabel.woff2') format('woff2');
+  font-family: 'TsangerJinKai02Label';
+  src: url('/fonts/labels/TsangerJinKai02Label.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TsangerXuanSan02Label';
+  src: url('/fonts/labels/TsangerXuanSan02Label.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'TsangerYunHeiLabel';
+  src: url('/fonts/labels/TsangerYunHeiLabel.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;
@@ -123,14 +191,6 @@
 @font-face {
   font-family: 'FZSongHeiLabel';
   src: url('/fonts/labels/FZSongHeiLabel.woff2') format('woff2');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'FZXiaoZhuanLabel';
-  src: url('/fonts/labels/FZXiaoZhuanLabel.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: swap;

@@ -608,6 +608,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
     text: string;
     thought: string;
     page: string | null;
+    chapter: string | null;
     date: string;
     color?: string;
     textMarkColor?: string;
@@ -619,6 +620,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         text: data.text.trim(),
         thought: data.thought.trim(),
         page: data.page,
+        chapter: data.chapter,
         date: data.date,
         color: data.color,
         textMarkColor: data.textMarkColor,
@@ -641,6 +643,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
     text: string;
     thought: string;
     page: string | null;
+    chapter: string | null;
     date: string;
     color?: string;
     textMarkColor?: string;
@@ -652,6 +655,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
         text: data.text.trim(),
         thought: data.thought.trim(),
         page: data.page,
+        chapter: data.chapter,
         date: data.date,
         color: data.color,
         textMarkColor: data.textMarkColor,
@@ -664,6 +668,7 @@ export function BookDetailPage({ book, onBack }: BookDetailPageProps) {
             text: data.text,
             thought: data.thought,
             page: data.page,
+            chapter: data.chapter,
             date: data.date,
             color: data.color,
             textMarkColor: data.textMarkColor,

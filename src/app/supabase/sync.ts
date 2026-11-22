@@ -41,6 +41,16 @@ export async function pushAllData(
     });
   }
 
+  // 新字段需要远端表先执行 supabase_schema.sql。这里在删除任何摘录前做一次能力探测，
+  // 避免旧库缺少列时先删成功、随后每次 upsert 都失败，把云端摘录清空。
+  const { error: quoteSchemaError } = await supabase
+    .from('quotes')
+    .select('chapter, is_favorite, viewed_at, created_at')
+    .limit(1);
+  if (quoteSchemaError) {
+    throw new Error('云端 quotes 表缺少回顾字段，请先执行 supabase_schema.sql 中的迁移。');
+  }
+
   // Delete existing quotes for these books, then insert fresh
   const bookIds = books.map(b => b.id);
   if (bookIds.length > 0) {
@@ -48,19 +58,24 @@ export async function pushAllData(
   }
 
   for (const quote of quotes) {
-    await supabase.from('quotes').upsert({
+    const { error } = await supabase.from('quotes').upsert({
       id: quote.id,
       user_id: user.id,
       book_id: quote.bookId,
       text: quote.text,
       thought: quote.thought ?? '',
       page: quote.page ?? null,
+      chapter: quote.chapter ?? null,
       date: quote.date,
+      created_at: quote.createdAt,
+      is_favorite: Boolean(quote.isFavorite),
+      viewed_at: quote.viewedAt ?? null,
       color: quote.color ?? null,
       text_mark_color: quote.textMarkColor ?? null,
       thought_mark_color: quote.thoughtMarkColor ?? null,
       order: 0,
     });
+    if (error) throw error;
   }
 }
 
@@ -107,11 +122,14 @@ export async function pullAllData(): Promise<{
       text: q.text,
       thought: q.thought || '',
       page: q.page || null,
+      chapter: q.chapter || null,
       date: q.date || new Date().toISOString(),
+      viewedAt: q.viewed_at || null,
+      isFavorite: Boolean(q.is_favorite),
       color: q.color || undefined,
       textMarkColor: q.text_mark_color || undefined,
       thoughtMarkColor: q.thought_mark_color || undefined,
-      createdAt: q.date || new Date().toISOString(),
+      createdAt: q.created_at || q.date || new Date().toISOString(),
       updatedAt: q.date || new Date().toISOString(),
       order: q.order || 0,
     })) as Quote[],

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Quote } from '../../types';
 import type { DeckEntry } from '../deck';
-import { HISTORY_SIZE, buildRound, canGoNext, canGoPrev, isAtRoundEnd, recentQuotes, reviewedCount } from '../round';
+import { HISTORY_SIZE, buildOrderedRound, buildRound, canGoNext, canGoPrev, isAtRoundEnd, recentQuotes, reviewedCount } from '../round';
 
 function quote(id: string): Quote {
   return {
@@ -54,6 +54,17 @@ describe('buildRound', () => {
     expect(round.index).toBe(2);
     expect(reviewedCount(round)).toBe(0);
     expect(round.deck[round.index]).toMatchObject({ quote: { id: 'a' } });
+  });
+});
+
+describe('buildOrderedRound', () => {
+  it('完整保留传入顺序，并用 currentQuoteId 定位', () => {
+    const round = buildOrderedRound([quote('a'), quote('b'), quote('c')], 'b');
+    expect(round.deck.filter((entry) => entry.kind === 'excerpt').map((entry) => (
+      entry.kind === 'excerpt' ? entry.quote.id : ''
+    ))).toEqual(['a', 'b', 'c']);
+    expect(round.index).toBe(1);
+    expect(round.count).toBe(3);
   });
 });
 

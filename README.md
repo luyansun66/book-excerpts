@@ -39,10 +39,35 @@
   ```bash
   python3 scripts/build-sfnt-fonts.py   # 需 pip install fonttools brotli；产物入库
   ```
-  产出 `public/fonts/sfnt/<face>.ttf|otf` + `index.json`（合计约 48.6MB，字体不变就不用重跑，
+  产出 `public/fonts/sfnt/<face>.ttf|otf` + `index.json`（合计约 51.4MB，字体不变就不用重跑，
   同 `public/fonts/labels/` 的模式）。`dist/hb-subset.wasm` 由 `npm run build` 从
   `node_modules/harfbuzzjs` 拷入 dist，不入库。端点不可用 / 超时 / 超 CPU 预算时，
   前端自动退回整套字体：慢，但一定出图。
+- **日历书摘导出模板**：唯一入口仍是 `ShareSheet`，卡片宽 360px、基准高 500px，导出 3 倍得到 1080 × 1500px 图片；正文较长时自然增高。
+  星期使用 `public/fonts/SourceHanSansCN-Weekday.woff2`（只含“星期日一二三四五六”，约 2.4KB）；
+  可用以下命令从思源黑体源文件重新生成。大字日期与英文月年使用随应用发布的
+  `SourceHanSansCN-Calendar-Bold.woff2` 子集；正文、书名、作者和出处使用随 PWA 发布的思源宋体。日期区采用固定
+  `250px` 分区和绝对定位，避免 `html2canvas` 采用设备字体行框时与月年重叠；正文为
+  `17.5px / 30.75px`，左右版心 `31px`。
+  ```bash
+  python3 -m fontTools.subset "$HOME/Library/Fonts/SourceHanSansCN-Normal.otf" \
+    --text='星期日一二三四五六' --output-file='public/fonts/SourceHanSansCN-Weekday.woff2' \
+    --flavor=woff2 --layout-features='*' --no-hinting --name-IDs='*' --name-languages='*'
+  bash scripts/subset-calendar-fonts.sh   # 日期数字与英文月份，需 fonttools/brotli
+  ```
+- **思源宋体 Web Font**：Light / Medium / Bold 三档 TTF 源文件放在 `书签字体/思源宋体`（不入库），执行
+  ```bash
+  python3 scripts/build-noto-serif-fonts.py --source-dir "$HOME/Downloads/思源宋体"
+  ```
+  产出 `public/fonts/NotoSerifSC-{Light,Medium,Bold}.woff2`，再以 `NotoSerifSC` 一个家族分别注册
+  `300 / 500 / 700`；Medium 作为正文和按字子集基准，Bold 供标题，Light 供辅助层级。
+- **仓耳分享字体 Web Font**：三款仓耳 W03 TTF 源文件放在 `字体安装包/04_仓耳字库`（不入库），执行
+  ```bash
+  python3 scripts/build-tsanger-fonts.py --source-dir "$HOME/Downloads/字体安装包/04_仓耳字库"
+  ```
+  产出 `public/fonts/TsangerJinKai02.woff2`、`TsangerXuanSan02.woff2` 和 `TsangerYunHei.woff2`；三款都以真实
+  `400` 字重通过 `@font-face` 随 PWA 发布，并各自生成字体名标签子集与服务端按字子集原料。分享选择器不再提供
+  兰亭细黑和小篆体；兰亭细黑基础字体保留给回顾信息栏，小篆体资源已删除。
 - **分享面板按需加载 + 空闲预取**：`ShareSheet` 和导出用的 `html2canvas`（202KB）都是动态
   import，入口统一在 `shareSheetLoader.ts`；书详情页挂载后用 `usePrefetchOnIdle` 一次把两块
   都取回来 —— 点「分享」不用等 chunk，点「保存图片」也不必先在「准备中…」上停一下。静态

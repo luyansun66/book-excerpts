@@ -176,7 +176,7 @@ afterEach(() => {
   resetRuntimeCache();
 });
 
-describe('七款字体都产出「可用」的字体，而不是看起来像字体的字节', () => {
+describe('每款保留字体都产出「可用」的字体，而不是看起来像字体的字节', () => {
   for (const face of FACES) {
     it(`${face}：cmap 覆盖请求的每一个字，体积远小于整套`, async () => {
       const { response, bytes } = await subsetOf(face, TEXT);

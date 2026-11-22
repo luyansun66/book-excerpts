@@ -10,6 +10,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, l
 import { AnimatePresence, motion } from 'motion/react';
 import { usePrefetchOnIdle } from '../hooks/usePrefetchOnIdle';
 import { COLORS, SERIF_STACK } from './rolodex/tokens';
+import { REVIEW_PAGE_Z_INDEX } from '../components/sheets/shareSheetLayers';
 
 const loadReviewPage = () => import('./ReviewPage');
 const ReviewPage = lazy(loadReviewPage);
@@ -48,7 +49,7 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 34 }}
-            style={{ position: 'fixed', inset: 0, zIndex: 130, background: 'var(--color-bg)' }}
+            style={{ position: 'fixed', inset: 0, zIndex: REVIEW_PAGE_Z_INDEX, background: 'var(--color-bg)' }}
           >
             <Suspense fallback={<Loading />}>
               <ReviewPage onBack={close} />

@@ -30,7 +30,11 @@ CREATE TABLE IF NOT EXISTS quotes (
   text TEXT NOT NULL,
   thought TEXT DEFAULT '',
   page TEXT,
+  chapter TEXT,
   date TEXT NOT NULL,
+  created_at TEXT,
+  is_favorite BOOLEAN DEFAULT FALSE,
+  viewed_at TEXT,
   color TEXT,
   text_mark_color TEXT,
   thought_mark_color TEXT,
@@ -41,6 +45,10 @@ CREATE TABLE IF NOT EXISTS quotes (
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS color TEXT;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS text_mark_color TEXT;
 ALTER TABLE quotes ADD COLUMN IF NOT EXISTS thought_mark_color TEXT;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS chapter TEXT;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS created_at TEXT;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN DEFAULT FALSE;
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS viewed_at TEXT;
 
 -- Indexes for faster queries
 CREATE INDEX IF NOT EXISTS idx_categories_user ON categories(user_id);

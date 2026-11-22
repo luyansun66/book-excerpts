@@ -4,6 +4,9 @@ import { X, Download } from 'lucide-react';
 import type { Quote } from '../../types';
 import { STICKERS, eagerStickerSvg, loadStickerSvg } from './stickers';
 import ShareCard, { CARD_WIDTH } from './ShareCard';
+import CalendarShareCard, { CALENDAR_CARD_WIDTH, calendarDateParts, type CalendarDateParts } from './CalendarShareCard';
+import type { ShareTemplate } from './shareTemplates';
+import { SHARE_SHEET_FULLSCREEN_Z_INDEX, SHARE_SHEET_Z_INDEX } from './shareSheetLayers';
 import {
   FONTS,
   applyCardFont,
@@ -14,6 +17,7 @@ import {
   clearSubsetFont,
   collectCardText,
   ensureFontReady,
+  ensureTemplateFonts,
   fetchSubsetFont,
   preloadFont,
   subsetFamily,
@@ -39,6 +43,11 @@ const COLOR_THEMES: ColorTheme[] = [
   { id: 'freshgreen', name: '清新绿', bgColor: '#F0F5EC', textColor: '#2D4A2E', accentColor: '#5A8A5' },
   { id: 'plainwhite', name: '素白', bgColor: '#FAFAFA', textColor: '#2D1F16', accentColor: '#A69060' },
   { id: 'bookcream', name: '书卷米', bgColor: '#FEFCF8', textColor: '#2D1F16', accentColor: '#B08D57' },
+];
+
+const CALENDAR_COLOR_THEMES: ColorTheme[] = [
+  { id: 'calendar', name: '日历米棕', bgColor: '#E8D7CD', textColor: '#262626', accentColor: '#6B5A58' },
+  ...COLOR_THEMES,
 ];
 
 // ─── Color helpers ────────────────────────────────────────────────────────────
@@ -94,6 +103,47 @@ interface ShareSheetProps {
   quote: Quote;
   bookTitle: string;
   bookAuthor: string;
+  /** 分享入口可指定首屏模板；共享编辑器内始终可继续切换。 */
+  initialTemplate?: ShareTemplate;
+}
+
+interface TemplateSettings {
+  colorIndex: number;
+  customColor: string | null;
+  useCustomColor: boolean;
+  fontIndex: number;
+  stickerIndex: number;
+  showThoughts: boolean;
+}
+
+const ORIGINAL_CUSTOM_COLOR_KEY = 'share-custom-bg';
+const CALENDAR_CUSTOM_COLOR_KEY = 'share-calendar-custom-bg';
+
+function readStoredColor(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function initialOriginalSettings(): TemplateSettings {
+  const customColor = readStoredColor(ORIGINAL_CUSTOM_COLOR_KEY);
+  return {
+    colorIndex: 4,
+    customColor,
+    useCustomColor: customColor !== null,
+    fontIndex: 0,
+    stickerIndex: 1,
+    showThoughts: true,
+  };
+}
+
+function initialCalendarSettings(): TemplateSettings {
+  return {
+    colorIndex: 0,
+    customColor: readStoredColor(CALENDAR_CUSTOM_COLOR_KEY),
+    useCustomColor: false,
+    fontIndex: 1,
+    stickerIndex: 0,
+    showThoughts: true,
+  };
 }
 
 /** 生成好的 PNG 落盘：移动端走系统分享，桌面端直接下载 */
@@ -108,26 +158,30 @@ function downloadBlob(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor }: ShareSheetProps) {
-  const [colorIndex, setColorIndex] = useState(4); // default: bookcream (书卷米)
-  const [customColor, setCustomColor] = useState<string | null>(() => {
-    try { return localStorage.getItem('share-custom-bg'); } catch { return null; }
-  });
-  const [useCustomColor, setUseCustomColor] = useState(customColor !== null);
-  const [fontIndex, setFontIndex] = useState(0);  // default: system
-  const [stickerIndex, setStickerIndex] = useState(1); // default: Kitty (index 1, 0 = 无贴纸)
+export default function ShareSheet({
+  open,
+  onClose,
+  quote,
+  bookTitle,
+  bookAuthor,
+  initialTemplate = 'original',
+}: ShareSheetProps) {
+  const [template, setTemplate] = useState<ShareTemplate>(initialTemplate);
+  const [originalSettings, setOriginalSettings] = useState<TemplateSettings>(initialOriginalSettings);
+  const [calendarSettings, setCalendarSettings] = useState<TemplateSettings>(initialCalendarSettings);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [html2canvasReady, setHtml2canvasReady] = useState<boolean | null>(null);
-  const [showThoughts, setShowThoughts] = useState(true);
   /** 已经把 @font-face 注入好的 face（子集就位）。 */
   const [subsetReadyFace, setSubsetReadyFace] = useState<string | null>(null);
   /** 子集没拿到、已退回整套字体的 face。 */
   const [subsetFailedFace, setSubsetFailedFace] = useState<string | null>(null);
   /** 当前贴纸的 SVG 源码。选择器用 PNG 蒙版，只有卡片和导出需要真 SVG。 */
   const [stickerSvg, setStickerSvg] = useState<string | null>(null);
+  /** 日历模板日期跟随设备本地当天；跨午夜或回到前台时刷新。 */
+  const [calendarDate, setCalendarDate] = useState<CalendarDateParts>(() => calendarDateParts());
 
   // ── 预览几何：全部来自实测，不猜 ──────────────────────────────────────────
   /** 卡片原尺寸高度（由离屏节点量出来，缩放后就是预览高度） */
@@ -140,6 +194,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const [fsWidth, setFsWidth] = useState(0);
   const [dragY, setDragY] = useState(0);
 
+  const settings = template === 'calendar' ? calendarSettings : originalSettings;
+  const themes = template === 'calendar' ? CALENDAR_COLOR_THEMES : COLOR_THEMES;
+  const { colorIndex, customColor, useCustomColor, fontIndex, showThoughts } = settings;
   const color = useCustomColor && customColor
     ? {
         id: 'custom',
@@ -148,15 +205,23 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         textColor: getTextColor(customColor),
         accentColor: getAccentColor(customColor),
       }
-    : COLOR_THEMES[colorIndex];
+    : themes[colorIndex];
   const font = FONTS[fontIndex];
-  const sticker = stickerIndex > 0 ? STICKERS[stickerIndex - 1] : null;
+  const stickerIndex = originalSettings.stickerIndex;
+  const sticker = template === 'original' && stickerIndex > 0 ? STICKERS[stickerIndex - 1] : null;
+  const cardWidth = template === 'calendar' ? CALENDAR_CARD_WIDTH : CARD_WIDTH;
+
+  const updateSettings = useCallback((updates: Partial<TemplateSettings>) => {
+    const update = (previous: TemplateSettings) => ({ ...previous, ...updates });
+    if (template === 'calendar') setCalendarSettings(update);
+    else setOriginalSettings(update);
+  }, [template]);
 
   // 三档字体栈，优先级从高到低：
-  //   子集就位   → 子集 + 系统兜底（不点名整款字体，所以不会有 7.4MB 的下载）
+  //   子集就位   → 子集 + 系统兜底（不点名整款字体，所以不会下载整套大字体）
   //   子集在路上 → 只用系统兜底。要点：这里**不能**用 font.family ——
   //                那等于在「还没决定用哪条路」的时候就把整套字体拉下来，
-  //                首访 41s 就是这么来的。
+  //                首访长时间等待就是这么来的。
   //   子集失败   → font.family，也就是修复前的行为。
   const subsetStack = `"${subsetFamily(font.face)}", ${font.fallbackFamily}`;
   const subsetReady = font.id !== 'system' && subsetReadyFace === font.face;
@@ -202,6 +267,32 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       }
     })();
     return () => { cancelled = true; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const refreshCalendarDate = () => {
+      const next = calendarDateParts();
+      setCalendarDate((previous) => (
+        previous.day === next.day
+        && previous.monthYear === next.monthYear
+        && previous.weekday === next.weekday
+          ? previous
+          : next
+      ));
+    };
+    refreshCalendarDate();
+    const interval = window.setInterval(refreshCalendarDate, 60_000);
+    const onPageVisible = () => {
+      if (document.visibilityState === 'visible') refreshCalendarDate();
+    };
+    window.addEventListener('focus', refreshCalendarDate);
+    document.addEventListener('visibilitychange', onPageVisible);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshCalendarDate);
+      document.removeEventListener('visibilitychange', onPageVisible);
+    };
   }, [open]);
 
   // 选中字体后立刻拉「这段摘录用到的字形」子集（十几~几十 KB），而不是整套字体。
@@ -300,7 +391,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     }
     return () => ro.disconnect();
   }, [
-    open, fullscreen, cardFamily, showThoughts, stickerSvg, color.bgColor,
+    open, fullscreen, template, cardFamily, showThoughts, stickerSvg, color.bgColor,
     colorIndex, useCustomColor, customColor, fontIndex, stickerIndex, quote.text, quote.thought,
   ]);
 
@@ -355,10 +446,31 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
     setErrorMsg(null);
 
     try {
-      // 首选字体子集：几十 KB，首访也不慢。这条路不通才退回整套字体。
-      // 贴纸和字体两条路并行等，首访不叠加等待。
-      const [family, stickerMarkup] = await Promise.all([resolveCardFont(), resolveStickerSvg()]);
-      setStickerSvg(stickerMarkup);
+      // 两个模板共用同一条截图链路；只等待当前模板真正需要的资源。
+      const thoughtText = showThoughts
+        ? stripRichText(quote.thought || '', 'thought').trim()
+        : '';
+      const isCalendar = template === 'calendar';
+      const dateParts = calendarDate;
+      const title = bookTitle.trim();
+      const author = bookAuthor.trim();
+      const [family, stickerMarkup] = await Promise.all([
+        resolveCardFont(),
+        isCalendar ? Promise.resolve(null) : resolveStickerSvg(),
+        isCalendar
+          ? ensureTemplateFonts({
+              serif: [
+                title ? `《${title}》` : '《未知书目》',
+                author === '作者未知' ? '' : author,
+                thoughtText ? '我的想法' : '',
+                '折角 · Dogear',
+              ],
+              weekday: dateParts.weekday ? [dateParts.weekday] : [],
+              date: [dateParts.day, dateParts.monthYear],
+            })
+          : Promise.resolve(),
+      ]);
+      if (!isCalendar) setStickerSvg(stickerMarkup);
 
       const html2canvas = html2canvasRef.current;
       // 截的是离屏的原尺寸节点：它没有 transform，所以出图尺寸和以前一模一样。
@@ -377,9 +489,9 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           // 渲染根继承的 body 颜色是 oklch，html2canvas 解析不了，先换成 hex。
           applyCloneSafeColors(doc, color.textColor);
           applyCardFont(doc, family);
-          // 贴纸同理：刚 setStickerSvg 还没渲染，克隆里那张还是空的。
-          // 颜色也得一起钉：克隆里的 <svg> 会被单独序列化，够不到页面的 CSS 继承。
-          applyCardSticker(doc, stickerMarkup, color.textColor);
+          // 原版模板的贴纸同理：刚 setStickerSvg 还没渲染，克隆里那张还是空的。
+          // 日历模板不渲染贴纸，因此走完全独立的导出分支。
+          if (!isCalendar) applyCardSticker(doc, stickerMarkup, color.textColor);
         },
       });
       const blob = await new Promise<Blob>((resolve, reject) => {
@@ -513,7 +625,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const availW = Math.max(0, stageBox.w - STAGE_PAD_X * 2);
   const availH = Math.max(0, stageBox.h - stagePad.top - stagePad.bottom);
   // 铺满宽度：卡片宽度撑满舞台可用宽（最多放大到 MAX_PREVIEW_SCALE，免得短卡片被拉得过大）
-  const fillScale = availW > 0 ? Math.min(availW / CARD_WIDTH, MAX_PREVIEW_SCALE) : 0;
+  const fillScale = availW > 0 ? Math.min(availW / cardWidth, MAX_PREVIEW_SCALE) : 0;
   // 整张装下：再按可用高收一次，短卡片就不用滚动了
   const fitScale = cardHeight > 0 ? Math.min(fillScale, availH / cardHeight) : fillScale;
   // 只差一点点就整体缩一点装下；差太多（长图）就铺满宽度、留给自己拖
@@ -522,12 +634,38 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
   const previewScrollable = previewScale > 0 && cardHeight > 0 && previewH > availH + 1;
 
   const fsAvailW = Math.max(0, fsWidth - FS_PAD_X * 2);
-  const fsScale = fsAvailW > 0 ? Math.min(fsAvailW / CARD_WIDTH, MAX_PREVIEW_SCALE) : 0;
+  const fsScale = fsAvailW > 0 ? Math.min(fsAvailW / cardWidth, MAX_PREVIEW_SCALE) : 0;
 
   const themeName = color.name;
   const fontName = font.name;
   const stickerName = sticker ? sticker.name : '无';
   const buttonBusy = saving || html2canvasReady === null;
+
+  const renderActiveCard = (shadow?: string) => (
+    template === 'calendar' ? (
+      <CalendarShareCard
+        quote={quote}
+        bookTitle={bookTitle}
+        bookAuthor={bookAuthor}
+        theme={color}
+        cardFamily={cardFamily}
+        showThoughts={showThoughts}
+        calendarDate={calendarDate}
+        shadow={shadow}
+      />
+    ) : (
+      <ShareCard
+        quote={quote}
+        bookTitle={bookTitle}
+        bookAuthor={bookAuthor}
+        theme={color}
+        cardFamily={cardFamily}
+        showThoughts={showThoughts}
+        stickerSvg={stickerSvg}
+        shadow={shadow}
+      />
+    )
+  );
 
   // 必须挂到 body 上（见 overlayPortal）：留在带 transform 的页面层里，
   // fixed 的包含块会变成那一层，叠上 body 的 safe-area padding，
@@ -542,21 +680,13 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
           position: 'fixed',
           left: -10000,
           top: 0,
-          width: CARD_WIDTH,
+          width: cardWidth,
           pointerEvents: 'none',
           zIndex: -1,
         }}
       >
-        <div ref={cardRef}>
-          <ShareCard
-            quote={quote}
-            bookTitle={bookTitle}
-            bookAuthor={bookAuthor}
-            theme={color}
-            cardFamily={cardFamily}
-            showThoughts={showThoughts}
-            stickerSvg={stickerSvg}
-          />
+        <div ref={cardRef} data-share-editor-template={template}>
+          {renderActiveCard()}
         </div>
       </div>
 
@@ -567,7 +697,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
         style={{
           position: 'fixed',
           inset: 0,
-          zIndex: 100,
+          zIndex: SHARE_SHEET_Z_INDEX,
           display: 'flex',
           alignItems: 'flex-end',
         }}
@@ -619,7 +749,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                 <div
                   ref={stageCardRef}
                   style={{
-                    width: CARD_WIDTH * previewScale,
+                    width: cardWidth * previewScale,
                     height: previewH,
                     margin: '0 auto',
                     position: 'relative',
@@ -631,16 +761,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                   }}
                 >
                   <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${previewScale})`, transformOrigin: 'top left' }}>
-                    <ShareCard
-                      quote={quote}
-                      bookTitle={bookTitle}
-                      bookAuthor={bookAuthor}
-                      theme={color}
-                      cardFamily={cardFamily}
-                      showThoughts={showThoughts}
-                      stickerSvg={stickerSvg}
-                      shadow="0 14px 40px rgba(0,0,0,0.34)"
-                    />
+                    {renderActiveCard('0 14px 40px rgba(0,0,0,0.34)')}
                   </div>
                 </div>
               )}
@@ -692,32 +813,109 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               background: 'var(--color-bg)',
             }}
           >
-            {/* 把手 = 关闭手势区（面板没有标题行，靠它和点空白处关闭） */}
-            <div
-              onPointerDown={onHandleDown}
-              onPointerMove={onHandleMove}
-              onPointerUp={onHandleUp}
-              onPointerCancel={onHandleUp}
-              style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 12px', touchAction: 'none', cursor: 'grab' }}
-            >
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+            {/* 把手保留下滑关闭；右上角另有始终可见、可键盘操作的明确关闭入口。 */}
+            <div style={{ position: 'relative' }}>
+              <div
+                onPointerDown={onHandleDown}
+                onPointerMove={onHandleMove}
+                onPointerUp={onHandleUp}
+                onPointerCancel={onHandleUp}
+                style={{ display: 'flex', justifyContent: 'center', padding: '2px 0 12px', touchAction: 'none', cursor: 'grab' }}
+              >
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--color-border)' }} />
+              </div>
+              <button
+                type="button"
+                aria-label="关闭分享编辑面板"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={onClose}
+                style={{
+                  position: 'absolute',
+                  top: -2,
+                  right: 0,
+                  width: 44,
+                  height: 44,
+                  padding: 0,
+                  border: 0,
+                  borderRadius: 22,
+                  background: 'transparent',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
             </div>
 
-            {/* 主题 */}
+            {/* 主题：两个模板入口共用同一个编辑器，打开后可自由切换。 */}
             <div style={{ marginTop: 2 }}>
+              <div style={labelStyle}>主题</div>
+              <div role="group" aria-label="分享图片模板" style={{ display: 'flex', gap: 10 }}>
+                {(['original', 'calendar'] as const).map((value) => {
+                  const active = template === value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => {
+                        setTemplate(value);
+                        setCardHeight(0);
+                        setFullscreen(false);
+                        setToast(null);
+                      }}
+                      style={{
+                        flex: 'none',
+                        height: 44,
+                        padding: 0,
+                        border: 0,
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <span
+                        style={{
+                          ...pillStyle,
+                          borderRadius: 12,
+                          ...(active ? pillActiveStyle : null),
+                          height: 38,
+                          padding: '0 10px',
+                        }}
+                      >
+                        {value === 'original' ? '经典书摘' : '日历书摘'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 背景 */}
+            <div style={{ marginTop: 14 }}>
               <div style={labelStyle}>
-                主题<span style={valueStyle}> · {themeName}</span>
+                背景<span style={valueStyle}> · {themeName}</span>
               </div>
               <div style={swatchRowStyle}>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <input
                     type="color"
-                    value={customColor || '#FEFCF8'}
+                    aria-label="自定义图片背景颜色"
+                    value={customColor || (template === 'calendar' ? '#E8D7CD' : '#FEFCF8')}
                     onChange={(e) => {
                       const v = e.target.value;
-                      setCustomColor(v);
-                      setUseCustomColor(true);
-                      try { localStorage.setItem('share-custom-bg', v); } catch {}
+                      updateSettings({ customColor: v, useCustomColor: true });
+                      try {
+                        localStorage.setItem(
+                          template === 'calendar' ? CALENDAR_CUSTOM_COLOR_KEY : ORIGINAL_CUSTOM_COLOR_KEY,
+                          v,
+                        );
+                      } catch {}
                     }}
                     style={{
                       width: 34,
@@ -735,14 +933,16 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                     title="自定义颜色"
                   />
                 </div>
-                {COLOR_THEMES.map((t, i) => {
+                {themes.map((t, i) => {
                   const active = !useCustomColor && i === colorIndex;
                   return (
                     <button
                       key={t.id}
-                      onClick={() => { setColorIndex(i); setUseCustomColor(false); }}
+                      type="button"
+                      onClick={() => updateSettings({ colorIndex: i, useCustomColor: false })}
                       title={t.name}
                       aria-label={`主题 ${t.name}`}
+                      aria-pressed={active}
                       style={{
                         flex: 'none',
                         width: 34,
@@ -771,11 +971,13 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                   return (
                     <button
                       key={f.id}
-                      onClick={() => setFontIndex(i)}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => updateSettings({ fontIndex: i })}
                       style={{
                         ...pillStyle,
                         // 按钮只用「字体名」子集（每个约 1KB），整套中文字体等用户
-                        // 真的选了再按需下载 —— 否则一开面板就是 22MB。
+                        // 真的选了再按需下载 —— 否则一开面板就会下载数十 MB。
                         fontFamily: f.labelFamily,
                         ...(active ? pillActiveStyle : null),
                       }}
@@ -787,63 +989,74 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
               </div>
             </div>
 
-            {/* 贴纸 */}
-            <div style={{ marginTop: 14 }}>
-              <div style={labelStyle}>
-                贴纸<span style={valueStyle}> · {stickerName}</span>
+            {/* 原版保留贴纸；日历模板不显示贴纸入口，也不渲染贴纸。 */}
+            {template === 'original' && (
+              <div style={{ marginTop: 14 }}>
+                <div style={labelStyle}>
+                  贴纸<span style={valueStyle}> · {stickerName}</span>
+                </div>
+                <div style={rowStyle}>
+                  <button
+                    type="button"
+                    onClick={() => setOriginalSettings(previous => ({ ...previous, stickerIndex: 0 }))}
+                    title="无贴纸"
+                    aria-label="无贴纸"
+                    aria-pressed={stickerIndex === 0}
+                    style={{ ...stickerStyle, ...(stickerIndex === 0 ? stickerActiveStyle : null) }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stickerIndex === 0 ? 'var(--color-text)' : 'var(--color-text-muted)'} strokeWidth="1.8" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="9" />
+                      <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
+                    </svg>
+                  </button>
+                  {STICKERS.map((s, i) => {
+                    const active = i + 1 === stickerIndex;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setOriginalSettings(previous => ({ ...previous, stickerIndex: i + 1 }))}
+                        title={s.name}
+                        aria-label={`贴纸 ${s.name}`}
+                        aria-pressed={active}
+                        style={{ ...stickerStyle, ...(active ? stickerActiveStyle : null) }}
+                      >
+                        <div
+                          aria-hidden="true"
+                          style={{
+                            height: 24,
+                            width: 24,
+                            flex: 'none',
+                            // 面板底色是米色，蒙版固定用中性色 —— 跟主题文字色走的话，
+                            // 浅色主题下浅色蒙版会直接看不见。
+                            backgroundColor: active ? 'var(--color-text)' : 'var(--color-text-secondary)',
+                            WebkitMaskImage: `url(${s.thumb})`,
+                            maskImage: `url(${s.thumb})`,
+                            WebkitMaskSize: 'contain',
+                            maskSize: 'contain',
+                            WebkitMaskRepeat: 'no-repeat',
+                            maskRepeat: 'no-repeat',
+                            WebkitMaskPosition: 'center',
+                            maskPosition: 'center',
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div style={rowStyle}>
-                <button
-                  onClick={() => setStickerIndex(0)}
-                  title="无贴纸"
-                  style={{ ...stickerStyle, ...(stickerIndex === 0 ? stickerActiveStyle : null) }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={stickerIndex === 0 ? 'var(--color-text)' : 'var(--color-text-muted)'} strokeWidth="1.8" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <line x1="5.6" y1="5.6" x2="18.4" y2="18.4" />
-                  </svg>
-                </button>
-                {STICKERS.map((s, i) => {
-                  const active = i + 1 === stickerIndex;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => setStickerIndex(i + 1)}
-                      title={s.name}
-                      style={{ ...stickerStyle, ...(active ? stickerActiveStyle : null) }}
-                    >
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          height: 24,
-                          width: 24,
-                          flex: 'none',
-                          // 面板底色是米色，蒙版固定用中性色 —— 跟主题文字色走的话，
-                          // 浅色主题下浅色蒙版会直接看不见。
-                          backgroundColor: active ? 'var(--color-text)' : 'var(--color-text-secondary)',
-                          WebkitMaskImage: `url(${s.thumb})`,
-                          maskImage: `url(${s.thumb})`,
-                          WebkitMaskSize: 'contain',
-                          maskSize: 'contain',
-                          WebkitMaskRepeat: 'no-repeat',
-                          maskRepeat: 'no-repeat',
-                          WebkitMaskPosition: 'center',
-                          maskPosition: 'center',
-                        }}
-                      />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            )}
 
-            {/* 包含感悟 */}
+            {/* 原版保留“包含感悟”文案；日历模板按确认稿叫“包含想法”。 */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 }}>
               <span style={{ fontSize: 13, color: 'var(--color-text)', fontFamily: META_FONT, fontWeight: 500 }}>
-                包含感悟
+                {template === 'calendar' ? '包含想法' : '包含感悟'}
               </span>
               <button
-                onClick={() => setShowThoughts(!showThoughts)}
+                type="button"
+                aria-label={template === 'calendar' ? '包含想法' : '包含感悟'}
+                aria-pressed={showThoughts}
+                onClick={() => updateSettings({ showThoughts: !showThoughts })}
                 style={{
                   width: 44,
                   height: 26,
@@ -922,10 +1135,11 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
       {/* ─── 全屏预览：舞台上 1:1 看细节 ─── */}
       {fullscreen && (
         <div
+          data-share-fullscreen=""
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 110,
+            zIndex: SHARE_SHEET_FULLSCREEN_Z_INDEX,
             background: '#100C06',
             display: 'flex',
             flexDirection: 'column',
@@ -1001,7 +1215,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                   if (pointerKindRef.current !== 'mouse') e.preventDefault();
                 }}
                 style={{
-                  width: CARD_WIDTH * fsScale,
+                  width: cardWidth * fsScale,
                   height: cardHeight * fsScale,
                   margin: '0 auto',
                   position: 'relative',
@@ -1011,16 +1225,7 @@ export default function ShareSheet({ open, onClose, quote, bookTitle, bookAuthor
                 }}
               >
                 <div style={{ position: 'absolute', left: 0, top: 0, transform: `scale(${fsScale})`, transformOrigin: 'top left' }}>
-                  <ShareCard
-                    quote={quote}
-                    bookTitle={bookTitle}
-                    bookAuthor={bookAuthor}
-                    theme={color}
-                    cardFamily={cardFamily}
-                    showThoughts={showThoughts}
-                    stickerSvg={stickerSvg}
-                    shadow="0 18px 44px rgba(0,0,0,0.4)"
-                  />
+                  {renderActiveCard('0 18px 44px rgba(0,0,0,0.4)')}
                 </div>
               </div>
             )}

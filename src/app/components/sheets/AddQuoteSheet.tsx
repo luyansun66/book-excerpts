@@ -15,6 +15,7 @@ interface AddQuoteSheetProps {
     text: string;
     thought: string;
     page: string | null;
+    chapter: string | null;
     date: string;
     color?: string;
     textMarkColor?: string;
@@ -28,6 +29,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
   const [text, setText] = useState(editQuote?.text ?? '');
   const [thought, setThought] = useState(editQuote?.thought ?? '');
   const [page, setPage] = useState(editQuote?.page?.toString() ?? '');
+  const [chapter, setChapter] = useState(editQuote?.chapter?.toString() ?? '');
   const [date, setDate] = useState(editQuote?.date ?? new Date().toISOString().slice(0, 10));
   const [color, setColor] = useState(editQuote?.color ?? '');
   const [textMarkColor, setTextMarkColor] = useState(editQuote?.textMarkColor ?? '');
@@ -91,6 +93,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
       setText(editQuote.text);
       setThought(editQuote.thought);
       setPage(editQuote.page?.toString() ?? '');
+      setChapter(editQuote.chapter?.toString() ?? '');
       setDate(editQuote.date);
       setColor(editQuote.color ?? '');
       setTextMarkColor(editQuote.textMarkColor ?? '');
@@ -108,6 +111,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
       setText('');
       setThought('');
       setPage('');
+      setChapter('');
       setDate(new Date().toISOString().slice(0, 10));
       setColor('');
       setTextMarkColor('');
@@ -124,6 +128,7 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
         text: text.trim(),
         thought: thought.trim(),
         page: page.trim() || null,
+        chapter: chapter.trim() || null,
         date,
         color: color || undefined,
         textMarkColor: normalizeMarkColor(textMarkColor),
@@ -308,27 +313,46 @@ export default function AddQuoteSheet({ open, onClose, onSave, editQuote, onCrop
             />
           )}
 
-          {/* Page */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
-              页码
+          {/* Chapter / page */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 10 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
+              章节
+              <input
+                type="text"
+                placeholder="章节（选填）"
+                value={chapter}
+                onChange={(e) => setChapter(e.target.value)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: '1px solid var(--color-field-border)',
+                  background: 'var(--color-field-bg)',
+                  fontSize: 13,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                  color: 'var(--color-text)',
+                  outline: 'none',
+                }}
+              />
             </label>
-            <input
-              type="text"
-              placeholder="页码 / 位置（选填）"
-              value={page}
-              onChange={(e) => setPage(e.target.value)}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--color-field-border)',
-                background: 'var(--color-field-bg)',
-                fontSize: 13,
-                fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
-                color: 'var(--color-text)',
-                outline: 'none',
-              }}
-            />
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', fontFamily: '-apple-system, sans-serif', letterSpacing: 0.3 }}>
+              页码
+              <input
+                type="text"
+                placeholder="页码（选填）"
+                value={page}
+                onChange={(e) => setPage(e.target.value)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: '1px solid var(--color-field-border)',
+                  background: 'var(--color-field-bg)',
+                  fontSize: 13,
+                  fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+                  color: 'var(--color-text)',
+                  outline: 'none',
+                }}
+              />
+            </label>
           </div>
 
           {/* Thought */}

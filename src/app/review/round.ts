@@ -11,6 +11,7 @@
 import type { Quote } from '../types';
 import type { DeckEntry } from './deck';
 import { pickRound } from './reviewPicker';
+import { anchoredIndex } from './excerptFeedState';
 
 /** 跨轮保留几张刚翻过的卡，好让用户还能往回翻两下。 */
 export const HISTORY_SIZE = 5;
@@ -37,6 +38,24 @@ export function buildRound(quotes: Quote[], history: Quote[]): RoundState {
     index: history.length,
     count: picked.length,
     historyLen: history.length,
+  };
+}
+
+/**
+ * 双列流与筛选共用的翻页卡组：不再另抽一小轮，顺序完全由当前视图的排序决定。
+ * currentQuoteId 用来在两个视图之间保持锚点；锚点已不在结果里时回到第一张。
+ */
+export function buildOrderedRound(quotes: readonly Quote[], currentQuoteId: string | null): RoundState {
+  const entries: DeckEntry[] = quotes.map((quote, i) => ({
+    kind: 'excerpt',
+    key: `${i}:${quote.id}`,
+    quote,
+  }));
+  return {
+    deck: entries.length > 0 ? [...entries, { kind: 'roundEnd', key: 'round-end', count: entries.length }] : [],
+    index: anchoredIndex(quotes.map((quote) => quote.id), currentQuoteId),
+    count: entries.length,
+    historyLen: 0,
   };
 }
 
