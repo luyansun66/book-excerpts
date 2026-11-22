@@ -333,3 +333,26 @@ describe('封面代理', () => {
     expect(resp.headers.get('Cache-Control')).toContain('max-age=86400');
   });
 });
+
+describe('本地运行时缓存回退', () => {
+  it('没有 caches.default 时仍能搜索，并在本次进程内复用结果', async () => {
+    vi.resetModules();
+    vi.stubGlobal('caches', undefined);
+    vi.stubGlobal('fetch', mockFetch());
+
+    const localModule = await import('../functions/api/books/search?local-cache-fallback');
+    const request = new Request(
+      'http://localhost/api/books/search?q=' + encodeURIComponent('harry potter'),
+    );
+
+    const first = await localModule.onRequestGet({ request: request.clone(), env: {} });
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ results: expect.any(Array) });
+    expect(fetch).toHaveBeenCalledTimes(3);
+
+    const second = await localModule.onRequestGet({ request: request.clone(), env: {} });
+    expect(second.status).toBe(200);
+    // 第二次应当命中内存缓存；若这里再调用上游，本地手机预览会反复等待外网。
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+});

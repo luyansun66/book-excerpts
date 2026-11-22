@@ -39,7 +39,25 @@ const DOUBAN_TIMEOUT_MS = 5000;
 const DOUBAN_RETRY_TIMEOUT_MS = 3000;
 const CACHE_TTL_SECONDS = 300;
 
-const defaultCache = (caches as unknown as { default: Cache }).default;
+const memoryCacheStore = new Map<string, Response>();
+const noCacheStore: Pick<Cache, 'match' | 'put'> = {
+  async match(request) {
+    return memoryCacheStore.get(request.url)?.clone();
+  },
+  async put(request, response) {
+    if (memoryCacheStore.size >= 50) {
+      const oldest = memoryCacheStore.keys().next().value;
+      if (oldest) memoryCacheStore.delete(oldest);
+    }
+    memoryCacheStore.set(request.url, response.clone());
+  },
+};
+
+// Pages/Workers 提供 caches.default；Vite 本地开发没有，退回内存缓存即可复用同一份搜索实现。
+const workerCaches = typeof caches === 'undefined'
+  ? null
+  : caches as unknown as { default?: Cache };
+const defaultCache = workerCaches?.default ?? noCacheStore;
 
 function isCjk(text: string): boolean {
   return /[\u4e00-\u9fff]/.test(text);

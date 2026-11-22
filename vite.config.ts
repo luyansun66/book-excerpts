@@ -4,6 +4,8 @@ import { defineConfig, loadEnv } from 'vite'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { onRequestGet as ocrTokenHandler } from './functions/api/ocr-token'
+import { onRequestGet as bookSearchHandler } from './functions/api/books/search'
+import { onRequestGet as bookCoverHandler } from './functions/api/books/cover'
 import { proxyToSupabase } from './functions/api/supa/[[path]]'
 
 /**
@@ -43,6 +45,66 @@ function ocrDevApi(env: Record<string, string>): Plugin {
       server.middlewares.use('/api/ocr-token', handler)
     },
   }
+}
+
+/**
+ * 本地开发与 preview 也要挂载书籍搜索、封面代理。搜索结果保存的是
+ * /api/books/cover?... 相对地址；只部署 Pages Function、本地不挂载时，
+ * 本地上传的 data URL 封面能显示，搜索添加的封面却会 404。
+ */
+function booksDevApi(env: Record<string, string>): Plugin {
+  const handle = async (
+    req: Connect.IncomingMessage,
+    res: { statusCode: number; setHeader(name: string, value: string): void; end(chunk: Buffer): void },
+    next: Connect.NextFunction,
+    handler: (context: { request: Request; env: Record<string, string> }) => Promise<Response>,
+  ) => {
+    const parsed = new URL(req.url ?? '/', 'http://localhost');
+    if (!['/api/books/search', '/api/books/cover'].includes(parsed.pathname)) return next();
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+
+    try {
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(req.headers)) {
+        if (value === undefined) continue;
+        headers.set(name, Array.isArray(value) ? value.join(', ') : value);
+      }
+      const response = await handler({
+        request: new Request(parsed, { method: req.method, headers }),
+        env,
+      });
+      res.statusCode = response.status;
+      response.headers.forEach((value, key) => {
+        if (key === 'content-length' || key === 'content-encoding') return;
+        res.setHeader(key, value);
+      });
+      res.end(Buffer.from(await response.arrayBuffer()));
+    } catch (error) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(Buffer.from(JSON.stringify({ error: (error as Error).message })));
+    }
+  };
+
+  return {
+    name: 'books-dev-api',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        void handle(req, res, next, (context) =>
+          context.request.url.includes('/api/books/search')
+            ? bookSearchHandler(context as never)
+            : bookCoverHandler(context));
+      });
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use((req, res, next) => {
+        void handle(req, res, next, (context) =>
+          context.request.url.includes('/api/books/search')
+            ? bookSearchHandler(context as never)
+            : bookCoverHandler(context));
+      });
+    },
+  };
 }
 
 /**
@@ -113,6 +175,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       ocrDevApi(env),
+      booksDevApi(env),
       supaDevApi(),
     ],
     resolve: {
