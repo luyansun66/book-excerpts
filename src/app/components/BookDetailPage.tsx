@@ -235,6 +235,7 @@ function EditBookSheet({ open, onClose, book }: { open: boolean; onClose: () => 
           <BookAppearanceFields
             layout={layout}
             spineTemplate={spineTemplate}
+            previewCoverData={coverData}
             onLayoutChange={setLayout}
             onSpineTemplateChange={setSpineTemplate}
           />

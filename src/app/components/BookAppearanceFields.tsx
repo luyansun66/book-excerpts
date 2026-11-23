@@ -5,6 +5,8 @@ import { SPINE_TEMPLATES } from '../shelf/spineTemplates';
 export interface BookAppearanceFieldsProps {
   layout: BookLayout;
   spineTemplate: string;
+  /** 当前编辑中的封面；默认书脊用它做真实取色预览，表单未传时仍用样书。 */
+  previewCoverData?: string | null;
   onLayoutChange: (layout: BookLayout) => void;
   onSpineTemplateChange: (id: string) => void;
 }
@@ -20,7 +22,12 @@ const LAYOUT_OPTIONS: Array<{ value: BookLayout; name: string }> = [
  * 书脊样式的预览样本。书脊模版只认书名和作者，其余字段排不到，所以这里造一本
  * 最小可用的样书——不用真书，免得逐本改书名时预览跟着跳。
  */
-const PREVIEW_BOOK = { title: '书名', author: '作者' } as unknown as Book;
+const PREVIEW_BOOK = {
+  title: '书名',
+  author: '作者',
+  coverType: null,
+  coverData: null,
+} as unknown as Book;
 /**
  * 预览的尺寸：宽高比和书架上的书脊完全一致（27 : 145），整体收小一档当缩略图用。
  * 18 套模版并排时一屏能多放几张，不用来回滚；字号也跟着变小一档，仍是所见即所得。
@@ -84,9 +91,14 @@ function spineChipStyle(selected: boolean): CSSProperties {
 export default function BookAppearanceFields({
   layout,
   spineTemplate,
+  previewCoverData,
   onLayoutChange,
   onSpineTemplateChange,
 }: BookAppearanceFieldsProps) {
+  const previewBook: Book = previewCoverData
+    ? { ...PREVIEW_BOOK, coverType: 'url', coverData: previewCoverData }
+    : PREVIEW_BOOK;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={labelStyle}>摆放形式</div>
@@ -125,7 +137,7 @@ export default function BookAppearanceFields({
               style={spineChipStyle(selected)}
             >
               {template.render({
-                book: PREVIEW_BOOK,
+                book: previewBook,
                 width: PREVIEW_WIDTH,
                 height: PREVIEW_HEIGHT,
                 vertical: true,

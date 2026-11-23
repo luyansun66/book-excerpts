@@ -480,10 +480,14 @@ export function getSpineTemplate(id?: string): SpineTemplate;  // 查不到回 d
 - `titleSize = max(11, min(20, T × 0.42))`；`T >= 30` 才显示作者
 - 字体 `'Songti SC','STSong','Noto Serif SC',serif`
 
-**必须改的一处：** 参考代码底色来自 `book.color` + `isDark(book.color)`，
-**本项目 `Book` 没有 `color` 字段**。所以底色改成「与这本书的占位封面色同源」——
-从 `src/app/components/BookCoverSurface.tsx` 里把挑色逻辑抽成
-`placeholderColorFor(book)` 共用。否则会出现一本绿封面配一条紫书脊。
+**底色来源：** 参考代码底色来自 `book.color` + `isDark(book.color)`，本项目
+`Book` 没有 `color` 字段。默认模版优先从真实封面降采样，提取主色、辅助色和可读
+文字色；封面跨域、加载失败、透明图或旧数据没有图片时，回退到
+`placeholderColorFor(book)`。同一张封面的采样结果在本次会话内缓存，避免书架上
+同一本书出现多条书脊时重复解码。
+
+**可读性：** 浅色封面使用深色书名，深色封面使用浅色书名；主体明度与文字对比不足
+4.5:1 时只对主体色做最低限度的加深或提亮，保留封面的色相关系。
 
 **深色模式：** 柱面渐变用中性 rgba 黑白遮罩，深浅两模式都成立，
 **不需要新增令牌、不需要写死浅色**（符合 `tokens.css` 里的令牌纪律）。

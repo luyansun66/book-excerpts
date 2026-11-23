@@ -3,6 +3,7 @@ import type { Book } from '../types';
 import { placeholderColorFor } from '../components/BookCoverSurface';
 import { SPINE_ART_TEMPLATES } from './spine/templatesArt';
 import { DEFAULT_SPINE_TEMPLATE_ID } from './bookLayout';
+import { useCoverPalette } from './useCoverPalette';
 import {
   authorFit,
   canShowSpineAuthor,
@@ -41,18 +42,6 @@ export interface SpineTemplate {
 
 const SPINE_FONT = "'Songti SC','STSong','Noto Serif SC',serif";
 
-function lighten(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgb(${Math.min(r + 28, 255)},${Math.min(g + 28, 255)},${Math.min(b + 28, 255)})`;
-}
-
-function spineBackground(book: Book): string {
-  const bg = placeholderColorFor(book);
-  return `linear-gradient(170deg, ${lighten(bg)} 0%, ${bg} 70%)`;
-}
-
 /** 压印带：距书脊首尾 12px、厚 2px。它们就是这套「稿子」的图案 */
 const EMBOSS_INSET = 12;
 const EMBOSS_THICKNESS = 2;
@@ -80,12 +69,20 @@ const DEFAULT_TITLE_SPEC = { size: 10.8, width: 27 };
  * 两条 2px 压印带。竖放时是横带（距上下边 12px、左右缩进 18%），
  * 横放时整体转 90°（距左右边 12px、上下缩进 18%）。
  */
-function EmbossBand({ vertical, atEnd }: { vertical: boolean; atEnd: boolean }) {
+function EmbossBand({
+  vertical,
+  atEnd,
+  ink,
+}: {
+  vertical: boolean;
+  atEnd: boolean;
+  ink: string;
+}) {
   const common: CSSProperties = {
     position: 'absolute',
     background: vertical
-      ? 'linear-gradient(90deg, transparent, rgba(238,231,218,.38), transparent)'
-      : 'linear-gradient(180deg, transparent, rgba(238,231,218,.38), transparent)',
+      ? `linear-gradient(90deg, transparent, ${ink}, transparent)`
+      : `linear-gradient(180deg, transparent, ${ink}, transparent)`,
     opacity: 0.55,
     pointerEvents: 'none',
     boxShadow: '0 1px 1px rgba(42,37,32,.30)',
@@ -120,8 +117,9 @@ function EmbossBand({ vertical, atEnd }: { vertical: boolean; atEnd: boolean }) 
   );
 }
 
-function defaultRender(ctx: SpineRenderContext): ReactNode {
+function ClassicSpine({ ctx }: { ctx: SpineRenderContext }) {
   const { book, vertical } = ctx;
+  const palette = useCoverPalette(book.coverData, placeholderColorFor(book));
   const lightDirection = vertical ? '90deg' : '180deg';
 
   /**
@@ -138,14 +136,18 @@ function defaultRender(ctx: SpineRenderContext): ReactNode {
   return (
     <SpineShell
       ctx={ctx}
-      background={`linear-gradient(${lightDirection}, rgba(42,37,32,.26), rgba(238,231,218,.12) 30%, rgba(42,37,32,.06) 62%, rgba(42,37,32,.28)), ${spineBackground(book)}`}
+      background={[
+        `linear-gradient(${lightDirection}, rgba(19,16,13,.28), ${palette.highlight} 29%, rgba(19,16,13,.04) 62%, rgba(19,16,13,.25))`,
+        `radial-gradient(72% 22% at 50% 72%, ${palette.accentWash}, transparent 78%)`,
+        `linear-gradient(170deg, ${palette.top} 0%, ${palette.base} 62%, ${palette.bottom} 100%)`,
+      ].join(', ')}
       family={SPINE_FONT}
     >
-      <EmbossBand vertical={vertical} atEnd={false} />
-      <EmbossBand vertical={vertical} atEnd />
+      <EmbossBand vertical={vertical} atEnd={false} ink={palette.mutedInk} />
+      <EmbossBand vertical={vertical} atEnd ink={palette.mutedInk} />
       <SpineTitle
         ctx={ctx}
-        color="#efe3c8"
+        color={palette.ink}
         letterSpacing={vertical ? 1.5 : 0.6}
         fit={titleFit(DEFAULT_TITLE_SPEC, ctx.thickness, titleEnd - DEFAULT_TEXT_INSET)}
         style={vertical
@@ -154,7 +156,7 @@ function defaultRender(ctx: SpineRenderContext): ReactNode {
       />
       <SpineAuthor
         ctx={ctx}
-        color="rgba(239,227,200,.82)"
+        color={palette.mutedInk}
         fit={authorFit(ctx.thickness, authorLength)}
         style={vertical
           ? { bottom: DEFAULT_TEXT_INSET, left: 0, right: 0, height: authorLength }
@@ -162,6 +164,10 @@ function defaultRender(ctx: SpineRenderContext): ReactNode {
       />
     </SpineShell>
   );
+}
+
+function defaultRender(ctx: SpineRenderContext): ReactNode {
+  return <ClassicSpine ctx={ctx} />;
 }
 const defaultTemplate: SpineTemplate = {
   id: DEFAULT_SPINE_TEMPLATE_ID,
@@ -172,9 +178,8 @@ const defaultTemplate: SpineTemplate = {
 /**
  * 模版顺序 = 书脊样式的展示顺序：**按布面的感知亮度从深到浅**。
  *
- * 经典压印排在最前，是因为它的布面色来自 `placeholderColorFor(book)`（10 色轮转，
- * 量下来 L* 约 23–27），比第二深的哑光黑（32.7）还要深，所以「由深到浅」这条规则
- * 不用为它破例。剩下 17 套的排序依据见 `SPINE_ART_TEMPLATES` 的注释。
+ * 经典压印排在最前，是因为它是最稳定、默认选中、且会自动跟随真实封面取色的样式。
+ * 剩下 17 套仍是固定的设计稿，排序依据见 `SPINE_ART_TEMPLATES` 的注释。
  */
 export const SPINE_TEMPLATES: SpineTemplate[] = [
   defaultTemplate,

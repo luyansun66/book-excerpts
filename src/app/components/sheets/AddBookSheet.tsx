@@ -628,6 +628,7 @@ export default function AddBookSheet({ open, onClose }: AddBookSheetProps) {
                 <BookAppearanceFields
                   layout={layout}
                   spineTemplate={spineTemplate}
+                  previewCoverData={coverDataUrl}
                   onLayoutChange={setLayout}
                   onSpineTemplateChange={setSpineTemplate}
                 />
