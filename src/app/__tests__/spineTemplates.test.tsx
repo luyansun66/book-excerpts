@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { SPINE_TEMPLATES, type SpineRenderContext } from '../shelf/spineTemplates';
@@ -59,5 +61,17 @@ describe('spine templates theme and size matrix', () => {
         expect(view.container.innerHTML).not.toContain('undefined');
       },
     );
+  });
+});
+
+describe('书脊预览的层叠边界', () => {
+  it('书脊内部使用高层级文字与光影时，根节点必须自成层叠上下文', () => {
+    const source = readFileSync(
+      path.resolve(process.cwd(), 'src/app/shelf/spine/shared.tsx'),
+      'utf8',
+    );
+
+    expect(source).toMatch(/zIndex: 30,/);
+    expect(source).toContain("isolation: 'isolate'");
   });
 });

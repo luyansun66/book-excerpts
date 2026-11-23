@@ -291,6 +291,8 @@ export function SpineShell({
     <div
       style={{
         position: 'relative',
+        /** 文字和光影用到 z-index 30/40；隔离后它们只在本条书脊内排序，不会盖住搜索浮层。 */
+        isolation: 'isolate',
         width: ctx.width,
         height: ctx.height,
         overflow: 'hidden',
