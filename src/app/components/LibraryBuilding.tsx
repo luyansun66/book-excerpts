@@ -21,10 +21,10 @@ interface LibraryBuildingProps {
 
 // 未读气泡的定位：圆心落在邮筒右上角外侧，与小黄旗零重叠。
 // 都用百分比，插画缩放时气泡自动跟随，不需要监听 resize。
-// 数值由插画 viewBox(918.8 × 813.4) 换算：圆心 (838.3, 582)、直径 13px @320 宽。
+// 数值由插画 viewBox(918.8 × 813.4) 换算：放大后圆心 (847.3, 546.7)、直径 13px @320 宽。
 const UNREAD_BADGE = {
-  left: '91.24%',
-  top: '71.55%',
+  left: '92.21%',
+  top: '67.21%',
   size: '4.0625%',   // 13 / 320
 } as const;
 
@@ -77,7 +77,7 @@ function UnreadBadge() {
   );
 }
 
-// 插画里两处可点的东西墨迹都很小：邮筒整块才约 25×53 CSS px（而且「旗子 + 身子 +
+// 插画里两处可点的东西墨迹都很小：邮筒放大后约 29×68 CSS px（而且「旗子 + 身子 +
 // 细杆 + 底座」之间有空隙，按上去经常落空），挂钟约 19×23 CSS px。所以各补一块透明
 // 命中矩形，把可点范围撑到至少 48×48 CSS px（iOS HIG 的最小点击尺寸是 44，再留点余量）。
 // 矩形跟着 SVG 的用户单位走，缩放时自动跟着变，不需要监听 resize。
@@ -99,7 +99,7 @@ interface TapTarget {
 }
 
 const TAP_TARGETS: TapTarget[] = [
-  { selector: '#time-mailbox', fallbackBox: { x: 757.2, y: 606.8, width: 72.7, height: 151.9 } },
+  { selector: '#time-mailbox', fallbackBox: { x: 749.93, y: 576.42, width: 87.24, height: 182.28 } },
   { selector: '#reading-clock', fallbackBox: { x: 465.9, y: 443, width: 53.5, height: 65.4 } },
 ];
 

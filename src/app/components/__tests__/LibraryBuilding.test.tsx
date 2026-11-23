@@ -50,6 +50,14 @@ function hitArea(container: HTMLElement, selector: string) {
 }
 
 describe('LibraryBuilding 点击命中范围', () => {
+  it('邮筒以底座落点为锚点整体等比放大 1.2 倍', () => {
+    const { container } = renderBuilding();
+    const art = container.querySelector('#time-mailbox > [data-mailbox-scale]');
+
+    expect(art).not.toBeNull();
+    expect(art!.getAttribute('transform')).toBe('translate(-158.71 -151.74) scale(1.2)');
+  });
+
   it('邮筒补上透明命中区，边长不小于 48px', () => {
     const { container } = renderBuilding();
     const hit = hitArea(container, '#time-mailbox');
@@ -109,7 +117,7 @@ describe('LibraryBuilding 点击命中范围', () => {
 
   it('点到投信口里的信纸也能打开邮箱', () => {
     const { container, onMailboxClick } = renderBuilding();
-    const letter = container.querySelector('#time-mailbox > rect')!;
+    const letter = container.querySelector('#time-mailbox [data-mailbox-scale] > rect')!;
     expect(letter).not.toBeNull();
 
     fireEvent.click(letter);
@@ -150,9 +158,9 @@ describe('LibraryBuilding 未读气泡', () => {
     const badge = container.querySelector<HTMLElement>('[data-unread-badge]');
 
     expect(badge).not.toBeNull();
-    // 邮筒墨迹在 viewBox 里占 x 82.4%~90.3%、y 74.6%~93.3%；气泡圆心要落在它的右上方外侧
-    expect(parseFloat(badge!.style.left)).toBeGreaterThan(90.3);
-    expect(parseFloat(badge!.style.top)).toBeLessThan(74.6);
+    // 放大后的邮筒墨迹在 viewBox 里占 x 81.6%~91.1%、y 70.9%~93.3%；气泡圆心要落在它的右上方外侧
+    expect(parseFloat(badge!.style.left)).toBeGreaterThan(91.1);
+    expect(parseFloat(badge!.style.top)).toBeLessThan(70.9);
     // 直径 13px @ 320px 宽的插画
     expect(parseFloat(badge!.style.width)).toBeCloseTo(13 / 320 * 100, 3);
   });
@@ -192,7 +200,7 @@ describe('LibraryBuilding 深色模式插画', () => {
       expect(Number(hit.getAttribute('height'))).toBeGreaterThanOrEqual(48);
     }
 
-    fireEvent.click(container.querySelector('#time-mailbox > rect')!);
+    fireEvent.click(container.querySelector('#time-mailbox [data-mailbox-scale] > rect')!);
     fireEvent.click(container.querySelector('#reading-clock > rect')!);
     expect(onMailboxClick).toHaveBeenCalledTimes(1);
     expect(onClockClick).toHaveBeenCalledTimes(1);

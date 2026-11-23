@@ -588,7 +588,8 @@
   </g>
   <!-- 邮筒：点开时光信箱。id 是手加的，Illustrator 重新导出会丢。 -->
   <g id="time-mailbox" style="cursor:pointer">
-    <g>
+    <!-- 回顾主入口：以底座落点为锚点整体等比放大 20%，视觉和点击范围同步变化。 -->
+    <g data-mailbox-scale="1.2" transform="translate(-158.71 -151.74) scale(1.2)">
       <ellipse class="st56" cx="792.8" cy="749.3" rx="35.6" ry="9.4"/>
       <g>
         <rect class="st21" x="787.8" y="622.8" width="9.1" height="130.3" rx="2.3" ry="2.3"/>
@@ -599,9 +600,9 @@
         <line class="st60" x1="815" y1="621.3" x2="829.9" y2="621.3"/>
         <path class="st27" id="time-mailbox-lid" d="M813.2,621.2v-14.4l14.7,7.4-14.7,7.4h0v-.3h0Z"/>
       </g>
+      <!-- 投信口里的信纸。必须留在 #time-mailbox 里面，点到它才算点到邮筒。 -->
+      <rect class="st17" x="783.3" y="646.1" width="32.4" height="21.9" rx="4.2" ry="4.2"/>
     </g>
-    <!-- 投信口里的信纸。必须留在 #time-mailbox 里面，点到它才算点到邮筒。 -->
-    <rect class="st17" x="783.3" y="646.1" width="32.4" height="21.9" rx="4.2" ry="4.2"/>
   </g>
   <g>
     <ellipse class="st56" cx="144.6" cy="761.9" rx="34.2" ry="14.6"/>
