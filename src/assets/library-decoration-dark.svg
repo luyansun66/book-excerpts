@@ -675,8 +675,8 @@
   </g>
   <!-- 邮筒：点开时光信箱。id 是手加的，Illustrator 重新导出会丢。 -->
   <g id="time-mailbox" style="cursor:pointer">
-    <!-- 回顾主入口：以底座落点为锚点整体等比放大 20%，视觉和点击范围同步变化。 -->
-    <g data-mailbox-scale="1.2" transform="translate(-158.71 -151.74) scale(1.2)">
+    <!-- 回顾主入口：以底座落点为锚点等比放大 20%，再按 320px 基准右移 4px。 -->
+    <g data-mailbox-scale="1.2" transform="translate(-147.225 -151.74) scale(1.2)">
       <ellipse class="st28" cx="792.8" cy="749.3" rx="35.6" ry="9.4"/>
       <g>
         <rect class="st24" x="787.8" y="622.8" width="9.1" height="130.3" rx="2.3" ry="2.3"/>
@@ -691,7 +691,7 @@
       <rect class="st16" x="783.3" y="646.1" width="32.4" height="21.9" rx="4.2" ry="4.2"/>
     </g>
   </g>
-  <g>
+  <g id="reading-sign" data-sign-scale="1.1" transform="translate(-15.12 -77.59) scale(1.1)">
     <ellipse class="st28" cx="151.2" cy="761.3" rx="34.2" ry="14.6"/>
     <g>
       <rect class="st24" x="148.3" y="677.1" width="8.9" height="88.2" rx="4" ry="4"/>

@@ -50,12 +50,20 @@ function hitArea(container: HTMLElement, selector: string) {
 }
 
 describe('LibraryBuilding 点击命中范围', () => {
-  it('邮筒以底座落点为锚点整体等比放大 1.2 倍', () => {
+  it('邮筒以底座落点为锚点等比放大 1.2 倍，并向右侧移动 4px', () => {
     const { container } = renderBuilding();
     const art = container.querySelector('#time-mailbox > [data-mailbox-scale]');
 
     expect(art).not.toBeNull();
-    expect(art!.getAttribute('transform')).toBe('translate(-158.71 -151.74) scale(1.2)');
+    expect(art!.getAttribute('transform')).toBe('translate(-147.225 -151.74) scale(1.2)');
+  });
+
+  it('左侧路牌以底部落点为锚点整体放大 1.1 倍', () => {
+    const { container } = renderBuilding();
+    const sign = container.querySelector('#reading-sign');
+
+    expect(sign).not.toBeNull();
+    expect(sign!.getAttribute('transform')).toBe('translate(-14.46 -77.65) scale(1.1)');
   });
 
   it('邮筒补上透明命中区，边长不小于 48px', () => {
@@ -158,8 +166,8 @@ describe('LibraryBuilding 未读气泡', () => {
     const badge = container.querySelector<HTMLElement>('[data-unread-badge]');
 
     expect(badge).not.toBeNull();
-    // 放大后的邮筒墨迹在 viewBox 里占 x 81.6%~91.1%、y 70.9%~93.3%；气泡圆心要落在它的右上方外侧
-    expect(parseFloat(badge!.style.left)).toBeGreaterThan(91.1);
+    // 放大并右移后的邮筒墨迹在 viewBox 里占 x 82.9%~92.4%、y 70.9%~93.3%；气泡圆心要落在它的右上方外侧
+    expect(parseFloat(badge!.style.left)).toBeGreaterThan(92.4);
     expect(parseFloat(badge!.style.top)).toBeLessThan(70.9);
     // 直径 13px @ 320px 宽的插画
     expect(parseFloat(badge!.style.width)).toBeCloseTo(13 / 320 * 100, 3);
@@ -193,6 +201,9 @@ describe('LibraryBuilding 深色模式插画', () => {
 
     expect(container.querySelector('[data-art="dark"]')).not.toBeNull();
     expect(container.querySelector('[data-art="light"]')).toBeNull();
+    expect(container.querySelector('#reading-sign')!.getAttribute('transform')).toBe(
+      'translate(-15.12 -77.59) scale(1.1)'
+    );
 
     for (const selector of ['#time-mailbox', '#reading-clock']) {
       const hit = hitArea(container, selector);
